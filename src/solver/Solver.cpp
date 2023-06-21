@@ -1,24 +1,40 @@
 #include "Solver.h"
 
-namespace mfem {
+#include "constants.h"
+
 namespace pulmtln {
 
+void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
+{
+    MFEM_ASSERT(attrs.Max() <= max_attr, "Invalid attribute number present.");
+
+    marker.SetSize(max_attr);
+    if (attrs.Size() == 1 && attrs[0] == -1)
+    {
+        marker = 1;
+    }
+    else
+    {
+        marker = 0;
+        for (int j = 0; j < attrs.Size(); j++)
+        {
+            int attr = attrs[j];
+            MFEM_VERIFY(attr > 0, "Attribute number less than one!");
+            marker[attr - 1] = 1;
+        }
+    }
+}
+
 Solver::Solver(
-    Mesh& mesh, 
-    SolverOptions opts,
-    Array<int>& dbcs, Vector& dbcv,
-    Array<int>& nbcs, Vector& nbcv,
-    Coefficient& epsCoef,
-    double (*phi_bc)(const Vector&),
-    double (*rho_src)(const Vector&))
-    : 
-    mesh_(mesh),
+    Model& model, 
+    const SolverOptions& opts) : 
     opts_(opts),
-    dbcs_(&dbcs),
-    dbcv_(&dbcv),
-    nbcs_(&nbcs),
-    nbcv_(&nbcv),
-    visit_dc_(NULL),
+    mesh_(&model.mesh),
+    dbcs_(&model.dbcs),
+    dbcv_(&model.dbcv),
+    nbcs_(&model.nbcs),
+    nbcv_(&model.nbcv),
+    paraview_dc_(NULL),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
     HDivFESpace_(NULL),
@@ -35,18 +51,10 @@ Solver::Solver(
     rt_surf_int_(NULL),
     grad_(NULL),
     phi_(NULL),
-    rho_src_(NULL),
     rho_(NULL),
-    sigma_src_(NULL),
     e_(NULL),
     d_(NULL),
-    oneCoef_(1.0),
-    epsCoef_(&epsCoef),
-    phiBCCoef_(NULL),
-    rhoCoef_(NULL),
-    pCoef_(NULL),
-    phi_bc_func_(phi_bc),
-    rho_src_func_(rho_src)
+    oneCoef_(1.0)
 {
     
     // Define compatible parallel finite element spaces on the parallel
@@ -59,118 +67,56 @@ Solver::Solver(
     L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
-    AttrToMarker(pmesh.bdr_attributes.Max(), *dbcs_, ess_bdr_);
+    AttrToMarker(mesh_->bdr_attributes.Max(), *dbcs_, ess_bdr_);
 
     // Setup various coefficients
-
-    // Potential on outer surface
-    if (phi_bc_func_ != NULL)
-    {
-        phiBCCoef_ = new FunctionCoefficient(*phi_bc_func_);
-    }
-
-    // Volume Charge Density
-    if (rho_src_func_ != NULL)
-    {
-        rhoCoef_ = new FunctionCoefficient(rho_src_func_);
-    }
-        
+    epsCoef_ = ConstantCoefficient(epsilon0_);
+    
     // Bilinear Forms
-    divEpsGrad_ = new ParBilinearForm(H1FESpace_);
-    divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
+    divEpsGrad_ = new BilinearForm(H1FESpace_);
+    divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(epsCoef_));
 
-    hDivMass_ = new ParBilinearForm(HDivFESpace_);
+    hDivMass_ = new BilinearForm(HDivFESpace_);
     hDivMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
 
-    hCurlHDivEps_ = new ParMixedBilinearForm(HCurlFESpace_, HDivFESpace_);
-    hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(*epsCoef_));
+    hCurlHDivEps_ = new MixedBilinearForm(HCurlFESpace_, HDivFESpace_);
+    hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(epsCoef_));
 
-    rhod_ = new ParLinearForm(H1FESpace_);
+    rhod_ = new LinearForm(H1FESpace_);
 
-    l2_vol_int_ = new ParLinearForm(L2FESpace_);
+    l2_vol_int_ = new LinearForm(L2FESpace_);
     l2_vol_int_->AddDomainIntegrator(new DomainLFIntegrator(oneCoef_));
 
-    rt_surf_int_ = new ParLinearForm(HDivFESpace_);
+    rt_surf_int_ = new LinearForm(HDivFESpace_);
     rt_surf_int_->AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator);
 
     // Discrete derivative operator
-    grad_ = new ParDiscreteGradOperator(H1FESpace_, HCurlFESpace_);
-    div_ = new ParDiscreteDivOperator(HDivFESpace_, L2FESpace_);
+    grad_ = new DiscreteGradOperator(H1FESpace_, HCurlFESpace_);
+    div_ = new DiscreteDivOperator(HDivFESpace_, L2FESpace_);
 
     // Build grid functions
-    phi_ = new ParGridFunction(H1FESpace_);
-    d_ = new ParGridFunction(HDivFESpace_);
-    e_ = new ParGridFunction(HCurlFESpace_);
-    rho_ = new ParGridFunction(L2FESpace_);
-
-    if (point_charge_params_.Size() > 0)
-    {
-        int dim = mesh_->Dimension();
-        int npts = point_charge_params_.Size() / (dim + 1);
-        point_charges_.resize(npts);
-
-        Vector cent(dim);
-        for (int i = 0; i < npts; i++)
-        {
-            for (int d = 0; d < dim; d++)
-            {
-                cent[d] = point_charge_params_[(dim + 1) * i + d];
-            }
-            double s = point_charge_params_[(dim + 1) * i + dim];
-
-            point_charges_[i] = new DeltaCoefficient();
-            point_charges_[i]->SetScale(s);
-            point_charges_[i]->SetDeltaCenter(cent);
-
-            rhod_->AddDomainIntegrator(new DomainLFIntegrator(*point_charges_[i]));
-        }
-    }
-
-    if (rho_src_func_)
-    {
-        rho_src_ = new ParGridFunction(H1FESpace_);
-
-        h1Mass_ = new ParBilinearForm(H1FESpace_);
-        h1Mass_->AddDomainIntegrator(new MassIntegrator);
-    }
-
-    if (p_src_func_)
-    {
-        p_src_ = new ParGridFunction(HCurlFESpace_);
-
-        hCurlHDiv_ = new ParMixedBilinearForm(HCurlFESpace_, HDivFESpace_);
-        hCurlHDiv_->AddDomainIntegrator(new VectorFEMassIntegrator);
-
-        weakDiv_ = new ParMixedBilinearForm(HCurlFESpace_, H1FESpace_);
-        weakDiv_->AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
-    }
+    phi_ = new GridFunction(H1FESpace_);
+    d_ = new GridFunction(HDivFESpace_);
+    e_ = new GridFunction(HCurlFESpace_);
+    rho_ = new GridFunction(L2FESpace_);
 
     if (nbcs_->Size() > 0)
     {
-        sigma_src_ = new ParGridFunction(H1FESpace_);
-
-        h1SurfMass_ = new ParBilinearForm(H1FESpace_);
+        h1SurfMass_ = new BilinearForm(H1FESpace_);
         h1SurfMass_->AddBoundaryIntegrator(new MassIntegrator);
     }
 }
 
 Solver::~Solver()
-{
-    delete phiBCCoef_;
-    delete rhoCoef_;
-    delete pCoef_;
-
+{   
     delete phi_;
-    delete rho_src_;
     delete rho_;
     delete rhod_;
     delete l2_vol_int_;
     delete rt_surf_int_;
-    delete sigma_src_;
     delete d_;
     delete e_;
-    delete p_src_;
-
+    
     delete grad_;
     delete div_;
 
@@ -187,43 +133,11 @@ Solver::~Solver()
     delete HDivFESpace_;
     delete L2FESpace_;
 
-    for (unsigned int i = 0; i < point_charges_.size(); i++)
-    {
-        delete point_charges_[i];
-    }
-
-    map<string, socketstream*>::iterator mit;
-    for (mit = socks_.begin(); mit != socks_.end(); mit++)
-    {
-        delete mit->second;
-    }
-}
-
-HYPRE_BigInt
-    Solver::GetProblemSize()
-{
-    return H1FESpace_->GlobalTrueVSize();
-}
-
-void
-    Solver::PrintSizes()
-{
-    HYPRE_BigInt size_h1 = H1FESpace_->GlobalTrueVSize();
-    HYPRE_BigInt size_nd = HCurlFESpace_->GlobalTrueVSize();
-    HYPRE_BigInt size_rt = HDivFESpace_->GlobalTrueVSize();
-    HYPRE_BigInt size_l2 = L2FESpace_->GlobalTrueVSize();
-    if (myid_ == 0)
-    {
-        cout << "Number of H1      unknowns: " << size_h1 << endl;
-        cout << "Number of H(Curl) unknowns: " << size_nd << endl;
-        cout << "Number of H(Div)  unknowns: " << size_rt << endl;
-        cout << "Number of L2      unknowns: " << size_l2 << endl;
-    }
 }
 
 void Solver::Assemble()
 {
-    if (myid_ == 0) { cout << "Assembling ... " << flush; }
+    std::cout << "Assembling ... " << std::flush; 
 
     divEpsGrad_->Assemble();
     divEpsGrad_->Finalize();
@@ -267,17 +181,13 @@ void Solver::Assemble()
         weakDiv_->Finalize();
     }
 
-    std::cout << "done." << std::endl << std::flush; }
+    std::cout << "done." << std::endl << std::flush; 
 }
 
-void
-    Solver::Update()
+void Solver::Update()
 {
-    if (myid_ == 0) { cout << "Updating ..." << endl; }
+    std::cout << "Updating ..." << std::endl;
 
-    // Inform the spaces that the mesh has changed
-    // Note: we don't need to interpolate any GridFunctions on the new mesh
-    // so we pass 'false' to skip creation of any transformation matrices.
     H1FESpace_->Update(false);
     HCurlFESpace_->Update(false);
     HDivFESpace_->Update(false);
@@ -291,9 +201,6 @@ void
     d_->Update();
     e_->Update();
     rho_->Update();
-    if (rho_src_) { rho_src_->Update(); }
-    if (sigma_src_) { sigma_src_->Update(); }
-    if (p_src_) { p_src_->Update(); }
 
     // Inform the bilinear forms that the space has changed.
     divEpsGrad_->Update();
@@ -310,70 +217,29 @@ void
     div_->Update();
 }
 
-void
-    Solver::Solve()
+void Solver::Solve()
 {
-    if (myid_ == 0) { cout << "Running solver ... " << endl; }
+    std::cout << "Running solver ... " << std::endl;
 
     // Initialize the electric potential with its boundary conditions
     *phi_ = 0.0;
 
     if (dbcs_->Size() > 0)
     {
-        if (phiBCCoef_)
+        // Apply piecewise constant boundary condition
+        Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
+        for (int i = 0; i < dbcs_->Size(); i++)
         {
-            // Apply gradient boundary condition
-            phi_->ProjectBdrCoefficient(*phiBCCoef_, ess_bdr_);
-        }
-        else
-        {
-            // Apply piecewise constant boundary condition
-            Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
-            for (int i = 0; i < dbcs_->Size(); i++)
+            ConstantCoefficient voltage((*dbcv_)[i]);
+            dbc_bdr_attr = 0;
+            if ((*dbcs_)[i] <= dbc_bdr_attr.Size())
             {
-                ConstantCoefficient voltage((*dbcv_)[i]);
-                dbc_bdr_attr = 0;
-                if ((*dbcs_)[i] <= dbc_bdr_attr.Size())
-                {
-                    dbc_bdr_attr[(*dbcs_)[i] - 1] = 1;
-                }
-                phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
+                dbc_bdr_attr[(*dbcs_)[i] - 1] = 1;
             }
+            phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
         }
     }
 
-    // Initialize the volumetric charge density
-    if (rho_src_)
-    {
-        rho_src_->ProjectCoefficient(*rhoCoef_);
-        h1Mass_->AddMult(*rho_src_, *rhod_);
-    }
-
-    // Initialize the Polarization
-    if (p_src_)
-    {
-        p_src_->ProjectCoefficient(*pCoef_);
-        weakDiv_->AddMult(*p_src_, *rhod_);
-    }
-
-    // Initialize the surface charge density
-    if (sigma_src_)
-    {
-        *sigma_src_ = 0.0;
-
-        Array<int> nbc_bdr_attr(mesh_->bdr_attributes.Max());
-        for (int i = 0; i < nbcs_->Size(); i++)
-        {
-            ConstantCoefficient sigma_coef((*nbcv_)[i]);
-            nbc_bdr_attr = 0;
-            if ((*nbcs_)[i] <= nbc_bdr_attr.Size())
-            {
-                nbc_bdr_attr[(*nbcs_)[i] - 1] = 1;
-            }
-            sigma_src_->ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
-        }
-        h1SurfMass_->AddMult(*sigma_src_, *rhod_);
-    }
 
     // Determine the essential BC degrees of freedom
     if (dbcs_->Size() > 0)
@@ -384,30 +250,21 @@ void
     else
     {
         // Use the first DoF on processor zero by default
-        if (myid_ == 0)
-        {
-            ess_bdr_tdofs_.SetSize(1);
-            ess_bdr_tdofs_[0] = 0;
-        }
+        ess_bdr_tdofs_.SetSize(1);
+        ess_bdr_tdofs_[0] = 0;
     }
 
     // Apply essential BC and form linear system
-    HypreParMatrix DivEpsGrad;
-    HypreParVector Phi(H1FESpace_);
-    HypreParVector RHS(H1FESpace_);
+    SparseMatrix DivEpsGrad;
+    Vector Phi;
+    Vector RHS;
 
-    divEpsGrad_->FormLinearSystem(ess_bdr_tdofs_, *phi_, *rhod_, DivEpsGrad,
-        Phi, RHS);
+    divEpsGrad_->FormLinearSystem(
+        ess_bdr_tdofs_, *phi_, *rhod_, 
+        DivEpsGrad, Phi, RHS);
 
-    // Define and apply a parallel PCG solver for AX=B with the AMG
-    // preconditioner from hypre.
-    HypreBoomerAMG amg(DivEpsGrad);
-    HyprePCG pcg(DivEpsGrad);
-    pcg.SetTol(1e-12);
-    pcg.SetMaxIter(500);
-    pcg.SetPrintLevel(2);
-    pcg.SetPreconditioner(amg);
-    pcg.Mult(RHS, Phi);
+    GSSmoother M(DivEpsGrad);
+    PCG(DivEpsGrad, M, RHS, Phi, 1, 200, 1e-12, 0.0);
 
     // Extract the parallel grid function corresponding to the finite
     // element approximation Phi. This is the local solution on each
@@ -420,35 +277,27 @@ void
     grad_->Mult(*phi_, *e_); *e_ *= -1.0;
 
     // Compute electric displacement (D) from E and P (if present)
-    if (myid_ == 0) { cout << "Computing D ..." << flush; }
+    std::cout  << "Computing D ..." << std::flush;
 
-    ParGridFunction ed(HDivFESpace_);
+    GridFunction ed(HDivFESpace_);
     hCurlHDivEps_->Mult(*e_, ed);
-    if (p_src_)
-    {
-        hCurlHDiv_->AddMult(*p_src_, ed, -1.0);
-    }
-
-    HypreParMatrix MassHDiv;
+    
+    SparseMatrix MassHDiv;
     Vector ED, D;
 
     Array<int> dbc_dofs_d;
     hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
 
-    HyprePCG pcgM(MassHDiv);
-    pcgM.SetTol(1e-12);
-    pcgM.SetMaxIter(500);
-    pcgM.SetPrintLevel(0);
-    HypreDiagScale diagM;
-    pcgM.SetPreconditioner(diagM);
-    pcgM.Mult(ED, D);
+    DSmoother diagM;
+    PCG(MassHDiv, diagM, ED, D, 0, 200, 1e-12);
+    diagM.Mult(ED, D);
 
     hDivMass_->RecoverFEMSolution(D, ed, *d_);
 
     // Compute charge density from rho = Div(D)
     div_->Mult(*d_, *rho_);
 
-    if (myid_ == 0) { cout << "done." << flush; }
+    std::cout  << "done." << std::flush;
 
     {
         // Compute total charge as volume integral of rho
@@ -457,17 +306,37 @@ void
         // Compute total charge as surface integral of D
         double charge_D = (*rt_surf_int_)(*d_);
 
-        if (myid_ == 0)
-        {
-            cout << endl << "Total charge: \n"
-                << "   Volume integral of charge density:   " << charge_rho
-                << "\n   Surface integral of dielectric flux: " << charge_D
-                << endl << flush;
-        }
+        std::cout << std::endl << "Total charge: \n"
+            << "   Volume integral of charge density:   " << charge_rho
+            << "\n   Surface integral of dielectric flux: " << charge_D
+            << std::endl << std::flush;
     }
 
-    if (myid_ == 0) { cout << "Solver done. " << endl; }
+    std::cout << "Solver done. " << std::endl; 
 }
-    
-} 
+
+void Solver::RegisterParaViewFields(ParaViewDataCollection& pv)
+{
+    paraview_dc_ = &pv;
+
+    pv.RegisterField("Phi", phi_);
+    pv.RegisterField("D", d_);
+    pv.RegisterField("E", e_);
+    pv.RegisterField("Rho", rho_);
+}
+
+void Solver::WriteParaViewFields()
+{
+    if (!paraview_dc_) {
+        throw std::runtime_error("Paraview register not initialized.");
+    }
+    std::cout << "Writing ParaView files ..." << std::flush;
+
+    //paraview_dc_->SetCycle(0);
+    //paraview_dc_->SetTime(0);
+    paraview_dc_->Save();
+
+    std::cout << " done." << std::endl;
+}
+
 }

@@ -1,8 +1,5 @@
 #include "FES.h"
 
-using namespace std;
-
-namespace mfem {
 namespace pulmtln {
 
 H1_FESpace::H1_FESpace(Mesh *m,
@@ -72,5 +69,4 @@ DiscreteDivOperator::DiscreteDivOperator(FiniteElementSpace* dfes,
     this->AddDomainInterpolator(new DivergenceInterpolator);
 }
 
-}
 }

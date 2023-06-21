@@ -4,8 +4,9 @@
 
 #include <cstddef>
 
-namespace mfem {
 namespace pulmtln {
+
+using namespace mfem;
 
 class H1_FESpace : public FiniteElementSpace
 {
@@ -70,5 +71,4 @@ public:
 };
 
 
-}
 }
