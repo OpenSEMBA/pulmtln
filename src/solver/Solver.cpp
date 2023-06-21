@@ -1,348 +1,489 @@
 #include "Solver.h"
 
-#include "adapter/OpensembaAdapter.h"
-
-#include <fstream>
-#include <iostream>
-#include <algorithm>
-
+using namespace std;
 using namespace mfem;
 
-namespace maxwell {
+namespace pulmtln {
 
-std::unique_ptr<FiniteElementSpace> buildFiniteElementSpace(Mesh* m, FiniteElementCollection* fec)
+VoltaSolver::VoltaSolver(ParMesh& pmesh, int order,
+    Array<int>& dbcs, Vector& dbcv,
+    Array<int>& nbcs, Vector& nbcv,
+    Coefficient& epsCoef,
+    double (*phi_bc)(const Vector&),
+    double (*rho_src)(const Vector&),
+    void   (*p_src)(const Vector&, Vector&),
+    Vector& point_charges)
+    : myid_(0),
+    num_procs_(1),
+    order_(order),
+    pmesh_(&pmesh),
+    dbcs_(&dbcs),
+    dbcv_(&dbcv),
+    nbcs_(&nbcs),
+    nbcv_(&nbcv),
+    visit_dc_(NULL),
+    H1FESpace_(NULL),
+    HCurlFESpace_(NULL),
+    HDivFESpace_(NULL),
+    L2FESpace_(NULL),
+    divEpsGrad_(NULL),
+    h1Mass_(NULL),
+    h1SurfMass_(NULL),
+    hDivMass_(NULL),
+    hCurlHDivEps_(NULL),
+    hCurlHDiv_(NULL),
+    weakDiv_(NULL),
+    rhod_(NULL),
+    l2_vol_int_(NULL),
+    rt_surf_int_(NULL),
+    grad_(NULL),
+    phi_(NULL),
+    rho_src_(NULL),
+    rho_(NULL),
+    sigma_src_(NULL),
+    e_(NULL),
+    d_(NULL),
+    p_src_(NULL),
+    oneCoef_(1.0),
+    epsCoef_(&epsCoef),
+    phiBCCoef_(NULL),
+    rhoCoef_(NULL),
+    pCoef_(NULL),
+    phi_bc_func_(phi_bc),
+    rho_src_func_(rho_src),
+    p_src_func_(p_src),
+    point_charge_params_(point_charges),
+    point_charges_(0)
 {
-#ifdef MAXWELL_USE_MPI	
-	if (dynamic_cast<ParMesh*>(m) != nullptr) {
-		auto pm{ dynamic_cast<ParMesh*>(m) };
-		return std::make_unique<ParFiniteElementSpace>(pm, fec);
-	}
-#endif
-	if (dynamic_cast<Mesh*>(m) != nullptr) {
-		return std::make_unique<FiniteElementSpace>(m, fec);
-	}
-	throw std::runtime_error("Invalid mesh to build FiniteElementSpace");
+    // Initialize MPI variables
+    MPI_Comm_size(pmesh_->GetComm(), &num_procs_);
+    MPI_Comm_rank(pmesh_->GetComm(), &myid_);
+
+    // Define compatible parallel finite element spaces on the parallel
+    // mesh. Here we use arbitrary order H1, Nedelec, and Raviart-Thomas finite
+    // elements.
+    H1FESpace_ = new H1_ParFESpace(pmesh_, order, pmesh_->Dimension());
+    HCurlFESpace_ = new ND_ParFESpace(pmesh_, order, pmesh_->Dimension());
+    HDivFESpace_ = new RT_ParFESpace(pmesh_, order, pmesh_->Dimension());
+    L2FESpace_ = new L2_ParFESpace(pmesh_, order - 1, pmesh_->Dimension());
+
+    // Select surface attributes for Dirichlet BCs
+    AttrToMarker(pmesh.bdr_attributes.Max(), *dbcs_, ess_bdr_);
+
+    // Setup various coefficients
+
+    // Potential on outer surface
+    if (phi_bc_func_ != NULL)
+    {
+        phiBCCoef_ = new FunctionCoefficient(*phi_bc_func_);
+    }
+
+    // Volume Charge Density
+    if (rho_src_func_ != NULL)
+    {
+        rhoCoef_ = new FunctionCoefficient(rho_src_func_);
+    }
+
+    // Polarization
+    if (p_src_func_ != NULL)
+    {
+        pCoef_ = new VectorFunctionCoefficient(pmesh_->SpaceDimension(),
+            p_src_func_);
+    }
+
+    // Bilinear Forms
+    divEpsGrad_ = new ParBilinearForm(H1FESpace_);
+    divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
+
+    hDivMass_ = new ParBilinearForm(HDivFESpace_);
+    hDivMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
+
+    hCurlHDivEps_ = new ParMixedBilinearForm(HCurlFESpace_, HDivFESpace_);
+    hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(*epsCoef_));
+
+    rhod_ = new ParLinearForm(H1FESpace_);
+
+    l2_vol_int_ = new ParLinearForm(L2FESpace_);
+    l2_vol_int_->AddDomainIntegrator(new DomainLFIntegrator(oneCoef_));
+
+    rt_surf_int_ = new ParLinearForm(HDivFESpace_);
+    rt_surf_int_->AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator);
+
+    // Discrete derivative operator
+    grad_ = new ParDiscreteGradOperator(H1FESpace_, HCurlFESpace_);
+    div_ = new ParDiscreteDivOperator(HDivFESpace_, L2FESpace_);
+
+    // Build grid functions
+    phi_ = new ParGridFunction(H1FESpace_);
+    d_ = new ParGridFunction(HDivFESpace_);
+    e_ = new ParGridFunction(HCurlFESpace_);
+    rho_ = new ParGridFunction(L2FESpace_);
+
+    if (point_charge_params_.Size() > 0)
+    {
+        int dim = pmesh_->Dimension();
+        int npts = point_charge_params_.Size() / (dim + 1);
+        point_charges_.resize(npts);
+
+        Vector cent(dim);
+        for (int i = 0; i < npts; i++)
+        {
+            for (int d = 0; d < dim; d++)
+            {
+                cent[d] = point_charge_params_[(dim + 1) * i + d];
+            }
+            double s = point_charge_params_[(dim + 1) * i + dim];
+
+            point_charges_[i] = new DeltaCoefficient();
+            point_charges_[i]->SetScale(s);
+            point_charges_[i]->SetDeltaCenter(cent);
+
+            rhod_->AddDomainIntegrator(new DomainLFIntegrator(*point_charges_[i]));
+        }
+    }
+
+    if (rho_src_func_)
+    {
+        rho_src_ = new ParGridFunction(H1FESpace_);
+
+        h1Mass_ = new ParBilinearForm(H1FESpace_);
+        h1Mass_->AddDomainIntegrator(new MassIntegrator);
+    }
+
+    if (p_src_func_)
+    {
+        p_src_ = new ParGridFunction(HCurlFESpace_);
+
+        hCurlHDiv_ = new ParMixedBilinearForm(HCurlFESpace_, HDivFESpace_);
+        hCurlHDiv_->AddDomainIntegrator(new VectorFEMassIntegrator);
+
+        weakDiv_ = new ParMixedBilinearForm(HCurlFESpace_, H1FESpace_);
+        weakDiv_->AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
+    }
+
+    if (nbcs_->Size() > 0)
+    {
+        sigma_src_ = new ParGridFunction(H1FESpace_);
+
+        h1SurfMass_ = new ParBilinearForm(H1FESpace_);
+        h1SurfMass_->AddBoundaryIntegrator(new MassIntegrator);
+    }
 }
 
-Solver::Solver(const std::string& smbFilename) :
-	Solver{ OpensembaAdapter{smbFilename}.readSolverInput() }
-{}
-
-Solver::Solver(const SolverInput& in) :
-	Solver{in.problem, in.options}
-{}
-
-Solver::Solver(const Problem& problem, const SolverOptions& options) :
-	Solver{problem.model, problem.probes, problem.sources, options}
-{}
-
-Solver::Solver(
-	const Model& model,
-	const Probes& probes,
-	const Sources& sources,
-	const SolverOptions& options) :
-	opts_{ options },
-	model_{ model },
-	fec_{ opts_.evolution.order, model_.getMesh().Dimension(), BasisType::GaussLobatto},
-	fes_{ buildFiniteElementSpace(& model_.getMesh(), &fec_) },
-	fields_{ *fes_ },
-	sourcesManager_{ sources, *fes_ },
-	probesManager_{ probes, *fes_, fields_, opts_ },
-	time_{0.0}
+VoltaSolver::~VoltaSolver()
 {
-	
-	checkOptionsAreValid(opts_);
+    delete phiBCCoef_;
+    delete rhoCoef_;
+    delete pCoef_;
 
-	if (opts_.timeStep == 0.0) {
-		dt_ = estimateTimeStep();
-	}
-	else {
-		dt_ = opts_.timeStep;
-	}
+    delete phi_;
+    delete rho_src_;
+    delete rho_;
+    delete rhod_;
+    delete l2_vol_int_;
+    delete rt_surf_int_;
+    delete sigma_src_;
+    delete d_;
+    delete e_;
+    delete p_src_;
 
-	if (opts_.evolution.spectral == true) {
-		performSpectralAnalysis(*fes_.get(), model_, opts_.evolution);
-	}
+    delete grad_;
+    delete div_;
 
-	sourcesManager_.setInitialFields(fields_);
-	maxwellEvol_ = std::make_unique<Evolution>(
-			*fes_, model_, sourcesManager_, opts_.evolution);
-	
-	maxwellEvol_->SetTime(time_);
-	odeSolver_->Init(*maxwellEvol_);
+    delete divEpsGrad_;
+    delete h1Mass_;
+    delete h1SurfMass_;
+    delete hDivMass_;
+    delete hCurlHDivEps_;
+    delete hCurlHDiv_;
+    delete weakDiv_;
 
-	probesManager_.updateProbes(time_);
+    delete H1FESpace_;
+    delete HCurlFESpace_;
+    delete HDivFESpace_;
+    delete L2FESpace_;
 
+    for (unsigned int i = 0; i < point_charges_.size(); i++)
+    {
+        delete point_charges_[i];
+    }
 
+    map<string, socketstream*>::iterator mit;
+    for (mit = socks_.begin(); mit != socks_.end(); mit++)
+    {
+        delete mit->second;
+    }
 }
 
-void Solver::checkOptionsAreValid(const SolverOptions& opts) const
+HYPRE_BigInt
+    VoltaSolver::GetProblemSize()
 {
-	if ((opts.evolution.order < 0) ||
-		(opts.finalTime < 0)) {
-		throw std::runtime_error("Incorrect parameters in Options");
-	}
-
-	if (opts.timeStep == 0.0) {
-		if (fes_->GetMesh()->Dimension() > 1) {
-			throw std::runtime_error("Automatic TS calculation not implemented yet for Dimensions higher than 1.");
-		}
-	}
-
-	for (const auto& bdrMarker : model_.getBoundaryToMarker())
-	{
-		if (bdrMarker.first == BdrCond::SMA && opts_.evolution.fluxType == FluxType::Centered) {
-			throw std::runtime_error("SMA and Centered FluxType are not compatible.");
-		}
-	}
+    return H1FESpace_->GlobalTrueVSize();
 }
 
-const PointProbe& Solver::getPointProbe(const std::size_t probe) const 
-{ 
-	return probesManager_.getPointProbe(probe); 
-}
-
-//const EnergyProbe& Solver::getEnergyProbe(const std::size_t probe) const
-//{
-//	return probesManager_.getEnergyProbe(probe);
-//}
-
-double getMinimumInterNodeDistance(FiniteElementSpace& fes)
+void
+    VoltaSolver::PrintSizes()
 {
-	GridFunction nodes(&fes);
-	fes.GetMesh()->GetNodes(nodes);
-	double res{ std::numeric_limits<double>::max() };
-	for (int e = 0; e < fes.GetMesh()->ElementToElementTable().Size(); ++e) {
-		Array<int> dofs;
-		fes.GetElementDofs(e, dofs);
-		if (dofs.Size() == 1) {
-			res = std::min(res, fes.GetMesh()->GetElementSize(e));
-		}
-		else {
-			for (int i = 0; i < dofs.Size(); ++i) {
-				for (int j = i + 1; j < dofs.Size(); ++j) {
-					res = std::min(res, std::abs(nodes[dofs[i]] - nodes[dofs[j]]));
-				}
-			}
-		}
-	}
-	return res;
+    HYPRE_BigInt size_h1 = H1FESpace_->GlobalTrueVSize();
+    HYPRE_BigInt size_nd = HCurlFESpace_->GlobalTrueVSize();
+    HYPRE_BigInt size_rt = HDivFESpace_->GlobalTrueVSize();
+    HYPRE_BigInt size_l2 = L2FESpace_->GlobalTrueVSize();
+    if (myid_ == 0)
+    {
+        cout << "Number of H1      unknowns: " << size_h1 << endl;
+        cout << "Number of H(Curl) unknowns: " << size_nd << endl;
+        cout << "Number of H(Div)  unknowns: " << size_rt << endl;
+        cout << "Number of L2      unknowns: " << size_l2 << endl;
+    }
 }
 
-double Solver::estimateTimeStep() const
+void VoltaSolver::Assemble()
 {
-	double signalSpeed{ 1.0 };
-	double maxTimeStep{ 0.0 };
-	if (opts_.evolution.order == 0) {
-		maxTimeStep = getMinimumInterNodeDistance(*fes_) / signalSpeed;
-	}
-	else {
-		maxTimeStep = getMinimumInterNodeDistance(*fes_) / pow(opts_.evolution.order, 1.5) / signalSpeed;
-	}
-	return opts_.cfl * maxTimeStep;
+    if (myid_ == 0) { cout << "Assembling ... " << flush; }
+
+    divEpsGrad_->Assemble();
+    divEpsGrad_->Finalize();
+
+    hDivMass_->Assemble();
+    hDivMass_->Finalize();
+
+    hCurlHDivEps_->Assemble();
+    hCurlHDivEps_->Finalize();
+
+    *rhod_ = 0.0;
+    rhod_->Assemble();
+
+    l2_vol_int_->Assemble();
+    rt_surf_int_->Assemble();
+
+    grad_->Assemble();
+    grad_->Finalize();
+
+    div_->Assemble();
+    div_->Finalize();
+
+    if (h1Mass_)
+    {
+        h1Mass_->Assemble();
+        h1Mass_->Finalize();
+    }
+    if (h1SurfMass_)
+    {
+        h1SurfMass_->Assemble();
+        h1SurfMass_->Finalize();
+    }
+    if (hCurlHDiv_)
+    {
+        hCurlHDiv_->Assemble();
+        hCurlHDiv_->Finalize();
+    }
+    if (weakDiv_)
+    {
+        weakDiv_->Assemble();
+        weakDiv_->Finalize();
+    }
+
+    if (myid_ == 0) { cout << "done." << endl << flush; }
 }
 
-void Solver::run()
+void
+    VoltaSolver::Update()
 {
-	while (time_ <= opts_.finalTime - 1e-8*dt_) {
-		step();
-	}
+    if (myid_ == 0) { cout << "Updating ..." << endl; }
+
+    // Inform the spaces that the mesh has changed
+    // Note: we don't need to interpolate any GridFunctions on the new mesh
+    // so we pass 'false' to skip creation of any transformation matrices.
+    H1FESpace_->Update(false);
+    HCurlFESpace_->Update(false);
+    HDivFESpace_->Update(false);
+    L2FESpace_->Update(false);
+
+    // Inform the grid functions that the space has changed.
+    phi_->Update();
+    rhod_->Update();
+    l2_vol_int_->Update();
+    rt_surf_int_->Update();
+    d_->Update();
+    e_->Update();
+    rho_->Update();
+    if (rho_src_) { rho_src_->Update(); }
+    if (sigma_src_) { sigma_src_->Update(); }
+    if (p_src_) { p_src_->Update(); }
+
+    // Inform the bilinear forms that the space has changed.
+    divEpsGrad_->Update();
+    hDivMass_->Update();
+    hCurlHDivEps_->Update();
+
+    if (h1Mass_) { h1Mass_->Update(); }
+    if (h1SurfMass_) { h1SurfMass_->Update(); }
+    if (hCurlHDiv_) { hCurlHDiv_->Update(); }
+    if (weakDiv_) { weakDiv_->Update(); }
+
+    // Inform the other objects that the space has changed.
+    grad_->Update();
+    div_->Update();
 }
 
-void Solver::step()
+void
+    VoltaSolver::Solve()
 {
-	double truedt{ std::min(dt_, opts_.finalTime - time_) };
-	odeSolver_->Step(fields_.allDOFs(), time_, truedt);
-	probesManager_.updateProbes(time_);
+    if (myid_ == 0) { cout << "Running solver ... " << endl; }
+
+    // Initialize the electric potential with its boundary conditions
+    *phi_ = 0.0;
+
+    if (dbcs_->Size() > 0)
+    {
+        if (phiBCCoef_)
+        {
+            // Apply gradient boundary condition
+            phi_->ProjectBdrCoefficient(*phiBCCoef_, ess_bdr_);
+        }
+        else
+        {
+            // Apply piecewise constant boundary condition
+            Array<int> dbc_bdr_attr(pmesh_->bdr_attributes.Max());
+            for (int i = 0; i < dbcs_->Size(); i++)
+            {
+                ConstantCoefficient voltage((*dbcv_)[i]);
+                dbc_bdr_attr = 0;
+                if ((*dbcs_)[i] <= dbc_bdr_attr.Size())
+                {
+                    dbc_bdr_attr[(*dbcs_)[i] - 1] = 1;
+                }
+                phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
+            }
+        }
+    }
+
+    // Initialize the volumetric charge density
+    if (rho_src_)
+    {
+        rho_src_->ProjectCoefficient(*rhoCoef_);
+        h1Mass_->AddMult(*rho_src_, *rhod_);
+    }
+
+    // Initialize the Polarization
+    if (p_src_)
+    {
+        p_src_->ProjectCoefficient(*pCoef_);
+        weakDiv_->AddMult(*p_src_, *rhod_);
+    }
+
+    // Initialize the surface charge density
+    if (sigma_src_)
+    {
+        *sigma_src_ = 0.0;
+
+        Array<int> nbc_bdr_attr(pmesh_->bdr_attributes.Max());
+        for (int i = 0; i < nbcs_->Size(); i++)
+        {
+            ConstantCoefficient sigma_coef((*nbcv_)[i]);
+            nbc_bdr_attr = 0;
+            if ((*nbcs_)[i] <= nbc_bdr_attr.Size())
+            {
+                nbc_bdr_attr[(*nbcs_)[i] - 1] = 1;
+            }
+            sigma_src_->ProjectBdrCoefficient(sigma_coef, nbc_bdr_attr);
+        }
+        h1SurfMass_->AddMult(*sigma_src_, *rhod_);
+    }
+
+    // Determine the essential BC degrees of freedom
+    if (dbcs_->Size() > 0)
+    {
+        // From user supplied boundary attributes
+        H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
+    }
+    else
+    {
+        // Use the first DoF on processor zero by default
+        if (myid_ == 0)
+        {
+            ess_bdr_tdofs_.SetSize(1);
+            ess_bdr_tdofs_[0] = 0;
+        }
+    }
+
+    // Apply essential BC and form linear system
+    HypreParMatrix DivEpsGrad;
+    HypreParVector Phi(H1FESpace_);
+    HypreParVector RHS(H1FESpace_);
+
+    divEpsGrad_->FormLinearSystem(ess_bdr_tdofs_, *phi_, *rhod_, DivEpsGrad,
+        Phi, RHS);
+
+    // Define and apply a parallel PCG solver for AX=B with the AMG
+    // preconditioner from hypre.
+    HypreBoomerAMG amg(DivEpsGrad);
+    HyprePCG pcg(DivEpsGrad);
+    pcg.SetTol(1e-12);
+    pcg.SetMaxIter(500);
+    pcg.SetPrintLevel(2);
+    pcg.SetPreconditioner(amg);
+    pcg.Mult(RHS, Phi);
+
+    // Extract the parallel grid function corresponding to the finite
+    // element approximation Phi. This is the local solution on each
+    // processor.
+    divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
+
+    // Compute the negative Gradient of the solution vector.  This is
+    // the magnetic field corresponding to the scalar potential
+    // represented by phi.
+    grad_->Mult(*phi_, *e_); *e_ *= -1.0;
+
+    // Compute electric displacement (D) from E and P (if present)
+    if (myid_ == 0) { cout << "Computing D ..." << flush; }
+
+    ParGridFunction ed(HDivFESpace_);
+    hCurlHDivEps_->Mult(*e_, ed);
+    if (p_src_)
+    {
+        hCurlHDiv_->AddMult(*p_src_, ed, -1.0);
+    }
+
+    HypreParMatrix MassHDiv;
+    Vector ED, D;
+
+    Array<int> dbc_dofs_d;
+    hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
+
+    HyprePCG pcgM(MassHDiv);
+    pcgM.SetTol(1e-12);
+    pcgM.SetMaxIter(500);
+    pcgM.SetPrintLevel(0);
+    HypreDiagScale diagM;
+    pcgM.SetPreconditioner(diagM);
+    pcgM.Mult(ED, D);
+
+    hDivMass_->RecoverFEMSolution(D, ed, *d_);
+
+    // Compute charge density from rho = Div(D)
+    div_->Mult(*d_, *rho_);
+
+    if (myid_ == 0) { cout << "done." << flush; }
+
+    {
+        // Compute total charge as volume integral of rho
+        double charge_rho = (*l2_vol_int_)(*rho_);
+
+        // Compute total charge as surface integral of D
+        double charge_D = (*rt_surf_int_)(*d_);
+
+        if (myid_ == 0)
+        {
+            cout << endl << "Total charge: \n"
+                << "   Volume integral of charge density:   " << charge_rho
+                << "\n   Surface integral of dielectric flux: " << charge_D
+                << endl << flush;
+        }
+    }
+
+    if (myid_ == 0) { cout << "Solver done. " << endl; }
 }
+    
+} 
 
-
-AttributeToBoundary Solver::assignAttToBdrByDimForSpectral(Mesh& submesh)
-{
-	switch (submesh.Dimension()) {
-	case 1:
-		return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA} };
-	case 2:
-		switch (submesh.GetElementType(0)) {
-		case Element::TRIANGLE:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA } };
-		case Element::QUADRILATERAL:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
-		default:
-			throw std::runtime_error("Incorrect element type for 2D spectral AttToBdr assignation.");
-		}
-	case 3:
-		switch (submesh.GetElementType(0)) {
-		case Element::TETRAHEDRON:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA} };
-		case Element::HEXAHEDRON:
-			return AttributeToBoundary{ {1, BdrCond::SMA }, {2, BdrCond::SMA}, {3, BdrCond::SMA }, {4, BdrCond::SMA}, {5, BdrCond::SMA }, {6, BdrCond::SMA} };
-		default:
-			throw std::runtime_error("Incorrect element type for 3D spectral AttToBdr assignation.");
-		}
-	default:
-		throw std::runtime_error("Dimension is incorrect for spectral AttToBdr assignation.");
-	}
-
-}
-
-Eigen::SparseMatrix<double> Solver::assembleSubmeshedSpectralOperatorMatrix(Mesh& submesh, const FiniteElementCollection& fec, const EvolutionOptions& opts)
-{
-	Model submodel(submesh, AttributeToMaterial{}, assignAttToBdrByDimForSpectral(submesh), AttributeToInteriorConditions{});
-	FiniteElementSpace subfes(&submesh, &fec);
-	Eigen::SparseMatrix<double> local;
-	auto numberOfFieldComponents = 2;
-	auto numberofMaxDimensions = 3;
-	local.resize(numberOfFieldComponents * numberofMaxDimensions * subfes.GetNDofs(), 
-		numberOfFieldComponents * numberofMaxDimensions * subfes.GetNDofs());
-	for (int x = X; x <= Z; x++) {
-		int y = (x + 1) % 3;
-		int z = (x + 2) % 3;
-
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }, -1.0); // MS
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y });
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(y, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z });
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildDerivativeOperator(z, subfes), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y }, -1.0);
-
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,z }); // MFN
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildOneNormalOperator(E, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,E }, { x,y }, -1.0);
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { y }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,z }, -1.0);
-		allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildOneNormalOperator(H, { z }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,H }, { x,y });
-
-		if (opts.fluxType == FluxType::Upwind) {
-
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildZeroNormalOperator(H, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { x }, -1.0); // MP
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildZeroNormalOperator(E, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { x }, -1.0);
-
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { X,x }); //MPNN
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Y,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(H, submodel, subfes), *buildTwoNormalOperator(H, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { H,H }, { Z,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { X, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { X,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Y, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Y,x });
-			allocateDenseInEigen(buildByMult(*buildInverseMassMatrix(E, submodel, subfes), *buildTwoNormalOperator(E, { Z, x }, submodel, subfes, opts), subfes)->SpMat().ToDenseMatrix(), local, { E,E }, { Z,x });
-
-		}
-
-	}
-	return local;
-}
-
-double Solver::findMaxEigenvalueModulus(const Eigen::VectorXcd& eigvals)
-{
-	auto res{ 0.0 };
-	for (int i = 0; i < eigvals.size(); ++i) {
-		auto modulus{ sqrt(pow(eigvals[i].real(),2.0) + pow(eigvals[i].imag(),2.0)) };
-		if (modulus <= 1.0 && modulus >= res) {
-			res = modulus;
-		}
-	}
-	return res;
-}
-
-void reassembleSpectralBdrForSubmesh(SubMesh* submesh) 
-{
-	switch (submesh->GetElementType(0)) {
-	case Element::SEGMENT:
-		for (int i = 0; i < submesh->GetParentVertexIDMap().Size(); ++i) {
-			submesh->AddBdrPoint(i, i + 1);
-		}
-		submesh->FinalizeMesh();
-		break;
-	case Element::TRIANGLE:
-		for (int i = 0; i < submesh->GetNBE(); ++i) {
-			submesh->SetBdrAttribute(i, i + 1);
-		}
-		submesh->FinalizeMesh();
-		break;
-	case Element::QUADRILATERAL:
-		for (int i = 0; i < submesh->GetNBE(); ++i) {
-			submesh->SetBdrAttribute(i, i + 1);
-		}
-		submesh->FinalizeMesh();
-		break;
-	case Element::TETRAHEDRON:
-		for (int i = 0; i < submesh->GetNBE(); ++i) {
-			submesh->SetBdrAttribute(i, i + 1);
-		}
-		submesh->FinalizeMesh();
-		break;
-	case Element::HEXAHEDRON:
-		for (int i = 0; i < submesh->GetNBE(); ++i) {
-			submesh->SetBdrAttribute(i, i + 1);
-		}
-		submesh->FinalizeMesh();
-		break;
-	default:
-		throw std::runtime_error("Incorrect element type for Bdr Spectral assignation.");
-	}
-}
-
-void Solver::evaluateStabilityByEigenvalueEvolutionFunction(
-	Eigen::VectorXcd& eigenvals, 
-	Evolution& maxwellEvol)
-{
-	auto real { toMFEMVector(eigenvals.real()) };
-	auto realPre = real;
-	auto imag { toMFEMVector(eigenvals.imag()) };
-	auto imagPre = imag;
-	auto time { 0.0 };
-	maxwellEvol.SetTime(time);
-	odeSolver_->Init(maxwellEvol);
-	odeSolver_->Step(real, time, opts_.timeStep);
-	time = 0.0;
-	maxwellEvol.SetTime(time);
-	odeSolver_->Init(maxwellEvol);
-	odeSolver_->Step(imag, time, opts_.timeStep);
-	
-	for (int i = 0; i < real.Size(); ++i) {
-		
-		auto modPre{ sqrt(pow(realPre[i],2.0) + pow(imagPre[i],2.0)) };
-		auto mod   { sqrt(pow(real[i]   ,2.0) + pow(imag[i]   ,2.0)) };
-
-		if (modPre != 0.0) {
-			if (mod / modPre > 1.0) {
-				throw std::runtime_error("The coefficient between the modulus of a time evolved eigenvalue and its original value is higher than 1.0 - RK4 instability.");
-			}
-		}
-	}
-}
-
-void Solver::performSpectralAnalysis(const FiniteElementSpace& fes, Model& model, const EvolutionOptions& opts)
-{
-	Array<int> domainAtts(1);
-	domainAtts[0] = 501;
-	auto mesh{ model.getConstMesh() };
-	auto meshCopy{ mesh };
-
-	for (int elem = 0; elem < meshCopy.GetNE(); ++elem) {
-
-		auto preAtt(meshCopy.GetAttribute(elem));
-		meshCopy.SetAttribute(elem, domainAtts[0]);
-		auto submesh{ SubMesh::CreateFromDomain(meshCopy,domainAtts) };
-		meshCopy.SetAttribute(elem, preAtt);
-		submesh.SetAttribute(0, preAtt);
-
-		reassembleSpectralBdrForSubmesh(&submesh);
-
-		auto eigenvals{ 
-			assembleSubmeshedSpectralOperatorMatrix(submesh, *fes.FEColl(), opts).toDense().eigenvalues() 
-		};
-		FiniteElementSpace submeshFES{ &submesh, fes.FEColl() };
-		Model model{ submesh,
-			AttributeToMaterial{},
-			assignAttToBdrByDimForSpectral(submesh),
-			AttributeToInteriorConditions{}
-		};
-		SourcesManager srcs{ Sources(), submeshFES };
-		Evolution evol {
-			submeshFES,
-			model,
-			srcs,
-			opts_.evolution
-		};
-		evaluateStabilityByEigenvalueEvolutionFunction(eigenvals, evol);
-	}
-}
-
-
-}

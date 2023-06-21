@@ -7,7 +7,7 @@
 
 #include <map>
 
-namespace maxwell {
+namespace pulmtln {
 
 using Attribute = int;
 using AttributeToMaterial = std::map<Attribute, Material>;

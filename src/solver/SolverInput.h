@@ -3,7 +3,7 @@
 #include "components/Problem.h"
 #include "SolverOptions.h"
 
-namespace maxwell {
+namespace pulmtln {
 
 struct SolverInput {
     Problem problem;

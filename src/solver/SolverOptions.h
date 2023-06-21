@@ -1,8 +1,6 @@
 #pragma once
 
-#include "evolution/EvolutionOptions.h"
-
-namespace maxwell {
+namespace pulmtln {
 
 struct SolverOptions {
     double timeStep = 0.0;
