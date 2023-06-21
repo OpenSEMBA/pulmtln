@@ -9,23 +9,22 @@ namespace pulmtln {
 
 using namespace mfem;
 
-class Solver {
+class ElectrostaticSolver {
 public:
-    Solver(
+    ElectrostaticSolver(
         Model&, 
         const SolverOptions&);
-    ~Solver();
+    ~ElectrostaticSolver();
 
     void Assemble();
-    void Update();
     void Solve();
-    
 
     void RegisterParaViewFields(ParaViewDataCollection&);
-    void WriteParaViewFields();
+    void WriteParaViewFields(ParaViewDataCollection&);
 
     const GridFunction& GetVectorPotential() { return *phi_; }
-
+    double computeTotalChargeFromRho() const;
+    double computeTotalChargeFromP() const;
 private:
     SolverOptions opts_;
     
@@ -33,10 +32,6 @@ private:
 
     Array<int>* dbcs_; // Dirichlet BC Surface Attribute IDs
     Vector* dbcv_;     // Corresponding Dirichlet Values
-    Array<int>* nbcs_; // Neumann BC Surface Attribute IDs
-    Vector* nbcv_;     // Corresponding Neumann Values
-
-    ParaViewDataCollection* paraview_dc_; // To prepare fields for Paraview viewing
 
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E

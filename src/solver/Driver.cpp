@@ -1,7 +1,6 @@
 #include "Driver.h"
 
-#include "Solver.h"
-#include "constants.h"
+#include "ElectrostaticSolver.h"
 
 #include <mfem.hpp>
 
@@ -18,14 +17,19 @@ Driver::Driver(const Model& model, const SolverOptions& opts) :
         throw std::runtime_error("Solver can only run with 2D meshes.");
     }
     
-    Solver pulmtln{ model_, opts_ };
-    ParaViewDataCollection paraview_dc{ "PULMTLN", &model_.mesh };
-    pulmtln.RegisterParaViewFields(paraview_dc);
+    electrostaticSolver_ = std::make_unique<ElectrostaticSolver>( model_, opts_ );
     
-    pulmtln.Assemble();
-    pulmtln.Solve();
+    electrostaticSolver_->Assemble();
+    electrostaticSolver_->Solve();
 
-    pulmtln.WriteParaViewFields();   
+    ParaViewDataCollection paraview_dc{ "PULMTLN", &model_.mesh };
+    electrostaticSolver_->RegisterParaViewFields(paraview_dc);
+    electrostaticSolver_->WriteParaViewFields(paraview_dc);   
+}
+
+const ElectrostaticSolver& Driver::getElectrostaticSolver() const
+{
+    return *electrostaticSolver_;
 }
 
 }

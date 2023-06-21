@@ -1,4 +1,4 @@
-#include "Solver.h"
+#include "ElectrostaticSolver.h"
 
 #include "constants.h"
 
@@ -25,16 +25,13 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
     }
 }
 
-Solver::Solver(
+ElectrostaticSolver::ElectrostaticSolver(
     Model& model, 
     const SolverOptions& opts) : 
     opts_(opts),
     mesh_(&model.mesh),
     dbcs_(&model.dbcs),
     dbcv_(&model.dbcv),
-    nbcs_(&model.nbcs),
-    nbcv_(&model.nbcv),
-    paraview_dc_(NULL),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
     HDivFESpace_(NULL),
@@ -84,6 +81,7 @@ Solver::Solver(
 
     rhod_ = new LinearForm(H1FESpace_);
 
+    ConstantCoefficient
     l2_vol_int_ = new LinearForm(L2FESpace_);
     l2_vol_int_->AddDomainIntegrator(new DomainLFIntegrator(oneCoef_));
 
@@ -99,15 +97,9 @@ Solver::Solver(
     d_ = new GridFunction(HDivFESpace_);
     e_ = new GridFunction(HCurlFESpace_);
     rho_ = new GridFunction(L2FESpace_);
-
-    if (nbcs_->Size() > 0)
-    {
-        h1SurfMass_ = new BilinearForm(H1FESpace_);
-        h1SurfMass_->AddBoundaryIntegrator(new MassIntegrator);
-    }
 }
 
-Solver::~Solver()
+ElectrostaticSolver::~ElectrostaticSolver()
 {   
     delete phi_;
     delete rho_;
@@ -135,7 +127,7 @@ Solver::~Solver()
 
 }
 
-void Solver::Assemble()
+void ElectrostaticSolver::Assemble()
 {
     std::cout << "Assembling ... " << std::flush; 
 
@@ -180,49 +172,14 @@ void Solver::Assemble()
         weakDiv_->Assemble();
         weakDiv_->Finalize();
     }
-
-    std::cout << "done." << std::endl << std::flush; 
+    std::cout << "done." << std::endl; 
 }
 
-void Solver::Update()
-{
-    std::cout << "Updating ..." << std::endl;
-
-    H1FESpace_->Update(false);
-    HCurlFESpace_->Update(false);
-    HDivFESpace_->Update(false);
-    L2FESpace_->Update(false);
-
-    // Inform the grid functions that the space has changed.
-    phi_->Update();
-    rhod_->Update();
-    l2_vol_int_->Update();
-    rt_surf_int_->Update();
-    d_->Update();
-    e_->Update();
-    rho_->Update();
-
-    // Inform the bilinear forms that the space has changed.
-    divEpsGrad_->Update();
-    hDivMass_->Update();
-    hCurlHDivEps_->Update();
-
-    if (h1Mass_) { h1Mass_->Update(); }
-    if (h1SurfMass_) { h1SurfMass_->Update(); }
-    if (hCurlHDiv_) { hCurlHDiv_->Update(); }
-    if (weakDiv_) { weakDiv_->Update(); }
-
-    // Inform the other objects that the space has changed.
-    grad_->Update();
-    div_->Update();
-}
-
-
-void Solver::Solve()
+void ElectrostaticSolver::Solve()
 {
     std::cout << "Running solver ... " << std::endl;
 
-    // Initialize the electric potential with its boundary conditions
+    std::cout << "Computing phi ..." << std::flush;
     *phi_ = 0.0;
     {
         if (dbcs_->Size() > 0) {
@@ -241,14 +198,10 @@ void Solver::Solve()
         }
 
         // Determine the essential BC degrees of freedom
-        if (dbcs_->Size() > 0)
-        {
-            // From user supplied boundary attributes
+        if (dbcs_->Size() > 0) {
             H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
         }
-        else
-        {
-            // Use the first DoF on processor zero by default
+        else {
             ess_bdr_tdofs_.SetSize(1);
             ess_bdr_tdofs_[0] = 0;
         }
@@ -265,72 +218,65 @@ void Solver::Solve()
         GSSmoother M(DivEpsGrad);
         PCG(DivEpsGrad, M, RHS, Phi, 1, 200, 1e-12, 0.0);
 
-        // Extract the parallel grid function corresponding to the finite
-        // element approximation Phi. This is the local solution on each
-        // processor.
         divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
     }
-    // Compute the negative Gradient of the solution vector.  This is
-    // the magnetic field corresponding to the scalar potential
-    // represented by phi.
-    grad_->Mult(*phi_, *e_); *e_ *= -1.0;
-    
-    // Compute electric displacement (D) from E and P (if present)
-    std::cout  << "Computing D ..." << std::flush;
 
-    GridFunction ed(HDivFESpace_);
-    hCurlHDivEps_->Mult(*e_, ed);
-    
-    SparseMatrix MassHDiv;
-    Vector ED, D;
-
-    Array<int> dbc_dofs_d;
-    hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
-
-    GSSmoother diagM(MassHDiv);
-    PCG(MassHDiv, diagM, ED, D, 0, 200, 1e-12);
-    diagM.Mult(ED, D);
-    
-    hDivMass_->RecoverFEMSolution(D, ed, *d_);
-    div_->Mult(*d_, *rho_);
-
-    std::cout  << "done." << std::flush;
-
+    std::cout << "Computing E ..." << std::flush;
     {
-        // Compute total charge as volume integral of rho
-        double charge_rho = (*l2_vol_int_)(*rho_);
-
-        // Compute total charge as surface integral of D
-        double charge_D = (*rt_surf_int_)(*d_);
-
-        std::cout << std::endl << "Total charge: \n"
-            << "   Volume integral of charge density:   " << charge_rho
-            << "\n   Surface integral of dielectric flux: " << charge_D
-            << std::endl << std::flush;
+        grad_->Mult(*phi_, *e_); 
+        *e_ *= -1.0;
     }
+    std::cout << "done." << std::endl;
 
+    std::cout  << "Computing D ..." << std::flush;
+    {
+        GridFunction ed(HDivFESpace_);
+        hCurlHDivEps_->Mult(*e_, ed);
+    
+        SparseMatrix MassHDiv;
+        Vector ED, D;
+
+        Array<int> dbc_dofs_d;
+        hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
+
+        GSSmoother M(MassHDiv);
+        PCG(MassHDiv, M, ED, D, 0, 200, 1e-12);
+        M.Mult(ED, D);
+        hDivMass_->RecoverFEMSolution(D, ed, *d_);
+    }
+    std::cout << "done." << std::endl;
+
+    std::cout << "Computing rho ..." << std::flush;
+    {
+        div_->Mult(*d_, *rho_);
+    }
+    std::cout  << "done." << std::endl;
     std::cout << "Solver done. " << std::endl; 
 }
 
-void Solver::RegisterParaViewFields(ParaViewDataCollection& pv)
+double ElectrostaticSolver::computeTotalChargeFromRho() const
 {
-    paraview_dc_ = &pv;
+    // Compute total charge as volume integral of rho
+    return (*l2_vol_int_)(*rho_);
+}
 
+double ElectrostaticSolver::computeTotalChargeFromP() const
+{
+    // Compute total charge as surface integral of D
+    return (*rt_surf_int_)(*d_);
+}
+
+void ElectrostaticSolver::RegisterParaViewFields(ParaViewDataCollection& pv)
+{
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
     pv.RegisterField("Rho", rho_);
 }
 
-void Solver::WriteParaViewFields()
+void ElectrostaticSolver::WriteParaViewFields(ParaViewDataCollection& pv)
 {
-    if (!paraview_dc_) {
-        throw std::runtime_error("Paraview register not initialized.");
-    }
-    std::cout << "Writing ParaView files ..." << std::flush;
-    paraview_dc_->Save();
-
-    std::cout << " done." << std::endl;
+    pv.Save();
 }
 
 }
