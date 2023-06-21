@@ -1,0 +1,1 @@
+// Dummy file to force compilation of opensemba_core by CMake.

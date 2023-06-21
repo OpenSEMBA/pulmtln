@@ -1,0 +1,86 @@
+{
+  "_format": "Semba Data File in JSON format",
+  "_version": "0.16",
+
+  "model": {
+    "materials": [
+      {
+        "materialId": 1,
+        "name": "WireMaterial1",
+        "materialType": "Wire",
+        "radius": 0.0001,
+        "wireType": "Standard",
+        "resistance": 9.2e-2,
+        "inductance": 0.0
+      },
+      {
+        "materialId": 2,
+        "name": "RL50",
+        "materialType": "Connector",
+        "connectorType": "Conn_sRLC",
+        "resistance": 50.0,
+        "inductance": 0.0,
+        "capacitance": 1e22
+      },
+      {
+        "materialId": 3,
+        "name": "Short",
+        "materialType": "Connector",
+        "connectorType": "Conn_short"
+      }
+    ],
+    "layers": [
+      {
+        "id": 1,
+        "name": "WiresLayer"
+      }
+    ],
+    "coordinates": [
+      "1 0.0 0.0 0.0",
+      "2 1.0 0.0 0.0",
+      "3 2.0 0.0 0.0",
+      "4 2.0 0.0 0.0",
+      "5 3.0 0.0 0.0",
+      "6 4.0 0.0 0.0",
+      "7 2.0 0.0 0.0",
+      "8 2.0 1.0 0.0"
+    ],
+    "elements": {
+      "_polylines_description": "elemId materialId layerId coordId1 coordId2 ... coordIdN",
+      "polylines": [
+        "1 0 1 1 2 3",
+        "2 0 1 4 5 6",
+        "3 0 1 7 8"
+      ]
+    },
+    "junctions": [
+      {
+        "name": "j1",
+        "unitedCoordIds": [ [ 3, 4, 7 ] ]
+      }
+    ],
+    "cables": [
+      {
+        "name": "wire1",
+        "materialId": 1,
+        "initialConnectorId": 3,
+        "endConnectorId": 3,
+        "elemIds": [ 1 ]
+      },
+      {
+        "name": "wire2",
+        "materialId": 1,
+        "initialConnectorId": 3,
+        "endConnectorId": 3,
+        "elemIds": [ 2 ]
+      },
+      {
+        "name": "wire3",
+        "materialId": 1,
+        "initialConnectorId": 3,
+        "endConnectorId": 3,
+        "elemIds": [ 3 ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "_format": "Semba Data File in JSON format",
+  "_version": "0.16",
+
+  "analysis": {
+    "geometryScalingFactor": 1e-3
+  },
+  "grids": [
+    {
+      "gridType": "gridCondition",
+      "type": "Number_of_cells",
+      "numberOfCells": "{60 60 60}",
+      "layerBox": "{25 25 25 -25 -25 -25}"
+    }
+
+  ],
+  "model": {
+    "layers": [
+      {
+        "id": 1,
+        "name": "model"
+      }
+    ],
+    "materials": [
+      {
+        "materialId": 1,
+        "name": "PEC",
+        "materialType": "PEC"
+      }
+    ],
+    "coordinates": [
+    ],
+    "elements": {
+      "hexahedra": [],
+      "tetrahedra": [],
+      "quadrilateral": [],
+      "triangle": [],
+      "line": [],
+      "fromFile": [
+        {
+          "format": "STL",
+          "layerId": 1,
+          "materialId": 1,
+          "file": "B2.stl"
+        }
+      ]
+    }
+  },
+
+  "sources": [
+    {
+      "sourceType": "planewave",
+      "definitionMode": "by_vectors",
+      "directionVector": "{0.0 0.0 1.0}",
+      "polarizationVector": "{1.0 0.0 0.0}",
+      "magnitude": {
+        "type": "Gaussian",
+        "frequencyMaximum": 1.0e9
+      },
+      "layerBox": "{1.8 1.8 1.8 -1.8 -1.8 -1.8}"
+    }
+  ],
+
+  "outputRequests": [
+    {
+      "gidOutputType": "Far_field",
+      "name": "Farfield_outRq",
+      "type": "farField",
+      "domain": {
+        "initialFrequency": 0.0,
+        "finalFrequency": 0.0,
+        "frequencyStep": 0.0,
+        "transferFunctionFile": "",
+        "logFrequencySweep": false
+      },
+      "box": "{1.8 1.8 1.8 -1.8 -1.8 -1.8}",
+      "initialTheta": 0,
+      "finalTheta": 0,
+      "stepTheta": 1,
+      "initialPhi": 0,
+      "finalPhi": 0,
+      "stepPhi": 1
+    }
+  ]
+}

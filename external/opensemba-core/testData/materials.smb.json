@@ -1,0 +1,30 @@
+{
+  "_format": "Semba Data File in JSON format",
+  "_version": "0.16",
+  "materials": [
+    {
+      "materialId": 1,
+      "name": "PEC",
+      "materialType": "PEC"
+    },
+    {
+      "materialId": 2,
+      "name": "PMC",
+      "materialType": "PMC"
+    },
+    {
+      "materialId": 3,
+      "name": "SMA",
+      "materialType": "SMA"
+    },
+    {
+      "materialId": 4,
+      "name": "Classic",
+      "materialType": "Classic",
+      "permittivity": 1.0,
+      "permeability": 2.0,
+      "electricConductivity": 3.0,
+      "magneticConductivity": 4.0
+    }
+  ]
+}
