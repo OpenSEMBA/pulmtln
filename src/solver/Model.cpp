@@ -9,7 +9,7 @@ void convertToArrayAndVector(
 	mfem::Vector& bv,
 	const std::map<int,double>& bcs)
 {
-	auto dbcSize{ bcs.size() };
+	int dbcSize{ (int) bcs.size() };
 	bi = mfem::Array<int>(dbcSize);
 	bv = mfem::Vector(dbcSize);
 	auto it{ bcs.begin() };

@@ -217,65 +217,64 @@ void Solver::Update()
     div_->Update();
 }
 
+
 void Solver::Solve()
 {
     std::cout << "Running solver ... " << std::endl;
 
     // Initialize the electric potential with its boundary conditions
     *phi_ = 0.0;
-
-    if (dbcs_->Size() > 0)
     {
-        // Apply piecewise constant boundary condition
-        Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
-        for (int i = 0; i < dbcs_->Size(); i++)
-        {
-            ConstantCoefficient voltage((*dbcv_)[i]);
-            dbc_bdr_attr = 0;
-            if ((*dbcs_)[i] <= dbc_bdr_attr.Size())
+        if (dbcs_->Size() > 0) {
+            // Apply piecewise constant boundary condition
+            Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
+            for (int i = 0; i < dbcs_->Size(); i++)
             {
-                dbc_bdr_attr[(*dbcs_)[i] - 1] = 1;
+                ConstantCoefficient voltage((*dbcv_)[i]);
+                dbc_bdr_attr = 0;
+                if ((*dbcs_)[i] <= dbc_bdr_attr.Size())
+                {
+                    dbc_bdr_attr[(*dbcs_)[i] - 1] = 1;
+                }
+                phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
             }
-            phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
         }
+
+        // Determine the essential BC degrees of freedom
+        if (dbcs_->Size() > 0)
+        {
+            // From user supplied boundary attributes
+            H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
+        }
+        else
+        {
+            // Use the first DoF on processor zero by default
+            ess_bdr_tdofs_.SetSize(1);
+            ess_bdr_tdofs_[0] = 0;
+        }
+
+        // Apply essential BC and form linear system
+        SparseMatrix DivEpsGrad;
+        Vector Phi;
+        Vector RHS;
+
+        divEpsGrad_->FormLinearSystem(
+            ess_bdr_tdofs_, *phi_, *rhod_, 
+            DivEpsGrad, Phi, RHS);
+
+        GSSmoother M(DivEpsGrad);
+        PCG(DivEpsGrad, M, RHS, Phi, 1, 200, 1e-12, 0.0);
+
+        // Extract the parallel grid function corresponding to the finite
+        // element approximation Phi. This is the local solution on each
+        // processor.
+        divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
     }
-
-
-    // Determine the essential BC degrees of freedom
-    if (dbcs_->Size() > 0)
-    {
-        // From user supplied boundary attributes
-        H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
-    }
-    else
-    {
-        // Use the first DoF on processor zero by default
-        ess_bdr_tdofs_.SetSize(1);
-        ess_bdr_tdofs_[0] = 0;
-    }
-
-    // Apply essential BC and form linear system
-    SparseMatrix DivEpsGrad;
-    Vector Phi;
-    Vector RHS;
-
-    divEpsGrad_->FormLinearSystem(
-        ess_bdr_tdofs_, *phi_, *rhod_, 
-        DivEpsGrad, Phi, RHS);
-
-    GSSmoother M(DivEpsGrad);
-    PCG(DivEpsGrad, M, RHS, Phi, 1, 200, 1e-12, 0.0);
-
-    // Extract the parallel grid function corresponding to the finite
-    // element approximation Phi. This is the local solution on each
-    // processor.
-    divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
-
     // Compute the negative Gradient of the solution vector.  This is
     // the magnetic field corresponding to the scalar potential
     // represented by phi.
     grad_->Mult(*phi_, *e_); *e_ *= -1.0;
-
+    
     // Compute electric displacement (D) from E and P (if present)
     std::cout  << "Computing D ..." << std::flush;
 
@@ -288,13 +287,11 @@ void Solver::Solve()
     Array<int> dbc_dofs_d;
     hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
 
-    DSmoother diagM;
+    GSSmoother diagM(MassHDiv);
     PCG(MassHDiv, diagM, ED, D, 0, 200, 1e-12);
     diagM.Mult(ED, D);
-
+    
     hDivMass_->RecoverFEMSolution(D, ed, *d_);
-
-    // Compute charge density from rho = Div(D)
     div_->Mult(*d_, *rho_);
 
     std::cout  << "done." << std::flush;
@@ -331,9 +328,6 @@ void Solver::WriteParaViewFields()
         throw std::runtime_error("Paraview register not initialized.");
     }
     std::cout << "Writing ParaView files ..." << std::flush;
-
-    //paraview_dc_->SetCycle(0);
-    //paraview_dc_->SetTime(0);
     paraview_dc_->Save();
 
     std::cout << " done." << std::endl;
