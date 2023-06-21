@@ -1,22 +1,19 @@
 #include "Solver.h"
 
-using namespace std;
-using namespace mfem;
-
+namespace mfem {
 namespace pulmtln {
 
-VoltaSolver::VoltaSolver(ParMesh& pmesh, int order,
+Solver::Solver(
+    Mesh& mesh, 
+    SolverOptions opts,
     Array<int>& dbcs, Vector& dbcv,
     Array<int>& nbcs, Vector& nbcv,
     Coefficient& epsCoef,
     double (*phi_bc)(const Vector&),
-    double (*rho_src)(const Vector&),
-    void   (*p_src)(const Vector&, Vector&),
-    Vector& point_charges)
-    : myid_(0),
-    num_procs_(1),
-    order_(order),
-    pmesh_(&pmesh),
+    double (*rho_src)(const Vector&))
+    : 
+    mesh_(mesh),
+    opts_(opts),
     dbcs_(&dbcs),
     dbcv_(&dbcv),
     nbcs_(&nbcs),
@@ -43,29 +40,23 @@ VoltaSolver::VoltaSolver(ParMesh& pmesh, int order,
     sigma_src_(NULL),
     e_(NULL),
     d_(NULL),
-    p_src_(NULL),
     oneCoef_(1.0),
     epsCoef_(&epsCoef),
     phiBCCoef_(NULL),
     rhoCoef_(NULL),
     pCoef_(NULL),
     phi_bc_func_(phi_bc),
-    rho_src_func_(rho_src),
-    p_src_func_(p_src),
-    point_charge_params_(point_charges),
-    point_charges_(0)
+    rho_src_func_(rho_src)
 {
-    // Initialize MPI variables
-    MPI_Comm_size(pmesh_->GetComm(), &num_procs_);
-    MPI_Comm_rank(pmesh_->GetComm(), &myid_);
-
+    
     // Define compatible parallel finite element spaces on the parallel
     // mesh. Here we use arbitrary order H1, Nedelec, and Raviart-Thomas finite
     // elements.
-    H1FESpace_ = new H1_ParFESpace(pmesh_, order, pmesh_->Dimension());
-    HCurlFESpace_ = new ND_ParFESpace(pmesh_, order, pmesh_->Dimension());
-    HDivFESpace_ = new RT_ParFESpace(pmesh_, order, pmesh_->Dimension());
-    L2FESpace_ = new L2_ParFESpace(pmesh_, order - 1, pmesh_->Dimension());
+    auto order{ opts_.order };
+    H1FESpace_ = new H1_FESpace(mesh_, order, mesh_->Dimension());
+    HCurlFESpace_ = new ND_FESpace(mesh_, order, mesh_->Dimension());
+    HDivFESpace_ = new RT_FESpace(mesh_, order, mesh_->Dimension());
+    L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
     AttrToMarker(pmesh.bdr_attributes.Max(), *dbcs_, ess_bdr_);
@@ -83,14 +74,7 @@ VoltaSolver::VoltaSolver(ParMesh& pmesh, int order,
     {
         rhoCoef_ = new FunctionCoefficient(rho_src_func_);
     }
-
-    // Polarization
-    if (p_src_func_ != NULL)
-    {
-        pCoef_ = new VectorFunctionCoefficient(pmesh_->SpaceDimension(),
-            p_src_func_);
-    }
-
+        
     // Bilinear Forms
     divEpsGrad_ = new ParBilinearForm(H1FESpace_);
     divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
@@ -121,7 +105,7 @@ VoltaSolver::VoltaSolver(ParMesh& pmesh, int order,
 
     if (point_charge_params_.Size() > 0)
     {
-        int dim = pmesh_->Dimension();
+        int dim = mesh_->Dimension();
         int npts = point_charge_params_.Size() / (dim + 1);
         point_charges_.resize(npts);
 
@@ -170,7 +154,7 @@ VoltaSolver::VoltaSolver(ParMesh& pmesh, int order,
     }
 }
 
-VoltaSolver::~VoltaSolver()
+Solver::~Solver()
 {
     delete phiBCCoef_;
     delete rhoCoef_;
@@ -216,13 +200,13 @@ VoltaSolver::~VoltaSolver()
 }
 
 HYPRE_BigInt
-    VoltaSolver::GetProblemSize()
+    Solver::GetProblemSize()
 {
     return H1FESpace_->GlobalTrueVSize();
 }
 
 void
-    VoltaSolver::PrintSizes()
+    Solver::PrintSizes()
 {
     HYPRE_BigInt size_h1 = H1FESpace_->GlobalTrueVSize();
     HYPRE_BigInt size_nd = HCurlFESpace_->GlobalTrueVSize();
@@ -237,7 +221,7 @@ void
     }
 }
 
-void VoltaSolver::Assemble()
+void Solver::Assemble()
 {
     if (myid_ == 0) { cout << "Assembling ... " << flush; }
 
@@ -283,11 +267,11 @@ void VoltaSolver::Assemble()
         weakDiv_->Finalize();
     }
 
-    if (myid_ == 0) { cout << "done." << endl << flush; }
+    std::cout << "done." << std::endl << std::flush; }
 }
 
 void
-    VoltaSolver::Update()
+    Solver::Update()
 {
     if (myid_ == 0) { cout << "Updating ..." << endl; }
 
@@ -327,7 +311,7 @@ void
 }
 
 void
-    VoltaSolver::Solve()
+    Solver::Solve()
 {
     if (myid_ == 0) { cout << "Running solver ... " << endl; }
 
@@ -344,7 +328,7 @@ void
         else
         {
             // Apply piecewise constant boundary condition
-            Array<int> dbc_bdr_attr(pmesh_->bdr_attributes.Max());
+            Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
             for (int i = 0; i < dbcs_->Size(); i++)
             {
                 ConstantCoefficient voltage((*dbcv_)[i]);
@@ -377,7 +361,7 @@ void
     {
         *sigma_src_ = 0.0;
 
-        Array<int> nbc_bdr_attr(pmesh_->bdr_attributes.Max());
+        Array<int> nbc_bdr_attr(mesh_->bdr_attributes.Max());
         for (int i = 0; i < nbcs_->Size(); i++)
         {
             ConstantCoefficient sigma_coef((*nbcv_)[i]);
@@ -486,4 +470,4 @@ void
 }
     
 } 
-
+}

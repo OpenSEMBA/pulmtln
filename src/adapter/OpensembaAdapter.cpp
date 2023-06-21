@@ -10,7 +10,7 @@ using semba::PMGroup;
 using json = nlohmann::json;
 
 
-namespace maxwell {
+namespace pulmtln {
 
 FluxType strToFluxType(const std::string& label)
 {

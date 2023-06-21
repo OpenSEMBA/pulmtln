@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-namespace maxwell {
+namespace pulmtln {
 
 Material::Material(double epsilon, double mu) :
 	epsilon_(epsilon),

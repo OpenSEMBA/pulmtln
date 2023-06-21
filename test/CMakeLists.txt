@@ -8,8 +8,12 @@ add_executable(${PROJECT_NAME}_tests
 
 include_directories(./)
 
+find_package(GTest CONFIG REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
 target_link_libraries(${PROJECT_NAME}_tests 
 	pulmtln-solver
 	GTest::gtest
+	GTest::gtest_main
 )
 

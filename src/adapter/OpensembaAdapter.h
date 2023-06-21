@@ -4,7 +4,7 @@
 
 #include "solver/SolverInput.h"
 
-namespace maxwell {
+namespace pulmtln {
 
 class OpensembaAdapter {
 public:

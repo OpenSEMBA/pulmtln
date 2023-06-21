@@ -3,7 +3,7 @@
 #include "adapter/OpensembaAdapter.h"
 #include "TestUtils.h"
 
-using namespace maxwell;
+using namespace pulmtln;
 
 
 bool equalMFEMVectors(const mfem::Vector& a, const mfem::Vector& b) 

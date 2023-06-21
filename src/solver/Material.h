@@ -2,7 +2,7 @@
 
 #include <math.h>
 
-namespace maxwell {
+namespace pulmtln {
 
 class Material {
 public:
