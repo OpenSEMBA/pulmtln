@@ -1,23 +1,21 @@
 #pragma once
 
-#include <mfem.hpp>
-#include <map>
+#include "BoundaryConditions.h"
 
 namespace pulmtln {
 
 class Model {
 public:
-	using Mesh = mfem::Mesh;
 	Model() = default;
 	Model(
-		Mesh& m,
-		std::map<int, double> dirichletBCs
-	);
+		mfem::Mesh& m,
+		const BoundaryConditions& dirichletBCs) :
+		mesh{m},
+		dbc{dirichletBCs}
+	{}
 	
-	Mesh mesh;
-	mfem::Array<int> dbcs;
-	mfem::Vector dbcv;
-
+	mfem::Mesh mesh;
+	BoundaryConditions dbc;
 };
 
 }

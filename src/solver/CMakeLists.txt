@@ -10,8 +10,8 @@ add_library(${LIBRARY_NAME} STATIC
 	"FES.cpp"
 	"ElectrostaticSolver.cpp"
 	"Driver.cpp" 
-	"Model.cpp"
-)
+	
+ "BoundaryConditions.h")
 
 get_filename_component(PARENT_DIR ../ ABSOLUTE)
 include_directories(${PARENT_DIR})

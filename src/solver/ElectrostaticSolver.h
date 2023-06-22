@@ -3,7 +3,7 @@
 #include "SolverOptions.h"
 #include "constants.h"
 #include "FES.h"
-#include "Model.h"
+#include "BoundaryConditions.h"
 
 namespace pulmtln {
 
@@ -12,15 +12,15 @@ using namespace mfem;
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
-        Model&, 
+        Mesh& mesh,
+        const BoundaryConditions& dbc,
         const SolverOptions&);
     ~ElectrostaticSolver();
 
     void Assemble();
     void Solve();
 
-    void RegisterParaViewFields(ParaViewDataCollection&);
-    void WriteParaViewFields(ParaViewDataCollection&);
+    void writeParaViewFields(ParaViewDataCollection&) const;
 
     const GridFunction& GetVectorPotential() { return *phi_; }
     double computeTotalChargeFromRho() const;
@@ -32,9 +32,8 @@ private:
     
     Mesh* mesh_;
 
-    Array<int>* dbcs_; // Dirichlet BC Surface Attribute IDs
-    Vector* dbcv_;     // Corresponding Dirichlet Values
-
+    BoundaryConditions dbc_;   // Dirichlet BC Surface Attribute ID and values
+    
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E
     RT_FESpace* HDivFESpace_;  // Normally continuous space for D

@@ -1,6 +1,7 @@
 #include "ElectrostaticSolver.h"
 
 #include "constants.h"
+#include "BoundaryConditions.h"
 
 namespace pulmtln {
 
@@ -26,12 +27,12 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
 }
 
 ElectrostaticSolver::ElectrostaticSolver(
-    Model& model, 
+    Mesh& mesh,
+    const BoundaryConditions& dbc,
     const SolverOptions& opts) : 
     opts_(opts),
-    mesh_(&model.mesh),
-    dbcs_(&model.dbcs),
-    dbcv_(&model.dbcv),
+    mesh_(&mesh),
+    dbc_(dbc),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
     HDivFESpace_(NULL),
@@ -64,7 +65,7 @@ ElectrostaticSolver::ElectrostaticSolver(
     L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
-    AttrToMarker(mesh_->bdr_attributes.Max(), *dbcs_, ess_bdr_);
+    AttrToMarker(mesh_->bdr_attributes.Max(), dbc.getAttributes(), ess_bdr_);
 
     // Setup various coefficients
     epsCoef_ = ConstantCoefficient(epsilon0_);
@@ -182,23 +183,25 @@ void ElectrostaticSolver::Solve()
     std::cout << "Computing phi ..." << std::flush;
     *phi_ = 0.0;
     {
-        if (dbcs_->Size() > 0) {
+        auto dbcs{ dbc_.getAttributes() };
+        auto dbcv{ dbc_.getValues() };
+        if (dbcs.Size() > 0) {
             // Apply piecewise constant boundary condition
             Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
-            for (int i = 0; i < dbcs_->Size(); i++)
+            for (int i = 0; i < dbcs.Size(); i++)
             {
-                ConstantCoefficient voltage((*dbcv_)[i]);
+                ConstantCoefficient voltage(dbcv[i]);
                 dbc_bdr_attr = 0;
-                if ((*dbcs_)[i] <= dbc_bdr_attr.Size())
+                if (dbcs[i] <= dbc_bdr_attr.Size())
                 {
-                    dbc_bdr_attr[(*dbcs_)[i] - 1] = 1;
+                    dbc_bdr_attr[dbcs[i] - 1] = 1;
                 }
                 phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
             }
         }
 
         // Determine the essential BC degrees of freedom
-        if (dbcs_->Size() > 0) {
+        if (dbcs.Size() > 0) {
             H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
         }
         else {
@@ -238,13 +241,11 @@ void ElectrostaticSolver::Solve()
 
 double ElectrostaticSolver::computeTotalChargeFromRho() const
 {
-    // Compute total charge as volume integral of rho
     return (*l2_vol_int_)(*rho_);
 }
 
 double ElectrostaticSolver::computeTotalCharge() const
 {
-    // Compute total charge as surface integral of D
     return (*rt_surf_int_)(*d_);
 }
 
@@ -257,10 +258,6 @@ double ElectrostaticSolver::computeChargeInBoundary(const Array<int>& attr) cons
     }
     PWCoefficient pwcoeff{ attr, coefs };
 
-    //LinearForm surf_int(L2FESpace_);
-    //surf_int.AddBdrFaceIntegrator(new BoundaryLFIntegrator(pwcoeff));
-    //surf_int.Assemble();
-    // auto charge{ surf_int(*rho_) };
     LinearForm surf_int(HDivFESpace_);
     surf_int.AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(pwcoeff));
     surf_int.Assemble();
@@ -269,16 +266,13 @@ double ElectrostaticSolver::computeChargeInBoundary(const Array<int>& attr) cons
     return charge;
 }
 
-void ElectrostaticSolver::RegisterParaViewFields(ParaViewDataCollection& pv)
+void ElectrostaticSolver::writeParaViewFields(
+    ParaViewDataCollection& pv) const
 {
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
     pv.RegisterField("Rho", rho_);
-}
-
-void ElectrostaticSolver::WriteParaViewFields(ParaViewDataCollection& pv)
-{
     pv.Save();
 }
 
