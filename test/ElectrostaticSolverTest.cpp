@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "solver/ElectrostaticSolver.h"
+#include "TestUtils.h"
 
 using namespace mfem;
 using namespace pulmtln;
@@ -19,7 +20,6 @@ mfem::Vector getBaricenterOfElement(Mesh& mesh, int e)
 	return center;
 }
 
-
 class ElectrostaticSolverTest : public ::testing::Test {
 };
 
@@ -32,52 +32,75 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	//  |  1  |
 	//  +-----+
 	//    1 V
-	auto mesh{ 
+	auto mesh{
 		Mesh::MakeCartesian2D(5, 5, Element::QUADRILATERAL, 1.0, 1.0)
 	};
-	BoundaryConditions bcs{{
+	BoundaryConditions bcs{ {
 		{1,    1.0}, // bottom boundary.
 		{3,    0.0}, // top boundary.
-	}};
-	
+	} };
+
 	SolverOptions opts;
 	opts.order = 3;
 
 	const double tol{ 1e-5 };
-	{
-		ElectrostaticSolver s(mesh, bcs, {}, opts);
-		s.Solve();
 
-		ParaViewDataCollection paraview_dc{ "Parallel_plates", &mesh };
-		s.writeParaViewFields(paraview_dc);
+	ElectrostaticSolver s(mesh, bcs, {}, opts);
+	s.Solve();
 
-		EXPECT_NEAR(0.0, s.computeTotalChargeFromRho(), tol);
-		EXPECT_NEAR(0.0, s.computeTotalCharge(), tol);
+	ParaViewDataCollection paraview_dc{ outFolder + "parallel_plates", &mesh };
+	s.writeParaViewFields(paraview_dc);
 
-		mfem::Array<int> bdrAttr(1);
-		bdrAttr[0] = 1;
-		EXPECT_NEAR( 1.0, s.computeChargeInBoundary(bdrAttr), tol);
-	
-		bdrAttr[0] = 3;
-		EXPECT_NEAR(-1.0, s.computeChargeInBoundary(bdrAttr), tol);
-	
-		bdrAttr[0] = 2;
-		EXPECT_NEAR( 0.0, s.computeChargeInBoundary(bdrAttr), tol);
-	}
-	{
-		std::map<int, double> d2eps{
-			{1, 2.0}
-		};
-		ElectrostaticSolver s(mesh, bcs, d2eps, opts);
-		s.Solve();
+	EXPECT_NEAR(0.0, s.computeTotalChargeFromRho(), tol);
+	EXPECT_NEAR(0.0, s.computeTotalCharge(), tol);
 
-		ParaViewDataCollection paraview_dc{ "Parallel_plates_epsr2", &mesh };
-		s.writeParaViewFields(paraview_dc);
+	mfem::Array<int> bdrAttr(1);
+	bdrAttr[0] = 1;
+	EXPECT_NEAR(1.0, s.computeChargeInBoundary(bdrAttr), tol);
 
-		mfem::Array<int> bdrAttr(1);
-		bdrAttr[0] = 1;
-		EXPECT_NEAR(2.0, s.computeChargeInBoundary(bdrAttr), tol);
-	}
+	bdrAttr[0] = 3;
+	EXPECT_NEAR(-1.0, s.computeChargeInBoundary(bdrAttr), tol);
+
+	bdrAttr[0] = 2;
+	EXPECT_NEAR(0.0, s.computeChargeInBoundary(bdrAttr), tol);
+
+}
+
+TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
+{
+	//    0 V
+	//  +-----+
+	//  |  3  |
+	//  |4   2|
+	//  |  1  |
+	//  +-----+
+	//    1 V
+	auto mesh{
+		Mesh::MakeCartesian2D(5, 5, Element::QUADRILATERAL, 1.0, 1.0)
+	};
+	BoundaryConditions bcs{ {
+		{1,    1.0}, // bottom boundary.
+		{3,    0.0}, // top boundary.
+	} };
+
+	SolverOptions opts;
+	opts.order = 3;
+
+	const double tol{ 1e-5 };
+
+	std::map<int, double> d2eps{
+		{1, 2.0}
+	};
+	ElectrostaticSolver s(mesh, bcs, d2eps, opts);
+	s.Solve();
+
+	ParaViewDataCollection paraview_dc{
+		outFolder + "Parallel_plates_epsr2", &mesh };
+	s.writeParaViewFields(paraview_dc);
+
+	mfem::Array<int> bdrAttr(1);
+	bdrAttr[0] = 1;
+	EXPECT_NEAR(2.0, s.computeChargeInBoundary(bdrAttr), tol);
 }
 
 TEST_F(ElectrostaticSolverTest, two_materials)
@@ -116,7 +139,7 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
 	s.Solve();
 
-	ParaViewDataCollection paraview_dc{ "two_materials", &mesh };
+	ParaViewDataCollection paraview_dc{ outFolder + "two_materials", &mesh };
 	s.writeParaViewFields(paraview_dc);
 
 	const double tol{ 1e-5 };
@@ -124,11 +147,18 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	EXPECT_NEAR(0.0, s.computeTotalCharge(), tol);
 
 	mfem::Array<int> bdrAttr(1);
-	
+
 	bdrAttr[0] = 1;
 	EXPECT_NEAR(1.6, s.computeChargeInBoundary(bdrAttr), tol);
 
 	bdrAttr[0] = 3;
 	EXPECT_NEAR(-1.6, s.computeChargeInBoundary(bdrAttr), tol);
+
+}
+
+TEST_F(ElectrostaticSolverTest, coax)
+{
+	auto fn{ gmshMeshesFolder() + "empty_coaxcoax.msh" };
+	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
 
 }

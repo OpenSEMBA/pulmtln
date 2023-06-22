@@ -5,7 +5,7 @@ message(STATUS "Creating build system for ${PROJECT_NAME}_Tests")
 add_executable(${PROJECT_NAME}_tests
  "ElectrostaticSolverTest.cpp"
  "mfemTest.cpp"
-)
+ "TestUtils.h")
 
 include_directories(./)
 
