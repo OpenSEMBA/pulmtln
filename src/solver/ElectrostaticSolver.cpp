@@ -81,7 +81,7 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     rhod_ = new LinearForm(H1FESpace_);
 
-    ConstantCoefficient
+    
     l2_vol_int_ = new LinearForm(L2FESpace_);
     l2_vol_int_->AddDomainIntegrator(new DomainLFIntegrator(oneCoef_));
 
@@ -222,35 +222,17 @@ void ElectrostaticSolver::Solve()
     }
 
     std::cout << "Computing E ..." << std::flush;
-    {
-        grad_->Mult(*phi_, *e_); 
-        *e_ *= -1.0;
-    }
+    grad_->Mult(*phi_, *e_); *e_ *= -1.0;
     std::cout << "done." << std::endl;
 
     std::cout  << "Computing D ..." << std::flush;
-    {
-        GridFunction ed(HDivFESpace_);
-        hCurlHDivEps_->Mult(*e_, ed);
-    
-        SparseMatrix MassHDiv;
-        Vector ED, D;
-
-        Array<int> dbc_dofs_d;
-        hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
-
-        GSSmoother M(MassHDiv);
-        PCG(MassHDiv, M, ED, D, 0, 200, 1e-12);
-        M.Mult(ED, D);
-        hDivMass_->RecoverFEMSolution(D, ed, *d_);
-    }
+    d_->ProjectGridFunction(*e_);
     std::cout << "done." << std::endl;
 
     std::cout << "Computing rho ..." << std::flush;
-    {
-        div_->Mult(*d_, *rho_);
-    }
+    div_->Mult(*d_, *rho_);
     std::cout  << "done." << std::endl;
+    
     std::cout << "Solver done. " << std::endl; 
 }
 
@@ -260,10 +242,31 @@ double ElectrostaticSolver::computeTotalChargeFromRho() const
     return (*l2_vol_int_)(*rho_);
 }
 
-double ElectrostaticSolver::computeTotalChargeFromP() const
+double ElectrostaticSolver::computeTotalCharge() const
 {
     // Compute total charge as surface integral of D
     return (*rt_surf_int_)(*d_);
+}
+
+double ElectrostaticSolver::computeChargeInBoundary(const Array<int>& attr) const
+{
+    Array<Coefficient*> coefs(attr.Size());
+    ConstantCoefficient one{ -1.0 };
+    for (int i = 0; i < coefs.Size(); i++) {
+        coefs[i] = &one;
+    }
+    PWCoefficient pwcoeff{ attr, coefs };
+
+    //LinearForm surf_int(L2FESpace_);
+    //surf_int.AddBdrFaceIntegrator(new BoundaryLFIntegrator(pwcoeff));
+    //surf_int.Assemble();
+    // auto charge{ surf_int(*rho_) };
+    LinearForm surf_int(HDivFESpace_);
+    surf_int.AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(pwcoeff));
+    surf_int.Assemble();
+    auto charge{ surf_int(*d_) };
+
+    return charge;
 }
 
 void ElectrostaticSolver::RegisterParaViewFields(ParaViewDataCollection& pv)

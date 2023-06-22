@@ -24,7 +24,9 @@ public:
 
     const GridFunction& GetVectorPotential() { return *phi_; }
     double computeTotalChargeFromRho() const;
-    double computeTotalChargeFromP() const;
+    double computeTotalCharge() const;
+    double computeChargeInBoundary(const Array<int>& attr) const;
+
 private:
     SolverOptions opts_;
     

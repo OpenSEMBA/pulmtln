@@ -21,11 +21,9 @@ void convertToArrayAndVector(
 }
 Model::Model(
 	Mesh& m,
-	std::map<int, double> dirichletBCs,
-	std::map<int, double> neumannBCs) :
+	std::map<int, double> dirichletBCs) :
 	mesh(m)
 {
 	convertToArrayAndVector(dbcs, dbcv, dirichletBCs);
-	convertToArrayAndVector(nbcs, nbcv, neumannBCs);
 };
 }

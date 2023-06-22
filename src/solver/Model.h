@@ -11,15 +11,12 @@ public:
 	Model() = default;
 	Model(
 		Mesh& m,
-		std::map<int, double> dirichletBCs,
-		std::map<int, double> neumannBCs
+		std::map<int, double> dirichletBCs
 	);
 	
 	Mesh mesh;
 	mfem::Array<int> dbcs;
 	mfem::Vector dbcv;
-	mfem::Array<int> nbcs; 
-	mfem::Vector nbcv;
 
 };
 
