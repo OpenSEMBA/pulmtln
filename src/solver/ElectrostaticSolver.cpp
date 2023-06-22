@@ -29,10 +29,12 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
     const BoundaryConditions& dbc,
+    const std::map<int, double>& domainToEpsr,
     const SolverOptions& opts) : 
     opts_(opts),
     mesh_(&mesh),
     dbc_(dbc),
+    domainToEpsr_(domainToEpsr),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
     HDivFESpace_(NULL),
@@ -68,17 +70,28 @@ ElectrostaticSolver::ElectrostaticSolver(
     AttrToMarker(mesh_->bdr_attributes.Max(), dbc.getAttributes(), ess_bdr_);
 
     // Setup various coefficients
-    epsCoef_ = ConstantCoefficient(epsilon0_);
+    if (domainToEpsr_.size() == 0) {
+        epsCoef_ = new ConstantCoefficient(epsilon0_);
+    }
+    else {
+        mfem::Vector eps(mesh_->attributes.Max());
+        eps = epsilon0_;
+        for (const auto& [attr, epsr] : domainToEpsr_) {
+            assert(attr <= eps.Size());
+            eps[attr-1] *= epsr;
+        }
+        epsCoef_ = new PWConstCoefficient(eps);
+    }
     
     // Bilinear Forms
     divEpsGrad_ = new BilinearForm(H1FESpace_);
-    divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(epsCoef_));
+    divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
 
     hDivMass_ = new BilinearForm(HDivFESpace_);
     hDivMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
 
     hCurlHDivEps_ = new MixedBilinearForm(HCurlFESpace_, HDivFESpace_);
-    hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(epsCoef_));
+    hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(*epsCoef_));
 
     rhod_ = new LinearForm(H1FESpace_);
 
@@ -98,6 +111,8 @@ ElectrostaticSolver::ElectrostaticSolver(
     d_ = new GridFunction(HDivFESpace_);
     e_ = new GridFunction(HCurlFESpace_);
     rho_ = new GridFunction(L2FESpace_);
+
+    Assemble();
 }
 
 ElectrostaticSolver::~ElectrostaticSolver()
@@ -126,6 +141,7 @@ ElectrostaticSolver::~ElectrostaticSolver()
     delete HDivFESpace_;
     delete L2FESpace_;
 
+    delete epsCoef_;
 }
 
 void ElectrostaticSolver::Assemble()

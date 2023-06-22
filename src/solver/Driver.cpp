@@ -17,11 +17,11 @@ Driver::Driver(const Model& model, const SolverOptions& opts) :
         throw std::runtime_error("Solver can only run with 2D meshes.");
     }
     
+    std::map<int, double> domainToEpsr;
     electrostaticSolver_ = 
         std::make_unique<ElectrostaticSolver>( 
-            model_.mesh, model.dbc, opts_ );
+            model_.mesh, model.dbc, domainToEpsr, opts_ );
     
-    electrostaticSolver_->Assemble();
     electrostaticSolver_->Solve();
 
     ParaViewDataCollection paraview_dc{ "PULMTLN", &model_.mesh };

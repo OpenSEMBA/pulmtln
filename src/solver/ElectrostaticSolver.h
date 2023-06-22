@@ -14,15 +14,16 @@ public:
     ElectrostaticSolver(
         Mesh& mesh,
         const BoundaryConditions& dbc,
+        const std::map<int, double>& domainToEpsr,
         const SolverOptions&);
     ~ElectrostaticSolver();
 
-    void Assemble();
     void Solve();
 
     void writeParaViewFields(ParaViewDataCollection&) const;
 
     const GridFunction& GetVectorPotential() { return *phi_; }
+
     double computeTotalChargeFromRho() const;
     double computeTotalCharge() const;
     double computeChargeInBoundary(const Array<int>& attr) const;
@@ -33,7 +34,8 @@ private:
     Mesh* mesh_;
 
     BoundaryConditions dbc_;   // Dirichlet BC Surface Attribute ID and values
-    
+    std::map<int, double> domainToEpsr_; // Domain to epsilon r.
+
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E
     RT_FESpace* HDivFESpace_;  // Normally continuous space for D
@@ -62,9 +64,12 @@ private:
     GridFunction* d_;         // Electric Flux Density (aka Dielectric Flux)
 
     ConstantCoefficient oneCoef_;   // Coefficient equal to 1
-    ConstantCoefficient epsCoef_;   // Dielectric Permittivity Coefficient
+    Coefficient* epsCoef_;   // Dielectric Permittivity Coefficient
 
     Array<int> ess_bdr_, ess_bdr_tdofs_; // Essential Boundary Condition DoFs
+
+    void Assemble();
+
 };
 
 }
