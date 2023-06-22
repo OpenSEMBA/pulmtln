@@ -245,7 +245,21 @@ void ElectrostaticSolver::Solve()
     std::cout << "done." << std::endl;
 
     std::cout  << "Computing D ..." << std::flush;
-    d_->ProjectGridFunction(*e_);
+    {
+        GridFunction ed(HDivFESpace_);
+        hCurlHDivEps_->Mult(*e_, ed);
+    
+        SparseMatrix MassHDiv;
+        Vector ED, D;
+
+        Array<int> dbc_dofs_d;
+        hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
+
+        GSSmoother M(MassHDiv);
+        PCG(MassHDiv, M, ED, D, 1, 200, 1e-12);
+        
+        hDivMass_->RecoverFEMSolution(D, ed, *d_);
+    }
     std::cout << "done." << std::endl;
 
     std::cout << "Computing rho ..." << std::flush;

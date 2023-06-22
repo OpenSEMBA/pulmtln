@@ -85,3 +85,5 @@ out/*
 .vscode/settings.json
 /PULMTLN
 /two_materials
+/Parallel_plates
+/Parallel_plates_epsr2
