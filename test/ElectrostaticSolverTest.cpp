@@ -156,9 +156,47 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 
 }
 
-TEST_F(ElectrostaticSolverTest, coax)
+TEST_F(ElectrostaticSolverTest, empty_coax)
 {
-	auto fn{ gmshMeshesFolder() + "empty_coaxcoax.msh" };
+	// Coaxial case.
+	// PhysicalGroups
+	const std::map<std::string, int> matToAtt{
+		{ "Conductor_0", 1 }, // Outer boundary
+		{ "Conductor_1", 2 }, // Inner boundary
+		{ "Vacuum", 3 } // Domain
+	};
+
+	auto fn{ gmshMeshesFolder() + "empty_coax/empty_coax.msh" };
 	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
 
+	const double V0{ 1.0 };
+	BoundaryConditions bcs{{
+		{1, 0.0}, // outer boundary
+		{2, V0}, // inner boundary
+	}};
+	
+	std::map<int, double> domainToEpsr{};
+	
+	SolverOptions opts;
+	opts.order = 3;
+
+	ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
+	s.Solve();
+
+	ParaViewDataCollection paraview_dc{ outFolder() + "empty_coax", &mesh };
+	s.writeParaViewFields(paraview_dc);
+
+	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
+	// Expected charge      Q = V0 * C 
+	double Q{ V0 * epsilon0_ * 2 * M_PI / log(0.05 / 0.025) };
+
+	const double tol{ 1e-1 };
+
+	mfem::Array<int> bdrAttr(1);
+
+	bdrAttr[0] = matToAtt.at("Conductor_1");
+	EXPECT_NEAR( Q, s.computeChargeInBoundary(bdrAttr), tol);
+
+	bdrAttr[0] = matToAtt.at("Conductor_0");
+	EXPECT_NEAR(-Q, s.computeChargeInBoundary(bdrAttr), tol);
 }

@@ -299,10 +299,13 @@ double ElectrostaticSolver::computeChargeInBoundary(const Array<int>& attr) cons
 void ElectrostaticSolver::writeParaViewFields(
     ParaViewDataCollection& pv) const
 {
+    pv.SetHighOrderOutput(true);
+    pv.SetLevelsOfDetail(3);
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
     pv.RegisterField("Rho", rho_);
+
     pv.Save();
 }
 

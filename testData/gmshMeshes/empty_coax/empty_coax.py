@@ -54,20 +54,20 @@ domain_tag = { 'Vacuum': 1 }
 gmsh.model.addPhysicalGroup(2, [region[1]], name='Vacuum')
 
 # Meshing.
-gmsh.option.setNumber("Mesh.MeshSizeMin", 20)
-gmsh.option.setNumber("Mesh.MeshSizeMax", 50)
-gmsh.option.setNumber("Mesh.ElementOrder", 1)
+gmsh.option.setNumber("Mesh.MeshSizeMin", 10)
+gmsh.option.setNumber("Mesh.MeshSizeMax", 10)
+gmsh.option.setNumber("Mesh.ElementOrder", 3)
 gmsh.option.setNumber("Mesh.ScalingFactor", 1e-3)
 gmsh.model.mesh.setSize([(0,5)], 0.01)
 gmsh.model.mesh.generate(2)
 
 # Exporting
-# gmsh.write(CASE_NAME + '.vtk')
+# gmsh.write(dir_path + CASE_NAME + '.vtk')
 
 gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
 gmsh.write(dir_path + CASE_NAME + '.msh')
 
-# if '-nopopup' not in sys.argv:
-#     gmsh.fltk.run()
+if '-nopopup' not in sys.argv:
+    gmsh.fltk.run()
 
 gmsh.finalize()
