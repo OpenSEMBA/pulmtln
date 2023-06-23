@@ -48,7 +48,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	ElectrostaticSolver s(mesh, bcs, {}, opts);
 	s.Solve();
 
-	ParaViewDataCollection paraview_dc{ outFolder + "parallel_plates", &mesh };
+	ParaViewDataCollection paraview_dc{ outFolder() + "parallel_plates", &mesh};
 	s.writeParaViewFields(paraview_dc);
 
 	EXPECT_NEAR(0.0, s.computeTotalChargeFromRho(), tol);
@@ -95,7 +95,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
 	s.Solve();
 
 	ParaViewDataCollection paraview_dc{
-		outFolder + "Parallel_plates_epsr2", &mesh };
+		outFolder() + "Parallel_plates_epsr2",& mesh};
 	s.writeParaViewFields(paraview_dc);
 
 	mfem::Array<int> bdrAttr(1);
@@ -139,7 +139,7 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
 	s.Solve();
 
-	ParaViewDataCollection paraview_dc{ outFolder + "two_materials", &mesh };
+	ParaViewDataCollection paraview_dc{ outFolder() + "two_materials", &mesh};
 	s.writeParaViewFields(paraview_dc);
 
 	const double tol{ 1e-5 };

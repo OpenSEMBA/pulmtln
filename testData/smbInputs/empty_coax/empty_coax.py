@@ -5,20 +5,20 @@ from collections import defaultdict
 
 CASE_NAME = 'empty_coax'
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
+dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 gmsh.initialize()
 gmsh.model.add(CASE_NAME)
 
-# Importing from FreeCAD generated steps.
+# Importing from FreeCAD generated steps. STEP default units are mm.
 allShapes = gmsh.model.occ.importShapes(
-    dir_path + '\\' + 'empty_coax.step', 
+    dir_path + 'empty_coax.step', 
     highestDimOnly=False)
 gmsh.model.occ.synchronize()
 
 # Build map of names to entities.
 conductors_surface = dict()
-conductors_boundary = dict()
+conductors_bdr = dict()
 for s in allShapes:
     entity_name = gmsh.model.get_entity_name(*s)
     label = "Conductor_"
@@ -29,58 +29,52 @@ for s in allShapes:
         if s[0] == 2:
             conductors_surface[num] = s
         elif s[0] == 1:
-            conductors_boundary[num] = s
+            conductors_bdr[num] = s
         else:
             raise ValueError("Invalid shape dimension for conductor.")
 
-# Geometry manipulation.
+
+# --- Geometry manipulation ---
 # Creates domain.
-ents = gmsh.model.occ.get_entities()
 region = conductors_surface[0]
 for i in range(1,len(conductors_surface)):
     gmsh.model.occ.cut(
         [region], 
         [conductors_surface[i]], removeTool=True)
-
 gmsh.model.occ.synchronize()
-ents = gmsh.model.occ.get_entities()
 
 # Ensures boundaries are embedded.
-# embeddedFace, embFaceMap = gmsh.model.occ.fragment(region, boundary)
-# gmsh.model.occ.remove(gmsh.model.occ.getEntities(1), True)
-# gmsh.model.occ.synchronize()
+for conductor_num, bdr in conductors_bdr.items():
+    embeddedFace, embFaceMap = gmsh.model.occ.fragment(region, bdr)
+    gmsh.model.occ.remove(gmsh.model.occ.getEntities(1), True)
+gmsh.model.occ.synchronize()
 
-# Physical groups.
-conductor_tag = {
-    0: 1,
-    1: 2
-}
+# --- Physical groups ---
+# Domains.
+domain_tag = { 'Vacuum': 1 }
+gmsh.model.addPhysicalGroup(2, region, domain_tag['Vacuum'])
+gmsh.model.setPhysicalName(2, domain_tag['Vacuum'], 'Vacuum')
 
-
-# Creates physical groups
-gmsh.model.addPhysicalGroup(2, [region[0][1]], material_tag['Vacuum'])
-
-pec_bdr = []
-for line in boundary:
-    pec_bdr.append(line[1])
-
-gmsh.model.addPhysicalGroup(1, pec_bdr, material_tag['PEC'])
-gmsh.model.setPhysicalName(1, material_tag['PEC'], 'PEC')
+# Boundaries.
+for conductor_num, bdr in conductors_bdr.items():
+    conductor_name = "Conductor_" + str(conductor_num)
+    conductor_tag_id = conductor_num+1
+    bdr_pg_tag = gmsh.model.addPhysicalGroup(1, bdr, conductor_tag_id)
+    gmsh.model.setPhysicalName(1, conductor_tag_id, conductor_name)
 
 # Meshing.
-gmsh.option.setNumber("Mesh.MeshSizeMin", 5)
-gmsh.option.setNumber("Mesh.MeshSizeMax", 10)
-gmsh.option.setNumber("Mesh.ElementOrder", 2)
+gmsh.option.setNumber("Mesh.MeshSizeMin", 20)
+gmsh.option.setNumber("Mesh.MeshSizeMax", 50)
+gmsh.option.setNumber("Mesh.ElementOrder", 1)
+gmsh.option.setNumber("Mesh.ScalingFactor", 1e-3)
 gmsh.model.mesh.setSize([(0,5)], 0.01)
 gmsh.model.mesh.generate(2)
 
-
-
 # Exporting
-gmsh.write(CASE_NAME + '.vtk')
+# gmsh.write(CASE_NAME + '.vtk')
 
 gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-gmsh.write(CASE_NAME + '.msh')
+gmsh.write(dir_path + CASE_NAME + '.msh')
 
 if '-nopopup' not in sys.argv:
     gmsh.fltk.run()
