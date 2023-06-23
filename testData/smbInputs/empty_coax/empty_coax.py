@@ -43,24 +43,15 @@ for i in range(1,len(conductors_surface)):
         [conductors_surface[i]], removeTool=True)
 gmsh.model.occ.synchronize()
 
-# Ensures boundaries are embedded.
-for conductor_num, bdr in conductors_bdr.items():
-    embeddedFace, embFaceMap = gmsh.model.occ.fragment(region, bdr)
-    gmsh.model.occ.remove(gmsh.model.occ.getEntities(1), True)
-gmsh.model.occ.synchronize()
-
 # --- Physical groups ---
-# Domains.
-domain_tag = { 'Vacuum': 1 }
-gmsh.model.addPhysicalGroup(2, region, domain_tag['Vacuum'])
-gmsh.model.setPhysicalName(2, domain_tag['Vacuum'], 'Vacuum')
-
 # Boundaries.
 for conductor_num, bdr in conductors_bdr.items():
-    conductor_name = "Conductor_" + str(conductor_num)
-    conductor_tag_id = conductor_num+1
-    bdr_pg_tag = gmsh.model.addPhysicalGroup(1, bdr, conductor_tag_id)
-    gmsh.model.setPhysicalName(1, conductor_tag_id, conductor_name)
+    name = "Conductor_" + str(conductor_num)
+    tag_id = gmsh.model.addPhysicalGroup(1, [bdr[1]], name=name)
+
+# Domains.
+domain_tag = { 'Vacuum': 1 }
+gmsh.model.addPhysicalGroup(2, [region[1]], name='Vacuum')
 
 # Meshing.
 gmsh.option.setNumber("Mesh.MeshSizeMin", 20)
@@ -76,7 +67,7 @@ gmsh.model.mesh.generate(2)
 gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
 gmsh.write(dir_path + CASE_NAME + '.msh')
 
-if '-nopopup' not in sys.argv:
-    gmsh.fltk.run()
+# if '-nopopup' not in sys.argv:
+#     gmsh.fltk.run()
 
 gmsh.finalize()
