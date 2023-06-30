@@ -200,3 +200,48 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 	bdrAttr[0] = matToAtt.at("Conductor_0");
 	EXPECT_NEAR(-Q, s.computeChargeInBoundary(bdrAttr), tol);
 }
+
+
+TEST_F(ElectrostaticSolverTest, two_wires_coax)
+{
+	const std::string CASE{ "two_wires_coax" };
+
+	// PhysicalGroups
+	const std::map<std::string, int> matToAtt{
+		{ "Conductor_0", 1 }, // Outer boundary
+		{ "Conductor_1", 2 }, // Inner boundary
+		{ "Conductor_2", 3 }, // Inner boundary
+		{ "Vacuum",      4 } // Domain
+	};
+
+	auto fn{ gmshMeshesFolder() + CASE + "/" + CASE + ".msh" };
+	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
+
+	const double V0{ 1.0 };
+	BoundaryConditions bcs{ {
+		{1, 0.0}, // Gnd bdr.
+		{2, V0},  // Conductor 1 bdr.
+	} };
+
+	std::map<int, double> domainToEpsr{};
+
+	SolverOptions opts;
+	opts.order = 3;
+
+	ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
+	s.Solve();
+
+	ParaViewDataCollection paraview_dc{ outFolder() + CASE, &mesh };
+	s.writeParaViewFields(paraview_dc);
+
+
+	//const double tol{ 1e-1 };
+
+	//mfem::Array<int> bdrAttr(1);
+
+	//bdrAttr[0] = matToAtt.at("Conductor_1");
+	//EXPECT_NEAR(Q, s.computeChargeInBoundary(bdrAttr), tol);
+
+	//bdrAttr[0] = matToAtt.at("Conductor_0");
+	//EXPECT_NEAR(-Q, s.computeChargeInBoundary(bdrAttr), tol);
+}
