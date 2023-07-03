@@ -24,10 +24,11 @@ public:
 
     const GridFunction& GetVectorPotential() { return *phi_; }
 
-    double computeTotalChargeFromRho() const;
-    double computeTotalCharge() const;
-    double computeChargeInBoundary(const Array<int>& attr) const;
+    double totalChargeFromRho() const;
+    double totalCharge() const;
+    double chargeInBoundary(const Array<int>& attr) const;
 
+    Mesh* getMesh() { return mesh_; }
 private:
     SolverOptions opts_;
     

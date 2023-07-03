@@ -269,17 +269,17 @@ void ElectrostaticSolver::Solve()
     std::cout << "Solver done. " << std::endl; 
 }
 
-double ElectrostaticSolver::computeTotalChargeFromRho() const
+double ElectrostaticSolver::totalChargeFromRho() const
 {
     return (*l2_vol_int_)(*rho_);
 }
 
-double ElectrostaticSolver::computeTotalCharge() const
+double ElectrostaticSolver::totalCharge() const
 {
     return (*rt_surf_int_)(*d_);
 }
 
-double ElectrostaticSolver::computeChargeInBoundary(const Array<int>& attr) const
+double ElectrostaticSolver::chargeInBoundary(const Array<int>& attr) const
 {
     Array<Coefficient*> coefs(attr.Size());
     ConstantCoefficient one{ -1.0 };
