@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "solver/ElectrostaticSolver.h"
+#include "ElectrostaticSolver.h"
 #include "TestUtils.h"
 
 using namespace mfem;
@@ -182,7 +182,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 		{ "Vacuum", 3 } // Domain
 	};
 
-	auto fn{ gmshMeshesFolder() + CASE + "/" + CASE + ".msh" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
 	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V0{ 1.0 };
@@ -229,7 +229,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 		{ "Vacuum",      4 } // Domain
 	};
 
-	auto fn{ gmshMeshesFolder() + CASE + "/" + CASE + ".msh" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
 	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V{ 1.0 }; // Voltage

@@ -28,7 +28,7 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
 
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
-    const BoundaryConditions& dbc,
+    const BdrConditionValues& dbc,
     const std::map<int, double>& domainToEpsr,
     const SolverOptions& opts) : 
     opts_(opts),

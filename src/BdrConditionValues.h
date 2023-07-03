@@ -5,10 +5,10 @@
 
 namespace pulmtln {
 
-class BoundaryConditions {
+class BdrConditionValues {
 public:
-	BoundaryConditions() = default;
-	BoundaryConditions(const std::map<int,double>& attVals) :
+	BdrConditionValues() = default;
+	BdrConditionValues(const std::map<int,double>& attVals) :
 		attVals_{attVals}
 	{}
 	
