@@ -9,13 +9,14 @@ namespace pulmtln {
 
 class Parser {
 public:
-	Parser(const nlohmann::json&);
+	Parser(const std::string& filename);
 
 	Model readModel() const;
 	SolverOptions readSolverOptions() const;
 
 private:
 	nlohmann::json json_;
+	std::string filename_;
 };
 
 }

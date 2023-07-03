@@ -13,7 +13,7 @@ TEST_F(ParserTest, empty_coax)
 {
 	const std::string CASE{ "empty_coax" };
 	Parser parser{ 
-		readJSON(casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json") 
+		casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" 
 	};
 
 	auto opts{ parser.readSolverOptions() };
@@ -21,10 +21,12 @@ TEST_F(ParserTest, empty_coax)
 	EXPECT_EQ(true, opts.exportParaViewSolution);
 
 	auto model{ parser.readModel() };
-	auto pecs{ model.getMaterialsOfType(MaterialType::PEC) };
+	const auto& pecs{ model.getMaterials().pecs };
 	ASSERT_EQ(2, pecs.size());
-	EXPECT_EQ(1, pecs.at("Conductor_0"));
-	EXPECT_EQ(2, pecs.at("Conductor_1"));
+	EXPECT_EQ(pecs[0].name, "Conductor_0");
+	EXPECT_EQ(pecs[0].tag, 1);
+	EXPECT_EQ(pecs[1].name, "Conductor_1");
+	EXPECT_EQ(pecs[1].tag, 2);
 
 	EXPECT_NE(0, model.getMesh()->GetNE());
 	EXPECT_EQ(2, model.getMesh()->bdr_attributes.Size());

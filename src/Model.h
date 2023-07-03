@@ -18,6 +18,7 @@ public:
 	std::map<std::string, int> getMaterialsOfType(const MaterialType&);
 
 	mfem::Mesh* getMesh() { return &mesh_; }
+	const Materials& getMaterials() { return materials_;  }
 private:	
 	Materials materials_;
 	mfem::Mesh mesh_;

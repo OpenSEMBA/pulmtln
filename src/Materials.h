@@ -15,10 +15,8 @@ struct MaterialPEC {
 	int tag;
 };
 
-
-class Materials {
-private:
-	std::vector<MaterialPEC> PEC_;
+struct Materials {
+	std::vector<MaterialPEC> pecs;
 };
 
 }
