@@ -10,15 +10,15 @@ enum class MaterialType {
 	Dielectric
 };
 
-struct Material {};
-
-struct MaterialPEC : public Material {
-
+struct MaterialPEC {
+	std::string name;
+	int tag;
 };
+
 
 class Materials {
 private:
-	std::vector<std::unique_ptr<Material>> v_;
+	std::vector<MaterialPEC> PEC_;
 };
 
 }

@@ -1,7 +1,7 @@
 #include "ElectrostaticSolver.h"
 
 #include "constants.h"
-#include "BoundaryConditions.h"
+#include "BdrConditionValues.h"
 
 namespace pulmtln {
 
@@ -71,11 +71,11 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     // Setup various coefficients
     if (domainToEpsr_.size() == 0) {
-        epsCoef_ = new ConstantCoefficient(epsilon0_);
+        epsCoef_ = new ConstantCoefficient(EPSILON0);
     }
     else {
         mfem::Vector eps(mesh_->attributes.Max());
-        eps = epsilon0_;
+        eps = EPSILON0;
         for (const auto& [attr, epsr] : domainToEpsr_) {
             assert(attr <= eps.Size());
             eps[attr-1] *= epsr;

@@ -1,20 +1,21 @@
 cmake_minimum_required(VERSION 3.0)
 
-message(STATUS "Creating build system for ${PROJECT_NAME}_Tests")
+message(STATUS "Creating build system for ${PROJECT_NAME}_tests")
+
+find_package(GTest CONFIG REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME}_tests
 	 "ElectrostaticSolverTest.cpp"
 	 "mfemTest.cpp"
 	 "DriverTest.cpp"
-  "ParserTest.cpp")
+     "ParserTest.cpp"
+)
 
 include_directories(./)
-
-find_package(GTest CONFIG REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
-
+ 
 target_link_libraries(${PROJECT_NAME}_tests 
-	pulmtln-solver
+	pulmtln
 	GTest::gtest
 	GTest::gtest_main
 )

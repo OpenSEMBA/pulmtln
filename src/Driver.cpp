@@ -1,14 +1,12 @@
 #include "Driver.h"
 
 #include "ElectrostaticSolver.h"
-#include "Model.h"
 
 namespace pulmtln {
 
 using namespace mfem;
 
-Driver::Driver(const json&, const SolverOptions& opts) :
-    opts_{opts}
+Driver::Driver(const nlohmann::json& input)
 {   
     //Model model;
     //int sdim = model.mesh.SpaceDimension();
@@ -26,6 +24,17 @@ Driver::Driver(const json&, const SolverOptions& opts) :
     //ParaViewDataCollection paraview_dc{ "PULMTLN", &model_.mesh };
     //electrostaticSolver_->writeParaViewFields(paraview_dc); 
 }
+
+MTLPULParameters Driver::getMTLPUL() const
+{
+    MTLPULParameters res;
+
+    // TODO
+
+    return res;
+}
+
+
 
 
 }

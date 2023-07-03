@@ -7,11 +7,15 @@
 
 namespace pulmtln {
 
+struct MTLPULParameters {
+    mfem::DenseMatrix L, C; // Stored in SI.
+};
+
 class Driver {
 public:
     Driver(const nlohmann::json& input);
 
-    nlohmann::json getPULMTLN() const;
+    MTLPULParameters getMTLPUL() const;
 private:
     Model model_;
     SolverOptions opts_;

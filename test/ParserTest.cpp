@@ -3,21 +3,11 @@
 #include "Parser.h"
 #include "TestUtils.h"
 
-#include <nlohmann/json.hpp>
 
 using namespace pulmtln;
 
-using json = nlohmann::json;
 
 class ParserTest : public ::testing::Test {};
-
-json readJSON(const std::string& fn)
-{
-	std::ifstream stream(fn);
-	json j;
-	stream >> j;
-	return j;
-}
 
 TEST_F(ParserTest, empty_coax)
 {

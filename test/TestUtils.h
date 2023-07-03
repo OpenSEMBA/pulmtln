@@ -1,6 +1,10 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
+#include <fstream>
+
+using json = nlohmann::json;
 
 static std::string testDataFolder(){ return "./testData/"; }
 static std::string casesFolder()   { return testDataFolder(); }
@@ -25,3 +29,10 @@ static std::string getTestCaseName()
 	return suiteName + "." + getCaseName();
 }
 
+static json readJSON(const std::string& fn)
+{
+	std::ifstream stream(fn);
+	json j;
+	stream >> j;
+	return j;
+}
