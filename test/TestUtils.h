@@ -36,3 +36,12 @@ static json readJSON(const std::string& fn)
 	stream >> j;
 	return j;
 }
+
+static double relError(double expectedVal, double val)
+{
+	if (expectedVal == 0.0) {
+		throw std::runtime_error(
+			"Unable to compute relative error of a 0.0 expected value");
+	}
+	return std::abs(val - expectedVal) / std::abs(expectedVal);
+}

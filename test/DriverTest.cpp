@@ -20,11 +20,13 @@ TEST_F(DriverTest, empty_coax)
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 
 	auto CExpected{ EPSILON0_SI * 2 * M_PI / log(0.05 / 0.025) };
+
+	const double rTol{ 0.005 }; 
 	ASSERT_EQ(1, out.C.NumCols() * out.C.NumRows());
-	EXPECT_EQ(CExpected, out.C(0, 0));
+	EXPECT_LE(relError(CExpected, out.C(0, 0)), rTol);
 	
 	auto LExpected{ EPSILON0_SI * MU0_SI / CExpected };
 	ASSERT_EQ(1, out.L.NumCols() * out.L.NumRows());
-	EXPECT_EQ(LExpected, out.L(0, 0));
+	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 

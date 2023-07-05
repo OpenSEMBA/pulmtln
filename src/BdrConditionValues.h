@@ -5,6 +5,8 @@
 
 namespace pulmtln {
 
+using MatNameToAttribute = std::map<std::string, int>;
+
 class BdrConditionValues : public std::map<int,double> {
 public:
 	BdrConditionValues() = default;

@@ -13,7 +13,7 @@ add_library(${LIBRARY_NAME} STATIC
 	"ElectrostaticSolver.cpp"
 	"Driver.cpp" 
 	"Parser.cpp"
-	
+	"Model.cpp"
 )
 
 target_link_libraries(${LIBRARY_NAME} mfem nlohmann_json)

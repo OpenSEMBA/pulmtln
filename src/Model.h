@@ -15,9 +15,11 @@ public:
 		materials_{materials}
 	{}
 
-	std::map<std::string, int> getMaterialsOfType(const MaterialType&) const;
+	MatNameToAttribute getMaterialsOfType(const MaterialType&) const;
 
 	mfem::Mesh* getMesh() { return &mesh_; }
+	const mfem::Mesh* getMesh() const { return &mesh_; }
+
 	const Materials& getMaterials() { return materials_;  }
 private:	
 	Materials materials_;

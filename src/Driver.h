@@ -8,7 +8,7 @@
 namespace pulmtln {
 
 struct MTLPULParameters {
-    mfem::DenseMatrix L, C; // Stored in SI.
+    mfem::DenseMatrix L, C; // Stored in SI units.
 };
 
 class Driver {
@@ -18,6 +18,7 @@ public:
     MTLPULParameters getMTLPUL() const;
 
     static Driver loadFromFile(const std::string& filename);
+
 private:
     Model model_;
     SolverOptions opts_;

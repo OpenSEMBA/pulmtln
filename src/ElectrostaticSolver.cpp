@@ -279,8 +279,11 @@ double ElectrostaticSolver::totalCharge() const
     return (*rt_surf_int_)(*d_);
 }
 
-double ElectrostaticSolver::chargeInBoundary(const Array<int>& attr) const
+double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
 {
+    mfem::Array<int> attr(1);
+    attr[0] = bdrAttribute;
+
     Array<Coefficient*> coefs(attr.Size());
     ConstantCoefficient one{ -1.0 };
     for (int i = 0; i < coefs.Size(); i++) {

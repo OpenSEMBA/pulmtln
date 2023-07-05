@@ -20,14 +20,6 @@ mfem::Vector getBaricenterOfElement(Mesh& mesh, int e)
 	return center;
 }
 
-double relError(double expectedVal, double val)
-{
-	if (expectedVal == 0.0) {
-		throw std::runtime_error(
-			"Unable to compute relative error of a 0.0 expected value");
-	}
-	return std::abs(val - expectedVal) / std::abs(expectedVal);
-}
 
 void exportSolution(ElectrostaticSolver& s, const std::string& caseName)
 {
@@ -70,15 +62,11 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	EXPECT_NEAR(0.0, s.totalChargeFromRho(), aTol);
 	EXPECT_NEAR(0.0, s.totalCharge(), aTol);
 
-	mfem::Array<int> bdrAttr(1);
-	bdrAttr[0] = 1;
-	EXPECT_LE(relError(1.0, s.chargeInBoundary(bdrAttr)), rTol);
+	EXPECT_LE(relError(1.0, s.chargeInBoundary(1)), rTol);
 
-	bdrAttr[0] = 3;
-	EXPECT_LE(relError(-1.0, s.chargeInBoundary(bdrAttr)), rTol);
+	EXPECT_LE(relError(-1.0, s.chargeInBoundary(3)), rTol);
 
-	bdrAttr[0] = 2;
-	EXPECT_NEAR(0.0, s.chargeInBoundary(bdrAttr), aTol);
+	EXPECT_NEAR(0.0, s.chargeInBoundary(2), aTol);
 
 }
 
@@ -110,11 +98,8 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
 
 	exportSolution(s, "Parallel_plates_epsr2");
 
-	mfem::Array<int> bdrAttr(1);
-	bdrAttr[0] = 1;
-
 	const double tol{ 1e-6 };
-	EXPECT_LE(relError(2.0, s.chargeInBoundary(bdrAttr)), tol);
+	EXPECT_LE(relError(2.0, s.chargeInBoundary(1)), tol);
 }
 
 TEST_F(ElectrostaticSolverTest, two_materials)
@@ -161,13 +146,8 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	EXPECT_NEAR(0.0, s.totalChargeFromRho(), aTol);
 	EXPECT_NEAR(0.0, s.totalCharge(), aTol);
 
-	mfem::Array<int> bdrAttr(1);
-
-	bdrAttr[0] = 1;
-	EXPECT_LE(relError(1.6, s.chargeInBoundary(bdrAttr)), rTol);
-
-	bdrAttr[0] = 3;
-	EXPECT_LE(relError(- 1.6, s.chargeInBoundary(bdrAttr)), rTol);
+	EXPECT_LE(relError(1.6, s.chargeInBoundary(1)), rTol);
+	EXPECT_LE(relError(- 1.6, s.chargeInBoundary(3)), rTol);
 
 }
 
@@ -207,13 +187,15 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 
 	const double rTol{ 5e-3 }; // 0.5% error.
 
-	mfem::Array<int> bdrAttr(1);
+	EXPECT_LE(relError(
+		QExpected, 
+		s.chargeInBoundary(matToAtt.at("Conductor_1"))
+	), rTol);
 
-	bdrAttr[0] = matToAtt.at("Conductor_1");
-	EXPECT_LE(relError(QExpected, s.chargeInBoundary(bdrAttr)), rTol);
-
-	bdrAttr[0] = matToAtt.at("Conductor_0");
-	EXPECT_LE(relError(-QExpected, s.chargeInBoundary(bdrAttr)), rTol);
+	EXPECT_LE(relError(
+		-QExpected, 
+		s.chargeInBoundary(matToAtt.at("Conductor_0"))
+	), rTol);
 }
 
 
@@ -257,15 +239,15 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 
 	const double rTol{ 2.5e-2 };
 
-	mfem::Array<int> bdrAttr(1);
-	
-	bdrAttr[0] = matToAtt.at("Conductor_1");
 	EXPECT_LE(
-		relError(CMatExpected(0,0), s.chargeInBoundary(bdrAttr) / V), 
-		rTol);
+		relError(
+			CMatExpected(0,0), 
+			s.chargeInBoundary(matToAtt.at("Conductor_1")) / V
+		), rTol);
 	
-	bdrAttr[0] = matToAtt.at("Conductor_2");
 	EXPECT_LE(
-		relError(CMatExpected(0,1), s.chargeInBoundary(bdrAttr) / V), 
-		rTol);
+		relError(
+			CMatExpected(0,1), 
+			s.chargeInBoundary(matToAtt.at("Conductor_2")) / V
+		), rTol);
 }

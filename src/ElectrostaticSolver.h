@@ -9,8 +9,6 @@ namespace pulmtln {
 
 using namespace mfem;
 
-using MatNameToAttribute = std::map<std::string, int>;
-
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
@@ -28,7 +26,7 @@ public:
 
     double totalChargeFromRho() const;
     double totalCharge() const;
-    double chargeInBoundary(const Array<int>& attr) const;
+    double chargeInBoundary(int bdrAttribute) const;
 
     Mesh* getMesh() { return mesh_; }
 private:
