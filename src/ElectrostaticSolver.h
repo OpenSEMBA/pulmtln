@@ -9,6 +9,8 @@ namespace pulmtln {
 
 using namespace mfem;
 
+using MatNameToAttribute = std::map<std::string, int>;
+
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(

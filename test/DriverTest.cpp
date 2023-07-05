@@ -16,8 +16,8 @@ TEST_F(DriverTest, empty_coax)
 	// Empty Coaxial case.
 	const std::string CASE{ "empty_coax" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
-
-	auto out{ Driver{ readJSON(fn) }.getMTLPUL() };
+	
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 
 	auto CExpected{ EPSILON0_SI * 2 * M_PI / log(0.05 / 0.025) };
 	ASSERT_EQ(1, out.C.NumCols() * out.C.NumRows());

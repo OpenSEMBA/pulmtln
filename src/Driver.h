@@ -13,9 +13,11 @@ struct MTLPULParameters {
 
 class Driver {
 public:
-    Driver(const nlohmann::json& input);
-
+    Driver(const Model& model, const SolverOptions& opts);
+    
     MTLPULParameters getMTLPUL() const;
+
+    static Driver loadFromFile(const std::string& filename);
 private:
     Model model_;
     SolverOptions opts_;

@@ -5,18 +5,18 @@
 
 namespace pulmtln {
 
-class BdrConditionValues {
+class BdrConditionValues : public std::map<int,double> {
 public:
 	BdrConditionValues() = default;
 	BdrConditionValues(const std::map<int,double>& attVals) :
-		attVals_{attVals}
+		std::map<int,double>{attVals}
 	{}
 	
 	mfem::Array<int> getAttributes() const
 	{
-		int dbcSize{ (int)attVals_.size() };
+		int dbcSize{ (int) size() };
 		mfem::Array<int> bi(dbcSize);
-		auto it{ attVals_.begin() };
+		auto it{ begin() };
 		for (int i = 0; i < dbcSize; i++) {
 			bi[i] = it->first;
 			++it;
@@ -26,18 +26,15 @@ public:
 
 	mfem::Vector getValues() const
 	{
-		int dbcSize{ (int)attVals_.size() };
+		int dbcSize{ (int) size() };
 		mfem::Vector bv(dbcSize);
-		auto it{ attVals_.begin() };
+		auto it{ begin() };
 		for (int i = 0; i < dbcSize; i++) {
 			bv[i] = it->second;
 			++it;
 		}
 		return bv;
 	}
-
-private:
-	std::map<int, double> attVals_;
 };
 
 }
