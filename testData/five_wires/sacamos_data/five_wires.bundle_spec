@@ -1,0 +1,19 @@
+#MOD_cable_lib_dir
+..\MOD\CABLE\
+#MOD_cable_lib_dir
+..\MOD\BUNDLE\
+6 #Number of cables in bundle, cable list follows
+overshield
+0	0	0
+wire_0_8mm
+0	0	0
+wire_0_5mm
+2e-3	0	0
+wire_0_5mm
+0	2e-3	0
+wire_0_5mm
+-2e-3	0	0
+wire_0_5mm
+0	-2e-3	0
+no_ground_plane
+no_laplace

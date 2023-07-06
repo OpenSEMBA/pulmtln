@@ -83,6 +83,19 @@ mfem::DenseMatrix solveCMatrix(
             }
             C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ));
         }
+
+        if (opts.exportParaViewSolution) {
+            std::string outputName{"ParaView/DriverResult"};
+            if (ignoreDielectrics) {
+                outputName += "_C_";
+            }
+            else {
+                outputName += "_L_";
+            }
+            outputName += std::to_string(numI);
+            ParaViewDataCollection pd{ outputName, s.getMesh() };
+            s.writeParaViewFields(pd);
+        }
     }
     return C;
 }

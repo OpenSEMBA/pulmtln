@@ -85,13 +85,34 @@ TEST_F(DriverTest, two_wires_coax)
 	}
 }
 
-TEST_F(DriverTest, DISABLED_five_wires)
+TEST_F(DriverTest, five_wires)
 {
 	// Five wires in round shield. 
-	// Comparison with SACAMOS data.
+	// Comparison with SACAMOS data (No Laplace).
 
 	const std::string CASE{ "five_wires" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
+	mfem::DenseMatrix CExpected(5, 5);
+	double CExpectedData[25] = {
+		 6.13984020E-11, -1.57357520E-11, -1.57357520E-11, -1.57357520E-11, -1.57357520E-11,
+		-1.57357520E-11,  5.16791696E-11, -1.28197225E-12,  2.18098196E-12, -1.28197225E-12,
+		-1.57357520E-11, -1.28197225E-12,  5.16791696E-11, -1.28197225E-12,  2.18098196E-12,
+		-1.57357520E-11,  2.18098196E-12, -1.28197225E-12,  5.16791696E-11, -1.28197225E-12,
+		-1.57357520E-11, -1.28197225E-12,  2.18098196E-12, -1.28197225E-12,  5.16791696E-11
+	};
+	CExpected.UseExternalData(CExpectedData, 5, 5);
+
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+
+	ASSERT_EQ(5, out.C.NumRows());
+	ASSERT_EQ(5, out.C.NumCols());
+	
+	double rTol{ 0.1 };
+	for (int i{ 0 }; i < 5; i++) {
+		for (int j{ 0 }; j < 5; j++) {
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) << 
+				"In C(" << i << ", " << j << ")";
+		}
+	}
 }

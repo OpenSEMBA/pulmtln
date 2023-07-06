@@ -1,0 +1,16 @@
+# MOD_cable_lib_dir 
+..\MOD\CABLE\
+Overshield
+1 /t#number of conductors 
+3 /t#number of parameters 
+3e-3 	# parameter 1: overshield radius (m)
+1e-3 	# parameter 2: overshield thickness (m)
+56000000 	# parameter 3: overshield conductivity
+0 	# number of frequency dependent parameters
+1 	# number of frequency dependent transfer impedance models
+#  Transfer impedance model 
+1.0 	# angular frequency normalisation
+0 	# order of numerator model
+1 	# list of numerator coefficients a0 a1 a2... 
+0 	# order of denominator model
+1 	# list of denominator coefficients b0 b1 b2... 

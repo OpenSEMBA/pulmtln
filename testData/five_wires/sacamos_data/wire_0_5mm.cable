@@ -1,0 +1,54 @@
+v4.0.0
+cylindrical
+           1  # cable type number
+           1  # Total Number of conductors
+           1  # Number of external conductors
+           1  # Total number of domains (including external domain)
+           0  # Number of internal conductors
+           0  # Number of internal domains
+           3  # Number of cable parameters
+   5.0000000000000001E-004
+   7.5000000000000002E-004
+   5800000.0000000000     
+           1  # number of frequency dependent dielectric models
+ # Dielectric filter number           1
+   1.0000000000000000        # w normalisation constant
+           0   # a order, a coefficients follow below:
+   2.0000000000000000     
+           0   # b order, b coefficients follow below:
+   1.0000000000000000     
+ # Conductor impedance models
+           1  # Conductor impedance model type
+   5.0000000000000001E-004  # conductor radius
+   5800000.0000000000       # conductivity
+   1.0000000000000000       # Resistance_multiplication_factor
+ External to domain conductor current transformation matrix, MI
+           2  Dimension of MI
+  1.00000000E+00  0.00000000E+00
+  1.00000000E+00  1.00000000E+00
+ External to domain conductor voltage transformation matrix, MV
+           2  Dimension of MV
+  1.00000000E+00 -1.00000000E+00
+  0.00000000E+00  1.00000000E+00
+  # Local reference conductor for internal domains
+           0
+  # number of conductors in each domain
+           2
+  # External conductor information and dielectric model
+           1   conductor type
+   5.0000000000000001E-004  conductor_radius 
+   0.0000000000000000       conductor_width  
+   0.0000000000000000       conductor_width2  
+   0.0000000000000000       conductor_height 
+   0.0000000000000000        0.0000000000000000       conductor_ox,  conductor_oy    
+   7.5000000000000002E-004  dielectric_radius
+   0.0000000000000000       dielectric_width 
+   0.0000000000000000       dielectric_height
+   0.0000000000000000        0.0000000000000000       dielectric_ox, dielectric_oy    
+   1.0000000000000000        # w normalisation constant
+           0   # a order, a coefficients follow below:
+   2.0000000000000000     
+           0   # b order, b coefficients follow below:
+   1.0000000000000000     
+  # Conductor labels
+ Cable name: wire_0_5mm. type: cylindrical. conductor 1 : wire
