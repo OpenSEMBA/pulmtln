@@ -90,3 +90,4 @@ out/*
 /Parallel_plates
 /Parallel_plates_epsr2
 .vscode/c_cpp_properties.json
+empty_coax.msh

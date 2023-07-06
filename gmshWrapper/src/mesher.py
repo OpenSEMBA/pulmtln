@@ -3,34 +3,66 @@ import os
 import sys
 from collections import defaultdict
 
-def meshFromStep(dir_path: str, case_name: str):
+DEFAULT_MESHING_OPTIONS = {
+    "Mesh.MeshSizeFromCurvature": 10,
+    "Mesh.ElementOrder": 3,
+    "Mesh.ScalingFactor": 1e-3,
+    "General.DrawBoundingBoxes": 1,    
+    "Mesh.SurfaceFaces": 1            
+}
+
+class StepShapes:
+    def __init__(self, shapes):
+        self.allShapes = shapes
+
+        self.pec_surfaces = self. get_surfaces(shapes, "Conductor_")
+        self.dielectric_surface = self.get_surfaces(shapes, "Dielectric_")
+        
+        self.pec_bdrs = self.get_boundaries(self.pec_surfaces)
+        self.dielectric_bdr = self.get_boundaries(self.dielectric_surface)
+
+
+    def get_surfaces(shapes, label: str):
+        surfaces = dict()
+        for s in shapes:
+            entity_name = gmsh.model.get_entity_name(*s)
+            if s[0] != 2:
+                continue
+            ini = entity_name.index(label) + len(label)
+            end = ini+1
+            num = int(entity_name[ini:end])
+            surfaces[num] = s
+        
+        return surfaces
+    
+    
+    def get_boundaries(surfaces):
+        boundaries = dict()
+        for [num, s] in surfaces.items():
+            boundaries[num] = gmsh.model.get_boundary([s])
+
+        return boundaries
+
+
+def meshFromStep(
+        folder: str, 
+        case_name: str, 
+        meshing_options = DEFAULT_MESHING_OPTIONS):
+    
     gmsh.initialize()
     gmsh.model.add(case_name)
 
     # Importing from FreeCAD generated steps. STEP default units are mm.
-    allShapes = gmsh.model.occ.importShapes(
-        dir_path + case_name + '/' + case_name + '.step', 
-        highestDimOnly=False)
+    stepShapes = StepShapes(
+        gmsh.model.occ.importShapes(
+        folder + case_name + '/' + case_name + '.step', highestDimOnly=False)
+    )
     gmsh.model.occ.synchronize()
 
-    # Build map of names to entities.
-    conductors_surface = dict()
-    conductors_bdr = dict()
-    for s in allShapes:
-        entity_name = gmsh.model.get_entity_name(*s)
-        label = "Conductor_"
-        if label in entity_name and s[0] == 2:
-            ini = entity_name.index(label) + len(label)
-            end = ini+1
-            num = int(entity_name[ini:end])
-            conductors_surface[num] = s
-            conductors_bdr[num] = gmsh.model.get_boundary([s])
-
-
     # --- Geometry manipulation ---
-    # Creates domain.
-    region = conductors_surface[0]
-    for k, v in conductors_surface.items():
+    # Creates global domain.
+    region = stepShapes.conductors_surface[0]
+    for k, v in stepShapes.conductors_surface.items():
         if k == 0:
             continue
         gmsh.model.occ.cut([region], [v], removeTool=True)
@@ -38,7 +70,7 @@ def meshFromStep(dir_path: str, case_name: str):
 
     # --- Physical groups ---
     # Boundaries.
-    for conductor_num, bdrs in conductors_bdr.items():
+    for conductor_num, bdrs in stepShapes.conductors_bdr.items():
         name = "Conductor_" + str(conductor_num)
         for bdr in bdrs:
             gmsh.model.addPhysicalGroup(1, [bdr[1]], name=name)
@@ -48,15 +80,13 @@ def meshFromStep(dir_path: str, case_name: str):
     gmsh.model.addPhysicalGroup(2, [region[1]], name='Vacuum')
 
     # Meshing.
-    gmsh.option.setNumber("Mesh.MeshSizeMin",   0.1)
-    gmsh.option.setNumber("Mesh.MeshSizeMax",   10)
-    gmsh.option.setNumber("Mesh.ElementOrder",  3)
-    gmsh.option.setNumber("Mesh.ScalingFactor", 1e-3)
-    gmsh.model.mesh.setSize([(0,5)], 0.01)
+    for [opt, val] in meshing_options.items():
+        gmsh.option.setNumber(opt, val)
+
     gmsh.model.mesh.generate(2)
+    gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
 
     # Exporting
-    gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
     gmsh.write(case_name + '.msh')
 
     if '-nopopup' not in sys.argv:
