@@ -21,15 +21,19 @@ class StepShapes:
         self.dielectrics = self.get_surfaces(shapes, "Dielectric_")
 
     @staticmethod
+    def getNumberFromEntityName(entity_name: str, label: str):
+        ini = entity_name.rindex(label) + len(label)
+        num = int(entity_name[ini:])
+        return num
+
+    @staticmethod
     def get_surfaces(shapes, label: str):
         surfaces = dict()
         for s in shapes:
             entity_name = gmsh.model.get_entity_name(*s)
             if s[0] != 2 or label not in entity_name:
                 continue
-            ini = entity_name.index(label) + len(label)
-            end = ini+1 # BUGGY FOR TWO DIGIT NUMBERS !!!!
-            num = int(entity_name[ini:end])
+            num = StepShapes.getNumberFromEntityName(entity_name, label)
             surfaces[num] = s
 
         return surfaces

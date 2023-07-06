@@ -50,7 +50,7 @@ TEST_F(DriverTest, partially_filled_coax)
 	auto CIn{  4.0 * EPSILON0_SI * 2 * M_PI / log(0.035 / 0.025) };
 	auto CExpected = COut * CIn / (COut + CIn);
 
-	const double rTol{ 0.005 };
+	const double rTol{ 0.002 };
 	ASSERT_EQ(1, out.C.NumCols() * out.C.NumRows());
 	EXPECT_LE(relError(CExpected, out.C(0, 0)), rTol);
 
