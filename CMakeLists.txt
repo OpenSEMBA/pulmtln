@@ -23,6 +23,6 @@ include_directories(src/)
 add_subdirectory(src)
 
 enable_testing()
-add_subdirectory(test/  )
+add_subdirectory(test/)
 
 add_test(${PROJECT_NAME} ${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME}_tests)

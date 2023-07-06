@@ -7,6 +7,8 @@ ParaView/
 mesh.mesh
 *.mtx
 
+__pycache__/
+
 # Prerequisites
 *.d
 
@@ -87,3 +89,4 @@ out/*
 /two_materials
 /Parallel_plates
 /Parallel_plates_epsr2
+.vscode/c_cpp_properties.json
