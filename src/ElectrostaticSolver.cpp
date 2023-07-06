@@ -40,15 +40,9 @@ ElectrostaticSolver::ElectrostaticSolver(
     HDivFESpace_(NULL),
     L2FESpace_(NULL),
     divEpsGrad_(NULL),
-    h1Mass_(NULL),
-    h1SurfMass_(NULL),
     hDivMass_(NULL),
     hCurlHDivEps_(NULL),
-    hCurlHDiv_(NULL),
-    weakDiv_(NULL),
     rhod_(NULL),
-    l2_vol_int_(NULL),
-    rt_surf_int_(NULL),
     grad_(NULL),
     phi_(NULL),
     rho_(NULL),
@@ -95,13 +89,6 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     rhod_ = new LinearForm(H1FESpace_);
 
-    
-    l2_vol_int_ = new LinearForm(L2FESpace_);
-    l2_vol_int_->AddDomainIntegrator(new DomainLFIntegrator(oneCoef_));
-
-    rt_surf_int_ = new LinearForm(HDivFESpace_);
-    rt_surf_int_->AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator);
-
     // Discrete derivative operator
     grad_ = new DiscreteGradOperator(H1FESpace_, HCurlFESpace_);
     div_ = new DiscreteDivOperator(HDivFESpace_, L2FESpace_);
@@ -120,8 +107,6 @@ ElectrostaticSolver::~ElectrostaticSolver()
     delete phi_;
     delete rho_;
     delete rhod_;
-    delete l2_vol_int_;
-    delete rt_surf_int_;
     delete d_;
     delete e_;
     
@@ -129,13 +114,9 @@ ElectrostaticSolver::~ElectrostaticSolver()
     delete div_;
 
     delete divEpsGrad_;
-    delete h1Mass_;
-    delete h1SurfMass_;
     delete hDivMass_;
     delete hCurlHDivEps_;
-    delete hCurlHDiv_;
-    delete weakDiv_;
-
+    
     delete H1FESpace_;
     delete HCurlFESpace_;
     delete HDivFESpace_;
@@ -160,35 +141,12 @@ void ElectrostaticSolver::Assemble()
     *rhod_ = 0.0;
     rhod_->Assemble();
 
-    l2_vol_int_->Assemble();
-    rt_surf_int_->Assemble();
-
     grad_->Assemble();
     grad_->Finalize();
 
     div_->Assemble();
     div_->Finalize();
 
-    if (h1Mass_)
-    {
-        h1Mass_->Assemble();
-        h1Mass_->Finalize();
-    }
-    if (h1SurfMass_)
-    {
-        h1SurfMass_->Assemble();
-        h1SurfMass_->Finalize();
-    }
-    if (hCurlHDiv_)
-    {
-        hCurlHDiv_->Assemble();
-        hCurlHDiv_->Finalize();
-    }
-    if (weakDiv_)
-    {
-        weakDiv_->Assemble();
-        weakDiv_->Finalize();
-    }
     std::cout << "done." << std::endl; 
 }
 
@@ -235,7 +193,7 @@ void ElectrostaticSolver::Solve()
             DivEpsGrad, Phi, RHS);
 
         GSSmoother M(DivEpsGrad);
-        PCG(DivEpsGrad, M, RHS, Phi, 1, 200, 1e-12, 0.0);
+        PCG(DivEpsGrad, M, RHS, Phi, opts_.printIterations, 200, 1e-12, 0.0);
 
         divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
     }
@@ -256,7 +214,7 @@ void ElectrostaticSolver::Solve()
         hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
 
         GSSmoother M(MassHDiv);
-        PCG(MassHDiv, M, ED, D, 1, 200, 1e-12);
+        PCG(MassHDiv, M, ED, D, opts_.printIterations, 200, 1e-12);
         
         hDivMass_->RecoverFEMSolution(D, ed, *d_);
     }
@@ -271,12 +229,19 @@ void ElectrostaticSolver::Solve()
 
 double ElectrostaticSolver::totalChargeFromRho() const
 {
-    return (*l2_vol_int_)(*rho_);
+    LinearForm l2_vol_int{L2FESpace_};
+    ConstantCoefficient oneCoef{1.0};
+    l2_vol_int.AddDomainIntegrator(new DomainLFIntegrator(oneCoef));
+    l2_vol_int.Assemble();
+    return l2_vol_int(*rho_);
 }
 
 double ElectrostaticSolver::totalCharge() const
 {
-    return (*rt_surf_int_)(*d_);
+    LinearForm rt_surf_int{HDivFESpace_};
+    rt_surf_int.AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator);
+    rt_surf_int.Assemble();
+    return rt_surf_int(*d_);
 }
 
 double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const

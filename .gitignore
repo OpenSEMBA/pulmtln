@@ -7,7 +7,7 @@ CMakeSettings.json
 .vscode/c_cpp_properties.json
 
 
-*.msh
+/*.msh
 
 *.csv
 *.gf

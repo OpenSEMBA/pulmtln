@@ -30,7 +30,6 @@ TEST_F(DriverTest, empty_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
-
 TEST_F(DriverTest, partially_filled_coax)
 {
 	// Partially filled coax.
@@ -50,7 +49,7 @@ TEST_F(DriverTest, partially_filled_coax)
 	auto CIn{  4.0 * EPSILON0_SI * 2 * M_PI / log(0.035 / 0.025) };
 	auto CExpected = COut * CIn / (COut + CIn);
 
-	const double rTol{ 0.002 };
+	const double rTol{ 0.002 }; // 0.2% Error.
 	ASSERT_EQ(1, out.C.NumCols() * out.C.NumRows());
 	EXPECT_LE(relError(CExpected, out.C(0, 0)), rTol);
 
@@ -62,3 +61,37 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
+TEST_F(DriverTest, two_wires_coax)
+{
+	const std::string CASE{ "two_wires_coax" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	
+	mfem::DenseMatrix CMatExpected(2, 2);
+	CMatExpected(0, 0) = 2.15605359;
+	CMatExpected(0, 1) = -0.16413431;
+	CMatExpected(1, 0) = CMatExpected(0, 1);
+	CMatExpected(1, 1) = CMatExpected(1, 1);
+	
+	const double rTol{ 2.5e-2 };
+	
+	ASSERT_EQ(2, out.C.NumCols());
+	ASSERT_EQ(2, out.C.NumRows());
+	for (int i{ 0 }; i < 2; i++) {
+		for (int j{ 0 }; j < 2; j++) {
+			EXPECT_LE(relError(CMatExpected(i, j), out.C(i, j)), rTol);
+		}
+	}
+}
+
+TEST_F(DriverTest, DISABLED_five_wires)
+{
+	// Five wires in round shield. 
+	// Comparison with SACAMOS data.
+
+	const std::string CASE{ "five_wires" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+}
