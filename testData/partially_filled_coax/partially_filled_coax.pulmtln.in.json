@@ -6,9 +6,10 @@
   "model": {
     "materials": {
       "Conductor_0": {"type": "PEC", "tag": 1 },
-      "Conductor_1": {"type": "PEC", "tag": 2 }
+      "Conductor_1": {"type": "PEC", "tag": 2 },
+      "Dielectric_1": {"type": "Dielectric", "eps_r": 4.0, "tag": 4}
     },  
-    "gmshFile": "empty_coax.msh"
+    "gmshFile": "partially_filled_coax.msh"
   }
 }
 

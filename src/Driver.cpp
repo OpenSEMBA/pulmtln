@@ -41,7 +41,9 @@ mfem::DenseMatrix solveCMatrix(
     const SolverOptions& opts,
     bool ignoreDielectrics = false)
 {
-    auto pecToBdrMap{ model.getMaterialsOfType(MaterialType::PEC) };
+    const auto& mats{ model.getMaterials() };
+
+    auto pecToBdrMap{ mats.getMatNameToAttributeMap<PEC>() };
     if (pecToBdrMap.size() < 2) {
         throw std::runtime_error(
             "The number of conductors must be greater than 2."
@@ -50,9 +52,12 @@ mfem::DenseMatrix solveCMatrix(
     
     mfem::DenseMatrix C((int) pecToBdrMap.size() - 1);
 
-    std::map<int, double> domainToEpsr{};
+    std::map<int, double> domainToEpsr;
+
     if (!ignoreDielectrics) {
-        // TODO
+        for (const auto& d : mats.dielectrics) {
+            domainToEpsr[d.tag] = d.relativePermittivity;
+        }
     }
 
     for (const auto& [name, bdrAtt] : pecToBdrMap) {

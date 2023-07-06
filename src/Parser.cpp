@@ -6,8 +6,14 @@ using json = nlohmann::json;
 
 namespace pulmtln {
 
+enum class MaterialType {
+	PEC,
+	Dielectric
+};
+
 const std::map<std::string, MaterialType> LABEL_TO_MATERIAL_TYPE{
-	{"PEC", MaterialType::PEC}
+	{"PEC", MaterialType::PEC},
+	{"Dielectric", MaterialType::Dielectric}
 };
 
 json readJSON(const std::string& fn)
@@ -42,10 +48,14 @@ Materials readMaterials(const json& j)
 		case MaterialType::PEC:
 			res.pecs.push_back({ name, tag });
 			break;
+		case MaterialType::Dielectric:
+		{
+			double epsR{ mat.value().at("eps_r").get<double>() };
+			res.dielectrics.push_back({ name, tag, epsR });
+			break;
+		}
 		default:
-			throw std::runtime_error(
-				"Invalid material type"
-			);
+			throw std::runtime_error("Invalid material type");
 		}
 	}
 	return res;

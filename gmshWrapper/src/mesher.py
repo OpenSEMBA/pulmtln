@@ -4,7 +4,7 @@ import sys
 from collections import defaultdict
 
 DEFAULT_MESHING_OPTIONS = {
-    "Mesh.MeshSizeFromCurvature": 10,
+    "Mesh.MeshSizeFromCurvature": 20,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
     "General.DrawBoundingBoxes": 1,
