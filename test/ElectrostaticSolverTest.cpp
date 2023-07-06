@@ -231,23 +231,20 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 
 	exportSolution(s, CASE);
 
-	mfem::DenseMatrix CMatExpected(2, 2);
-	CMatExpected(0, 0) =  2.15605359;
-	CMatExpected(0, 1) = -0.16413431;
-	CMatExpected(1, 0) = CMatExpected(0, 1);
-	CMatExpected(1, 1) = CMatExpected(1, 1);
+	double CMat11Expected{  2.15605359 };
+	double CMat12Expected{ -0.16413431 };
 
 	const double rTol{ 2.5e-2 };
 
 	EXPECT_LE(
 		relError(
-			CMatExpected(0,0), 
+			CMat11Expected, 
 			s.chargeInBoundary(matToAtt.at("Conductor_1")) / V
 		), rTol);
 	
 	EXPECT_LE(
 		relError(
-			CMatExpected(0,1), 
+			CMat12Expected, 
 			s.chargeInBoundary(matToAtt.at("Conductor_2")) / V
 		), rTol);
 }

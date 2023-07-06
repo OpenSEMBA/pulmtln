@@ -66,16 +66,16 @@ TEST_F(DriverTest, two_wires_coax)
 	const std::string CASE{ "two_wires_coax" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
-	
 	mfem::DenseMatrix CMatExpected(2, 2);
 	CMatExpected(0, 0) = 2.15605359;
 	CMatExpected(0, 1) = -0.16413431;
 	CMatExpected(1, 0) = CMatExpected(0, 1);
-	CMatExpected(1, 1) = CMatExpected(1, 1);
+	CMatExpected(1, 1) = CMatExpected(0, 0);
+	CMatExpected *= EPSILON0_SI;
 	
 	const double rTol{ 2.5e-2 };
 	
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 	ASSERT_EQ(2, out.C.NumCols());
 	ASSERT_EQ(2, out.C.NumRows());
 	for (int i{ 0 }; i < 2; i++) {

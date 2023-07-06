@@ -50,7 +50,8 @@ mfem::DenseMatrix solveCMatrix(
         );
     }
     
-    mfem::DenseMatrix C((int) pecToBdrMap.size() - 1);
+    int CSize{ (int)pecToBdrMap.size() - 1 };
+    mfem::DenseMatrix C(CSize);
 
     std::map<int, double> domainToEpsr;
 
@@ -60,22 +61,28 @@ mfem::DenseMatrix solveCMatrix(
         }
     }
 
-    for (const auto& [name, bdrAtt] : pecToBdrMap) {
-        auto num{ getNumberContainedInName(name) };
-        if (num == 0) {
+    for (const auto& [nameI, bdrAttI] : pecToBdrMap) {
+        auto numI{ getNumberContainedInName(nameI) };
+        if (numI == 0) {
             continue;
         }
         
         BdrConditionValues bcs{ 
             initializeBdrConditionValuesTo(pecToBdrMap, 0.0) 
         };
-        bcs[bdrAtt] = 1.0;
+        bcs[bdrAttI] = 1.0;
             
         Mesh mesh{ *model.getMesh() };
         ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
         s.Solve();
-       
-        C(num - 1, num - 1) = s.chargeInBoundary(pecToBdrMap.at(name));
+        
+        for (const auto& [nameJ, bdrAttJ] : pecToBdrMap) {
+            auto numJ{ getNumberContainedInName(nameJ) };
+            if (numJ == 0) {
+                continue;
+            }
+            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ));
+        }
     }
     return C;
 }
