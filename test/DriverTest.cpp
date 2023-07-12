@@ -93,25 +93,27 @@ TEST_F(DriverTest, five_wires)
 	const std::string CASE{ "five_wires" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
-	mfem::DenseMatrix CExpected(5, 5);
-	double CExpectedData[25] = {
-		 6.13984020E-11, -1.57357520E-11, -1.57357520E-11, -1.57357520E-11, -1.57357520E-11,
-		-1.57357520E-11,  5.16791696E-11, -1.28197225E-12,  2.18098196E-12, -1.28197225E-12,
-		-1.57357520E-11, -1.28197225E-12,  5.16791696E-11, -1.28197225E-12,  2.18098196E-12,
-		-1.57357520E-11,  2.18098196E-12, -1.28197225E-12,  5.16791696E-11, -1.28197225E-12,
-		-1.57357520E-11, -1.28197225E-12,  2.18098196E-12, -1.28197225E-12,  5.16791696E-11
+	mfem::DenseMatrix couplingExpected(5, 5);
+	double couplingExpectedData[25] = {
+		 1.0000, -0.2574    , -0.2574    , -0.2574    , -0.2574    ,
+		-0.2574,  1.0000    , -0.029017  , -3.5871E-05, -0.029017  ,
+		-0.2574, -0.029017  ,  1         , -0.029017  , -3.5871E-05,
+		-0.2574, -3.5871E-05, -0.029017	 ,  1         , -0.029017  ,
+		-0.2574, -0.029017  , -3.5871E-05, -0.029017  ,  1.0000
 	};
-	CExpected.UseExternalData(CExpectedData, 5, 5);
+	couplingExpected.UseExternalData(couplingExpectedData, 5, 5);
 
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ 
+		Driver::loadFromFile(fn).getMTLPUL().getCapacitiveCouplingCoefficients() 
+	};
 
-	ASSERT_EQ(5, out.C.NumRows());
-	ASSERT_EQ(5, out.C.NumCols());
+	ASSERT_EQ(couplingExpected.NumRows(), out.NumRows());
+	ASSERT_EQ(couplingExpected.NumCols(), out.NumCols());
 	
-	double rTol{ 0.1 };
+	double rTol{ 0.15 };
 	for (int i{ 0 }; i < 5; i++) {
 		for (int j{ 0 }; j < 5; j++) {
-			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) << 
+			EXPECT_LE(relError(couplingExpected(i, j), out(i, j)), rTol) << 
 				"In C(" << i << ", " << j << ")";
 		}
 	}

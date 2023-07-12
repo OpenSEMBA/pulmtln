@@ -9,6 +9,8 @@ namespace pulmtln {
 
 struct MTLPULParameters {
     mfem::DenseMatrix L, C; // Stored in SI units.
+
+    mfem::DenseMatrix getCapacitiveCouplingCoefficients() const;
 };
 
 class Driver {

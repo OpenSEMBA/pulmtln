@@ -7,6 +7,18 @@ namespace pulmtln {
 
 using namespace mfem;
 
+mfem::DenseMatrix MTLPULParameters::getCapacitiveCouplingCoefficients() const
+{
+    mfem::DenseMatrix r(C.NumRows(), C.NumCols());
+    for (auto i{ 0 }; i < C.NumRows(); ++i) {
+        auto selfC{ C(i,i) };
+        for (auto j{ 0 }; j < C.NumCols(); ++j) {
+            r(i, j) = C(i, j) / selfC;
+        }
+    }
+    return r;
+}
+
 Driver Driver::loadFromFile(const std::string& fn)
 {
     Parser p{ fn };
@@ -55,8 +67,10 @@ mfem::DenseMatrix solveCMatrix(
 
     std::map<int, double> domainToEpsr;
 
-    if (!ignoreDielectrics) {
-        for (const auto& d : mats.dielectrics) {
+    for (const auto& d : mats.dielectrics) {
+        if (ignoreDielectrics) {
+            domainToEpsr[d.tag] = 1.0;
+        } else {
             domainToEpsr[d.tag] = d.relativePermittivity;
         }
     }
@@ -87,10 +101,7 @@ mfem::DenseMatrix solveCMatrix(
         if (opts.exportParaViewSolution) {
             std::string outputName{"ParaView/DriverResult"};
             if (ignoreDielectrics) {
-                outputName += "_C_";
-            }
-            else {
-                outputName += "_L_";
+                outputName += "_no_dielectrics_";
             }
             outputName += std::to_string(numI);
             ParaViewDataCollection pd{ outputName, s.getMesh() };

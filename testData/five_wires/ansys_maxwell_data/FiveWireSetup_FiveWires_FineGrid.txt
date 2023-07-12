@@ -1,0 +1,20 @@
+DesignVariation : boundary='50' volt='5V'
+Solution : Setup : LastAdaptive
+Parameter : Matrix1
+Capacitance Unit: pF
+
+Capacitance
+		Voltage1	Voltage2	Voltage3	Voltage4	Voltage5
+	Voltage1	94.774	-21.814	-21.814	-21.814	-21.814
+	Voltage2	-21.814	75.782	-2.199	-0.0027184	-2.199
+	Voltage3	-21.814	-2.199	75.782	-2.199	-0.0027183
+	Voltage4	-21.814	-0.0027184	-2.199	75.782	-2.199
+	Voltage5	-21.814	-2.199	-0.0027183	-2.199	75.782
+
+Capacitive Coupling Coefficient
+		Voltage1	Voltage2	Voltage3	Voltage4	Voltage5
+	Voltage1	1	-0.2574	-0.2574	-0.2574	-0.2574
+	Voltage2	-0.2574	1	-0.029017	-3.5871E-05	-0.029017
+	Voltage3	-0.2574	-0.029017	1	-0.029017	-3.5871E-05
+	Voltage4	-0.2574	-3.5871E-05	-0.029017	1	-0.029017
+	Voltage5	-0.2574	-0.029017	-3.5871E-05	-0.029017	1
