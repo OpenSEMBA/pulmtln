@@ -118,3 +118,38 @@ TEST_F(DriverTest, five_wires)
 		}
 	}
 }
+
+
+TEST_F(DriverTest, three_wires_ribbon)
+{
+	// Three wires ribbon open problem. 
+	// Comparison with Paul's book: 
+	// Analysis of multiconductor transmision lines. 2007.
+	// Sec. 5.2.3, p. 187.
+
+	const std::string CASE{ "three_wires_ribbon" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	mfem::DenseMatrix CExpected(2, 2);
+	double CExpectedData[4] = {
+		 37.8189, -18.0249,
+		-18.0249,  26.2148
+	};
+	CExpected *= 1e-12;
+	CExpected.UseExternalData(CExpectedData, 3, 3);
+
+	auto out{ 
+		Driver::loadFromFile(fn).getMTLPUL().C 
+	};
+
+	ASSERT_EQ(CExpected.NumRows(), out.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.NumCols());
+	
+	double rTol{ 0.05 };
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), out(i, j)), rTol) << 
+				"In C(" << i << ", " << j << ")";
+		}
+	}
+}
