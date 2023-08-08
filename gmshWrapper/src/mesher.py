@@ -9,7 +9,7 @@ DEFAULT_MESHING_OPTIONS = {
     "Mesh.ScalingFactor": 1e-3,
     "General.DrawBoundingBoxes": 1,
     "Mesh.SurfaceFaces": 1,
-    "Mesh.MeshSizeMax": 0.2
+    "Mesh.MeshSizeMax": 1
 }
 
 class StepShapes:
@@ -18,7 +18,8 @@ class StepShapes:
 
         self.allShapes = shapes
 
-        self.pecs = self. get_surfaces(shapes, "Conductor_")
+        self.openRegion = self.get_surfaces(shapes, "OpenRegion_")
+        self.pecs = self.get_surfaces(shapes, "Conductor_")
         self.dielectrics = self.get_surfaces(shapes, "Dielectric_")
 
     @staticmethod
@@ -57,10 +58,15 @@ def meshFromStep(
     
     # --- Geometry manipulation ---
     # Creates global domain.
-    region = stepShapes.pecs[0] 
+    if len(stepShapes.openRegion) != 0:
+        region = stepShapes.openRegion[0]
+        isOpenProblem = True
+    else:
+        region = stepShapes.pecs[0] 
+        isOpenProblem = False
 
     for num, surf in stepShapes.pecs.items():
-        if num == 0:
+        if num == 0 and isOpenProblem == False:
             continue
         for _, dielectric_surf in stepShapes.dielectrics.items():
             gmsh.model.occ.cut([dielectric_surf], [surf], removeTool=False)    
@@ -77,9 +83,9 @@ def meshFromStep(
         pec_bdrs[num] = gmsh.model.getBoundary([surf])
         if num != 0:
             gmsh.model.occ.remove([surf])
+        elif num == 0 and isOpenProblem:
+            gmsh.model.occ.remove([surf])
     
-    
-            
     gmsh.model.occ.synchronize()
 
     # --- Physical groups ---
