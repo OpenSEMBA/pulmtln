@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - master
+      - dev
   pull_request:
   workflow_dispatch:
 
@@ -42,11 +43,14 @@ jobs:
         access_token: ${{ github.token }}
 
     # Checkout MFEM in "mfem" subdirectory. Final path:
+    # /home/runner/work/mfem/mfem/mfem
+    # Note: Done now to access "install-hypre" and "install-metis" actions.
     - name: checkout mfem
       uses: actions/checkout@v3
       with:
         repository: ${{ env.MFEM_REPOSITORY }}
         path: ${{ env.MFEM_TOP_DIR }}
+        # Fetch the complete history for codecov to access commits ID
         fetch-depth: 0
 
     - name: prepare vcpkg binary cache location (Windows)
