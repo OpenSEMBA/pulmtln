@@ -1,0 +1,89 @@
+name: "Tests"
+
+# Github actions can use the default "GITHUB_TOKEN". By default, this token
+# is set to have permissive access. However, this is not a good practice
+# security-wise. Here we use an external action, so we restrict the
+# permission to the minimum required.
+# When the 'permissions' is set, all the scopes not mentioned are set to the
+# most restrictive setting. So the following is enough.
+permissions:
+  actions: write
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+  workflow_dispatch:
+
+env:
+  HYPRE_ARCHIVE: v2.19.0.tar.gz
+  HYPRE_TOP_DIR: hypre-2.19.0
+  METIS_ARCHIVE: metis-4.0.3.tar.gz
+  METIS_TOP_DIR: metis-4.0.3
+  MFEM_TOP_DIR: mfem
+
+jobs:
+  builds-and-tests:
+    strategy:
+      matrix:
+        os: [windows-latest]
+        target: [dbg, opt]
+        
+    name: ${{ matrix.os }}-${{ matrix.target }}
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@0.11.0
+      with:
+        access_token: ${{ github.token }}
+
+    # Checkout MFEM in "mfem" subdirectory. Final path:
+    # /home/runner/work/mfem/mfem/mfem
+    # Note: Done now to access "install-hypre" and "install-metis" actions.
+    - name: checkout mfem
+      uses: actions/checkout@v3
+      with:
+        path: ${{ env.MFEM_TOP_DIR }}
+        # Fetch the complete history for codecov to access commits ID
+        fetch-depth: 0
+
+    - name: prepare vcpkg binary cache location (Windows)
+      if: matrix.os == 'windows-latest' && steps.vcpkg-cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p vcpkg_cache
+
+    # MFEM build and test
+    - name: MFEM build
+      uses: mfem/github-actions/build-mfem@v2.4
+      env:
+        VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
+      with:
+        os: ${{ matrix.os }}
+        target: ${{ matrix.target }}
+        mpi: seq
+        build-system: cmake
+        hypre-dir: ${{ env.HYPRE_TOP_DIR }}
+        metis-dir: ${{ env.METIS_TOP_DIR }}
+        mfem-dir: ${{ env.MFEM_TOP_DIR }}
+        config-options: ${{ matrix.config-opts }}
+        library-only: ${{ matrix.target == 'dbg' }}
+
+    - name: MFEM cmake checks
+      if: matrix.build-system == 'cmake' && matrix.target == 'dbg'
+      run: |
+        CTEST_CONFIG="Debug"
+        cd ${{ env.MFEM_TOP_DIR }} && cmake --build build --target check --config ${CTEST_CONFIG}
+      shell: bash
+
+    - name: MFEM cmake tests
+      if: matrix.build-system == 'cmake' && matrix.target == 'opt' && matrix.os != 'ubuntu-latest'
+      run: |
+        CTEST_CONFIG="Release"
+        cd ${{ env.MFEM_TOP_DIR }}/build && \
+        ctest --output-on-failure -C ${CTEST_CONFIG} || \
+        ctest --rerun-failed --output-on-failure -C ${CTEST_CONFIG}
+      shell: bash
