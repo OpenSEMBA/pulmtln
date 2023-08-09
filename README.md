@@ -1,4 +1,6 @@
 # pulmtln
+[![Tests](https://github.com/lmdiazangulo/pulmtln/actions/workflows/builds-and-tests.yml/badge.svg)](https://github.com/lmdiazangulo/pulmtln/actions/workflows/builds-and-tests.yml)
+
 Per Unit Length Multiconductor Transmission Line Network solver. Features:
 - $C$ and $L$ matrix extraction.
 - Third order isoparametric elements. 
@@ -8,7 +10,6 @@ Per Unit Length Multiconductor Transmission Line Network solver. Features:
 
 
 ## License
-- Scripts in ```gmshWrapper``` folder are under GPL-2 license because they link to gmsh program.
 - ``` pulmtln ``` has the same license as MFEM.
 
 ## Compiling
