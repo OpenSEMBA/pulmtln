@@ -80,7 +80,7 @@ jobs:
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
     
-    - run: ls mfem
+    - run: ls mfem/build
 
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
