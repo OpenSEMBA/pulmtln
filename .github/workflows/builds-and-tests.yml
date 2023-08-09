@@ -90,7 +90,7 @@ jobs:
 
     - name: configure PULMTLN
       run: cmake |
-        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake |
+        -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake |
         -DVCPKG_TARGET_TRIPLET=<triplet> |
         -DVCPKG_MANIFEST_MODE=OFF |
         -S pulmtln |
