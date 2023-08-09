@@ -87,9 +87,13 @@ jobs:
       with:
         path: ${{ env.PULMTLN_TOP_DIR }}
         ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
+    
+    - run: ls 
+    - run: ls vcpkg
+    - run: ls vcpkg_cache
 
     - name: configure PULMTLN
-      run: cmake -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_MANIFEST_MODE=OFF -S pulmtln -B pulmtln/build
+      run: cmake -DCMAKE_TOOLCHAIN_FILE=./vcpkg_cache/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_MANIFEST_MODE=OFF -S pulmtln -B pulmtln/build
     
     - name: build PULMTLN
       run: cmake --build pulmtln/build --config Release
