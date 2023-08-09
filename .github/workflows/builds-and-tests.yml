@@ -45,42 +45,47 @@ jobs:
         ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
 
     # vcpkg
-    - name: vcpkg build
+    - name: cache vcpkg
+      uses: actions/cache@v3
+      id: vcpkg-cache
+      with: 
+        path: vcpkg_cache
+        key: vcpkg-build-windows-release
+
+    - name: build vcpkg
+      if: steps.vcpkg-cache.outputs.cache-hit != 'true'
       uses: johnwason/vcpkg-action@v5
-      id: vcpkg
       with:
         pkgs: nlohmann-json gtest
         triplet: x64-windows-release
         token: ${{ github.token }}
+        cache-key: vcpkg-build-windows-release
 
     # MFEM 
     - name: cache MFEM 
       uses: actions/cache@v3
       id: mfem-cache
       with:
-        path: mfem_cache
-        key: mfem-windows-opt
-    
-    - name: ls
-      run: ls
+        path: mfem
+        key: mfem-build-windows-opt 
+        
+    # - name: checkout MFEM
+    # if: steps.mfem-cache.outputs.cache-hit != 'true'
+    # uses: actions/checkout@v3
+    # with:
+    #   path: ${{ env.MFEM_TOP_DIR }}
+    #   repository: mfem/mfem
 
-    - name: checkout MFEM
-      if: steps.mfem-cache.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        path: ${{ env.MFEM_TOP_DIR }}
-        repository: mfem/mfem
-
-    - name: build MFEM
-      if: steps.mfem-cache.outputs.cache-hit != 'true'
-      uses: mfem/github-actions/build-mfem@v2.4
-      env:
-        VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg
-      with:
-        os: windows-latest
-        target: opt
-        mpi: seq
-        build-system: cmake
-        hypre-dir: ${{ env.HYPRE_TOP_DIR }}
-        metis-dir: ${{ env.METIS_TOP_DIR }}
-        mfem-dir: ${{ env.MFEM_TOP_DIR }}
+    # - name: build MFEM
+    #   if: steps.mfem-cache.outputs.cache-hit != 'true'
+    #   uses: mfem/github-actions/build-mfem@v2.4
+    #   env:
+    #     VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg
+    #   with:
+    #     os: windows-latest
+    #     target: opt
+    #     mpi: seq
+    #     build-system: cmake
+    #     hypre-dir: ${{ env.HYPRE_TOP_DIR }}
+    #     metis-dir: ${{ env.METIS_TOP_DIR }}
+    #     mfem-dir: ${{ env.MFEM_TOP_DIR }}
