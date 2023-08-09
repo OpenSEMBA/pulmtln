@@ -37,14 +37,6 @@ jobs:
       with:
         access_token: ${{ github.token }}
 
-    # Checkout 
-    - name: checkout PULMTLN
-      uses: actions/checkout@v3
-      with:
-        path: ${{ env.PULMTLN_TOP_DIR }}
-        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
-
-    # vcpkg
     - name: cache vcpkg
       uses: actions/cache@v3
       id: vcpkg-cache
@@ -62,7 +54,6 @@ jobs:
         token: ${{ github.token }}
         cache-key: vcpkg-build-windows-release
 
-    # MFEM 
     - name: cache MFEM 
       uses: actions/cache@v3
       id: mfem-cache
@@ -90,12 +81,20 @@ jobs:
         hypre-dir: ${{ env.HYPRE_TOP_DIR }}
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
-        
-    - name: ls
-      run: ls
+
+    - name: checkout PULMTLN
+      uses: actions/checkout@v3
+      with:
+        path: ${{ env.PULMTLN_TOP_DIR }}
+        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
 
     - name: configure PULMTLN
-      run: cmake ${{ steps.vcpkg.outputs.vcpkg-cmake-config }} -S pulmtln -B pulmtln/build
+      run: cmake |
+        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake |
+        -DVCPKG_TARGET_TRIPLET=<triplet> |
+        -DVCPKG_MANIFEST_MODE=OFF |
+        -S pulmtln |
+        -B pulmtln/build
     
     - name: build PULMTLN
       run: cmake --build pulmtln/build --config Release
