@@ -1,11 +1,5 @@
 name: "Tests"
 
-# Github actions can use the default "GITHUB_TOKEN". By default, this token
-# is set to have permissive access. However, this is not a good practice
-# security-wise. Here we use an external action, so we restrict the
-# permission to the minimum required.
-# When the 'permissions' is set, all the scopes not mentioned are set to the
-# most restrictive setting. So the following is enough.
 permissions:
   actions: write
 
@@ -18,10 +12,14 @@ on:
   workflow_dispatch:
 
 env:
-  MFEM_TOP_DIR: mfem
-  MFEM_REPOSITORY: mfem/mfem
   PULMTLN_TOP_DIR: pulmtln
-
+  MFEM_TOP_DIR: mfem
+  HYPRE_TOP_DIR: hypre-2.19.0
+  METIS_TOP_DIR: metis-4.0.3
+  
+  HYPRE_ARCHIVE: v2.19.0.tar.gz
+  METIS_ARCHIVE: metis-4.0.3.tar.gz
+  
 jobs:
   builds-and-tests:
     strategy:
@@ -51,17 +49,37 @@ jobs:
       uses: johnwason/vcpkg-action@v5
       id: vcpkg
       with:
-        pkgs: nlohmann_json gtest
+        pkgs: nlohmann-json gtest
         triplet: x64-windows-release
         token: ${{ github.token }}
 
     # MFEM 
-    - name: cache MFEM (Windows)
+    - name: cache MFEM 
       uses: actions/cache@v3
+      id: mfem-cache
       with:
         path: mfem_cache
         key: ${{ runner.os }}-opt-mfem
     
-    
-      
-        
+    - name: ls
+      run: ls
+
+    - name: checkout MFEM
+      if: steps.mfem-cache.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        path: mfem_cache
+
+    - name: build MFEM
+      if: steps.mfem-cache.outputs.cache-hit != 'true'
+      uses: mfem/github-actions/build-mfem@v2.4
+      env:
+        VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg
+      with:
+        os: windows-latest
+        target: opt
+        mpi: seq
+        build-system: cmake
+        hypre-dir: ${{ env.HYPRE_TOP_DIR }}
+        metis-dir: ${{ env.METIS_TOP_DIR }}
+        mfem-dir: ${{ env.MFEM_TOP_DIR }}
