@@ -18,19 +18,16 @@ on:
   workflow_dispatch:
 
 env:
-  HYPRE_ARCHIVE: v2.19.0.tar.gz
-  HYPRE_TOP_DIR: hypre-2.19.0
-  METIS_ARCHIVE: metis-4.0.3.tar.gz
-  METIS_TOP_DIR: metis-4.0.3
   MFEM_TOP_DIR: mfem
   MFEM_REPOSITORY: mfem/mfem
+  PULMTLN_TOP_DIR: pulmtln
 
 jobs:
   builds-and-tests:
     strategy:
       matrix:
         os: [windows-latest]
-        target: [dbg, opt]
+        target: [opt]
         
     name: ${{ matrix.os }}-${{ matrix.target }}
 
@@ -42,50 +39,29 @@ jobs:
       with:
         access_token: ${{ github.token }}
 
-    # Checkout MFEM in "mfem" subdirectory. Final path:
-    # /home/runner/work/mfem/mfem/mfem
-    # Note: Done now to access "install-hypre" and "install-metis" actions.
-    - name: checkout mfem
+    # Checkout 
+    - name: checkout PULMTLN
       uses: actions/checkout@v3
       with:
-        repository: ${{ env.MFEM_REPOSITORY }}
-        path: ${{ env.MFEM_TOP_DIR }}
-        # Fetch the complete history for codecov to access commits ID
-        fetch-depth: 0
+        path: ${{ env.PULMTLN_TOP_DIR }}
+        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
 
-    - name: prepare vcpkg binary cache location (Windows)
-      if: matrix.os == 'windows-latest' && steps.vcpkg-cache.outputs.cache-hit != 'true'
-      run: |
-        mkdir -p vcpkg_cache
-
-    # MFEM build and test
-    - name: MFEM build
-      uses: mfem/github-actions/build-mfem@v2.4
-      env:
-        VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
+    # vcpkg
+    - name: vcpkg build
+      uses: johnwason/vcpkg-action@v5
+      id: vcpkg
       with:
-        os: ${{ matrix.os }}
-        target: ${{ matrix.target }}
-        mpi: seq
-        build-system: cmake
-        hypre-dir: ${{ env.HYPRE_TOP_DIR }}
-        metis-dir: ${{ env.METIS_TOP_DIR }}
-        mfem-dir: ${{ env.MFEM_TOP_DIR }}
-        config-options: ${{ matrix.config-opts }}
-        library-only: ${{ matrix.target == 'dbg' }}
+        pkgs: nlohmann_json gtest
+        triplet: x64-windows-release
+        token: ${{ github.token }}
 
-    - name: MFEM cmake checks
-      if: matrix.build-system == 'cmake' && matrix.target == 'dbg'
-      run: |
-        CTEST_CONFIG="Debug"
-        cd ${{ env.MFEM_TOP_DIR }} && cmake --build build --target check --config ${CTEST_CONFIG}
-      shell: bash
-
-    - name: MFEM cmake tests
-      if: matrix.build-system == 'cmake' && matrix.target == 'opt' && matrix.os != 'ubuntu-latest'
-      run: |
-        CTEST_CONFIG="Release"
-        cd ${{ env.MFEM_TOP_DIR }}/build && \
-        ctest --output-on-failure -C ${CTEST_CONFIG} || \
-        ctest --rerun-failed --output-on-failure -C ${CTEST_CONFIG}
-      shell: bash
+    # MFEM 
+    - name: cache MFEM (Windows)
+      uses: actions/cache@v3
+      with:
+        path: mfem_cache
+        key: ${{ runner.os }}-opt-mfem
+    
+    
+      
+        
