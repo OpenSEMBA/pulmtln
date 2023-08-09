@@ -90,7 +90,7 @@ jobs:
       with:
         cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
         configurePreset: 'msbuild-vcpkg'
-        configurePresetAdditionalArgs: "['-DCMAKE_PREFIX_PATH=${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build/']"
+        configurePresetAdditionalArgs: '[`-DCMAKE_PREFIX_PATH=${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build/`]'
         buildPreset: 'msbuild-vcpkg'
         buildPresetAdditionalArgs: '[`--config Release`]'
  
