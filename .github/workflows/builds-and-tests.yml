@@ -86,7 +86,7 @@ jobs:
       with:
         cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
         configurePreset: 'msbuild-vcpkg'
-        configurePresetAdditionalArgs: '[-DMFEM_DIR=${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build]'
+        configurePresetAdditionalArgs: "['-DMFEM_DIR=${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build']"
         buildPreset: 'msbuild-vcpkg'
         buildPresetAdditionalArgs: '[`--config Release`]'
  
