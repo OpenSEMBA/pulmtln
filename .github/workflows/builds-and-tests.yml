@@ -68,7 +68,8 @@ jobs:
       if: steps.mfem-cache.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
-        path: mfem
+        path: ${{ env.MFEM_TOP_DIR }}
+        repository: mfem/mfem
 
     - name: build MFEM
       if: steps.mfem-cache.outputs.cache-hit != 'true'
