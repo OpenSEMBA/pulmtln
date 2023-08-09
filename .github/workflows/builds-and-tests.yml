@@ -68,7 +68,10 @@ jobs:
       with:
         path: mfem
         key: mfem-build-windows-opt 
-        
+    
+    - name: ls
+      run: ls
+      
     # - name: checkout MFEM
     # if: steps.mfem-cache.outputs.cache-hit != 'true'
     # uses: actions/checkout@v3
