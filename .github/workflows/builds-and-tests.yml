@@ -89,7 +89,6 @@ jobs:
         ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
     
     - run: ls 
-    - run: ls vcpkg
     - run: ls vcpkg_cache
 
     - name: configure PULMTLN
