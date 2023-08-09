@@ -66,29 +66,30 @@ jobs:
       uses: actions/cache@v3
       id: mfem-cache
       with:
-        path: mfem
+        path: ${{ env.MFEM_TOP_DIR }}
         key: mfem-build-windows-opt 
+      
+    - name: checkout MFEM
+      if: steps.mfem-cache.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: mfem/mfem
+        path: ${{ env.MFEM_TOP_DIR }}
     
+    - name: build MFEM
+      if: steps.mfem-cache.outputs.cache-hit != 'true'
+      uses: mfem/github-actions/build-mfem@v2.4
+      env:
+        VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
+      with:
+        os: windows-latest
+        target: opt
+        mpi: seq
+        build-system: cmake
+        hypre-dir: ${{ env.HYPRE_TOP_DIR }}
+        metis-dir: ${{ env.METIS_TOP_DIR }}
+        mfem-dir: ${{ env.MFEM_TOP_DIR }}
+        
     - name: ls
       run: ls
-      
-    # - name: checkout MFEM
-    # if: steps.mfem-cache.outputs.cache-hit != 'true'
-    # uses: actions/checkout@v3
-    # with:
-    #   path: ${{ env.MFEM_TOP_DIR }}
-    #   repository: mfem/mfem
-
-    # - name: build MFEM
-    #   if: steps.mfem-cache.outputs.cache-hit != 'true'
-    #   uses: mfem/github-actions/build-mfem@v2.4
-    #   env:
-    #     VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg
-    #   with:
-    #     os: windows-latest
-    #     target: opt
-    #     mpi: seq
-    #     build-system: cmake
-    #     hypre-dir: ${{ env.HYPRE_TOP_DIR }}
-    #     metis-dir: ${{ env.METIS_TOP_DIR }}
-    #     mfem-dir: ${{ env.MFEM_TOP_DIR }}
+    
