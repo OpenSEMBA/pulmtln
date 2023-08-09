@@ -55,6 +55,7 @@ jobs:
     - name: build vcpkg
       if: steps.vcpkg-cache.outputs.cache-hit != 'true'
       uses: johnwason/vcpkg-action@v5
+      id: vcpkg
       with:
         pkgs: nlohmann-json gtest
         triplet: x64-windows-release
@@ -92,4 +93,16 @@ jobs:
         
     - name: ls
       run: ls
+
+    - name: configure PULMTLN
+      run: cmake ${{ steps.vcpkg.outputs.vcpkg-cmake-config }} -S pulmtln -B pulmtln/build
+    
+    - name: build PULMTLN
+      run: cmake --build pulmtln/build --config Release
+
+    - name: test PULMTLN
+      run: |
+        cd pulmtln && |
+        build/bin/Release/pulmtln_tests.exe
+        
     
