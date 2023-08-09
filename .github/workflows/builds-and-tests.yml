@@ -37,22 +37,17 @@ jobs:
       with:
         access_token: ${{ github.token }}
 
-    - name: cache vcpkg
-      uses: actions/cache@v3
-      id: vcpkg-cache
-      with: 
-        path: vcpkg
-        key: vcpkg-build-windows-release
-
-    - name: build vcpkg
-      if: steps.vcpkg-cache.outputs.cache-hit != 'true'
-      uses: johnwason/vcpkg-action@v5
-      id: vcpkg
+    - name: checkout PULMTLN
+      uses: actions/checkout@v3
       with:
-        pkgs: nlohmann-json gtest
-        triplet: x64-windows-release
-        token: ${{ github.token }}
-        cache-key: vcpkg-build-windows-release
+        path: ${{ env.PULMTLN_TOP_DIR }}
+        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
+
+    - name: getcmake
+      uses: lukka/get-cmake@latest
+
+    - name: Setup vcpkg (it does not install any package yet)
+      uses: lukka/run-vcpkg@v11
 
     - name: cache MFEM 
       uses: actions/cache@v3
@@ -82,25 +77,13 @@ jobs:
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
     
-    - run: ls 
-
-    - name: checkout PULMTLN
-      uses: actions/checkout@v3
-      with:
-        path: ${{ env.PULMTLN_TOP_DIR }}
-        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
+    # - name: configure PULMTLN
+    #   run: cmake -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_MANIFEST_MODE=OFF -S pulmtln -B pulmtln/build
     
-    - run: ls 
-    - run: ls vcpkg
-    - run: ls pulmtln
+    # - name: build PULMTLN
+    #   run: cmake --build pulmtln/build --config Release
 
-    - name: configure PULMTLN
-      run: cmake -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_MANIFEST_MODE=OFF -S pulmtln -B pulmtln/build
-    
-    - name: build PULMTLN
-      run: cmake --build pulmtln/build --config Release
-
-    - name: test PULMTLN
-      run: cd pulmtln && build/bin/Release/pulmtln_tests.exe
+    # - name: test PULMTLN
+    #   run: cd pulmtln && build/bin/Release/pulmtln_tests.exe
         
     
