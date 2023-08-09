@@ -48,6 +48,8 @@ jobs:
 
     - name: Setup vcpkg (it does not install any package yet)
       uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: '167a402bd4a678e05eb5989a3fe9107ad4f75522'
 
     - name: cache MFEM 
       uses: actions/cache@v3
