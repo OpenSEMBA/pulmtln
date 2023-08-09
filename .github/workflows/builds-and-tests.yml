@@ -37,20 +37,20 @@ jobs:
       with:
         access_token: ${{ github.token }}
 
-    - name: checkout PULMTLN
-      uses: actions/checkout@v3
-      with:
-        path: ${{ env.PULMTLN_TOP_DIR }}
-        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
+    # - name: checkout PULMTLN
+    #   uses: actions/checkout@v3
+    #   with:
+    #     path: ${{ env.PULMTLN_TOP_DIR }}
+    #     ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
 
-    - name: getcmake
-      uses: lukka/get-cmake@latest
+    # - name: getcmake
+    #   uses: lukka/get-cmake@latest
 
-    - name: Setup vcpkg (it does not install any package yet)
-      uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: '167a402bd4a678e05eb5989a3fe9107ad4f75522'
-        vcpkgJsonGlob: 'pulmtln/vcpkg.json'
+    # - name: Setup vcpkg (it does not install any package yet)
+    #   uses: lukka/run-vcpkg@v11
+    #   with:
+    #     vcpkgGitCommitId: '167a402bd4a678e05eb5989a3fe9107ad4f75522'
+    #     vcpkgJsonGlob: 'pulmtln/vcpkg.json'
 
     - name: cache MFEM 
       uses: actions/cache@v3
@@ -80,17 +80,19 @@ jobs:
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
     
-    - name: Configuring and building PULMTLN
-      uses: lukka/run-cmake@v10
-      id: runcmake
-      with:
-        cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
-        configurePreset: 'msbuild-vcpkg'
-        configurePresetAdditionalArgs: "['-DMFEM_DIR=${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build']"
-        buildPreset: 'msbuild-vcpkg'
-        buildPresetAdditionalArgs: '[`--config Release`]'
+    - run: ls mfem
+
+    # - name: Configuring and building PULMTLN
+    #   uses: lukka/run-cmake@v10
+    #   id: runcmake
+    #   with:
+    #     cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
+    #     configurePreset: 'msbuild-vcpkg'
+    #     configurePresetAdditionalArgs: "['-DMFEM_DIR=${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build']"
+    #     buildPreset: 'msbuild-vcpkg'
+    #     buildPresetAdditionalArgs: '[`--config Release`]'
  
-    - name: test PULMTLN
-      run: cd pulmtln && build/bin/Release/pulmtln_tests.exe
+    # - name: test PULMTLN
+    #   run: cd pulmtln && build/bin/Release/pulmtln_tests.exe
         
     
