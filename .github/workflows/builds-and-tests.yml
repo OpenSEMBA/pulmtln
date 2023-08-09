@@ -50,7 +50,7 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: '167a402bd4a678e05eb5989a3fe9107ad4f75522'
-        vcpkgJsonGlob: '**/cmakepresets/vcpkg.json'
+        vcpkgJsonGlob: 'pulmtln/vcpkg.json'
 
     - name: cache MFEM 
       uses: actions/cache@v3
@@ -80,7 +80,7 @@ jobs:
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
     
-    - name: Run CMake+vcpkg+NinjaMulti-Config (Release configuration)
+    - name: Configuring and building PULMTLN
       uses: lukka/run-cmake@v10
       id: runcmake
       with:
