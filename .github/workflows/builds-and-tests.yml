@@ -59,7 +59,7 @@ jobs:
       id: mfem-cache
       with:
         path: mfem_cache
-        key: ${{ runner.os }}-opt-mfem
+        key: mfem-windows-opt
     
     - name: ls
       run: ls
@@ -68,7 +68,7 @@ jobs:
       if: steps.mfem-cache.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
-        path: mfem_cache
+        path: mfem
 
     - name: build MFEM
       if: steps.mfem-cache.outputs.cache-hit != 'true'
