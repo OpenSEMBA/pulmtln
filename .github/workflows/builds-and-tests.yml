@@ -81,7 +81,7 @@ jobs:
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
     
     - run: ls mfem/build
-    - run: ls {{env.MFEM_TOP_DIR}}
+    - run: ls ${{env.MFEM_TOP_DIR}}
 
     - name: testing environment
       env:
