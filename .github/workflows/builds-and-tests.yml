@@ -90,15 +90,17 @@ jobs:
       run: echo ${{env.MFEM_DIR}}
 
     - name: Configuring and building PULMTLN
-      uses: lukka/run-cmake@v10
-      id: runcmake
+      run: cmake --preset "msbuild-vcpkg" -DCMAKE_PREFIX_PATH=mfem/build -S pulmtln -B pulmtln/build
+    # - name: Configuring and building PULMTLN
+    #   uses: lukka/run-cmake@v10
+    #   id: runcmake
         
-      with:
-        cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
-        configurePreset: 'msbuild-vcpkg'
-        configurePresetAdditionalArgs: '[`-DCMAKE_PREFIX_PATH=../mfem`]'
-        buildPreset: 'msbuild-vcpkg'
-        buildPresetAdditionalArgs: '[`--config Release`]'
+    #   with:
+    #     cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
+    #     configurePreset: 'msbuild-vcpkg'
+    #     configurePresetAdditionalArgs: '[`-DCMAKE_PREFIX_PATH=../mfem`]'
+    #     buildPreset: 'msbuild-vcpkg'
+    #     buildPresetAdditionalArgs: '[`--config Release`]'
  
     - name: test PULMTLN
       run: cd pulmtln && build/bin/Release/pulmtln_tests.exe
