@@ -88,6 +88,9 @@ jobs:
         MFEM_DIR: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}
       run: echo ${{env.MFEM_DIR}}
 
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      
     - name: Configuring and building PULMTLN
       run: |
         pwd
