@@ -90,7 +90,7 @@ jobs:
 
     - name: Configuring and building PULMTLN
       run: |
-        cmake --preset "msbuild-vcpkg" -DCMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE -DCMAKE_PREFIX_PATH=${{env.MFEM_TOP_DIR}} -DMFEM_DIR=mfem/build -S pulmtln -B pulmtln/build
+        cmake --preset "msbuild-vcpkg" -DCMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE -DCMAKE_PREFIX_PATH=${{env.MFEM_TOP_DIR}}/build -DMFEM_DIR=mfem/build -S pulmtln -B pulmtln/build
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake
