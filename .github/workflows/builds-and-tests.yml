@@ -81,8 +81,7 @@ jobs:
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
     
     - run: ls mfem/build
-    - run: echo ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
-    - run: ls ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
+    - run: ls {{env.MFEM_TOP_DIR}}
 
     - name: testing environment
       env:
@@ -90,7 +89,8 @@ jobs:
       run: echo ${{env.MFEM_DIR}}
 
     - name: Configuring and building PULMTLN
-      run: cmake --preset "msbuild-vcpkg" -DMFEM_DIR=mfem/build -S pulmtln -B pulmtln/build
+      run: |
+        cmake --preset "msbuild-vcpkg" -DCMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE -DCMAKE_PREFIX_PATH=${{env.MFEM_TOP_DIR}} -DMFEM_DIR=mfem/build -S pulmtln -B pulmtln/build
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake
