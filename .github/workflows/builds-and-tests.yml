@@ -84,13 +84,19 @@ jobs:
     - run: echo ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
     - run: ls ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
 
+    - name: testing environment
+      env:
+        MFEM_DIR: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}
+      run: echo ${{env.MFEM_DIR}}
+
     - name: Configuring and building PULMTLN
       uses: lukka/run-cmake@v10
       id: runcmake
+        
       with:
         cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
         configurePreset: 'msbuild-vcpkg'
-        configurePresetAdditionalArgs: '[`-DCMAKE_PREFIX_PATH=../mfem/build/`]'
+        configurePresetAdditionalArgs: '[`-DCMAKE_PREFIX_PATH=../mfem`]'
         buildPreset: 'msbuild-vcpkg'
         buildPresetAdditionalArgs: '[`--config Release`]'
  
