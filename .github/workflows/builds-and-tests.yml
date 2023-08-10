@@ -90,7 +90,7 @@ jobs:
       run: echo ${{env.MFEM_DIR}}
 
     - name: Configuring and building PULMTLN
-      run: cmake --preset "msbuild-vcpkg" -DCMAKE_PREFIX_PATH=mfem/build -S pulmtln -B pulmtln/build
+      run: cmake --preset "msbuild-vcpkg" -DMFEM_DIR=mfem/build -S pulmtln -B pulmtln/build
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake
