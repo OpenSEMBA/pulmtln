@@ -1,0 +1,43 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+      "major": 3,
+      "minor": 21,
+      "patch": 0
+    },
+    "configurePresets": [
+      {
+        "name": "msbuild-vcpkg",
+        "displayName": "MSBuild (vcpkg toolchain) Configure Settings",
+        "description": "Configure with VS generators and with vcpkg toolchain",
+        "binaryDir": "${sourceDir}/builds/${presetName}",
+        "generator": "Visual Studio 17 2022",
+        "architecture": {
+          "strategy": "set",
+          "value": "x64"
+        },
+        "cacheVariables": {
+          "CMAKE_SYSTEM_PREFIX_PATH": {
+            "type": "BOOL",
+            "value": false
+          },
+          "CMAKE_TOOLCHAIN_FILE": {
+            "type": "FILEPATH",
+            "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+          },
+          "CMAKE_PREFIX_PATH": {
+            "type": "FILEPATH",
+            "value": "$env{MFEM_PACKAGE}"
+          }
+        }
+      }
+    ],
+    "buildPresets": [
+      {
+        "name": "msbuild-vcpkg",
+        "configurePreset": "msbuild-vcpkg",
+        "displayName": "Build MSBuild",
+        "description": "Build with MSBuild (VS)"
+      }
+    ]
+  }

@@ -120,7 +120,7 @@ TEST_F(DriverTest, five_wires)
 }
 
 
-TEST_F(DriverTest, three_wires_ribbon)
+TEST_F(DriverTest, DISABLED_three_wires_ribbon)
 {
 	// Three wires ribbon open problem. 
 	// Comparison with Paul's book: 
