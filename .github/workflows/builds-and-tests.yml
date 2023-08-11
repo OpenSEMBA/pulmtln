@@ -1,5 +1,11 @@
 name: "Tests"
 
+# Github actions can use the default "GITHUB_TOKEN". By default, this token
+# is set to have permissive access. However, this is not a good practice
+# security-wise. Here we use an external action, so we restrict the
+# permission to the minimum required.
+# When the 'permissions' is set, all the scopes not mentioned are set to the
+# most restrictive setting. So the following is enough.
 permissions:
   actions: write
 
@@ -7,19 +13,24 @@ on:
   push:
     branches:
       - master
+      - dev
   pull_request:
   workflow_dispatch:
 
 env:
-  PULMTLN_TOP_DIR: pulmtln
+  HYPRE_ARCHIVE: v2.19.0.tar.gz
+  HYPRE_TOP_DIR: hypre-2.19.0
+  METIS_ARCHIVE: metis-4.0.3.tar.gz
+  METIS_TOP_DIR: metis-4.0.3
   MFEM_TOP_DIR: mfem
+  MFEM_REPOSITORY: mfem/mfem
 
 jobs:
   builds-and-tests:
     strategy:
       matrix:
         os: [windows-latest]
-        target: [opt]
+        target: [dbg, opt]
         
     name: ${{ matrix.os }}-${{ matrix.target }}
 
@@ -31,76 +42,50 @@ jobs:
       with:
         access_token: ${{ github.token }}
 
-    - name: checkout PULMTLN
+    # Checkout MFEM in "mfem" subdirectory. Final path:
+    # /home/runner/work/mfem/mfem/mfem
+    # Note: Done now to access "install-hypre" and "install-metis" actions.
+    - name: checkout mfem
       uses: actions/checkout@v3
       with:
-        path: ${{ env.PULMTLN_TOP_DIR }}
-        ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
-
-    - name: getcmake
-      uses: lukka/get-cmake@latest
-
-    - name: Setup vcpkg (it does not install any package yet)
-      uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: '167a402bd4a678e05eb5989a3fe9107ad4f75522'
-        vcpkgJsonGlob: 'pulmtln/vcpkg.json'
-
-    - name: cache MFEM 
-      uses: actions/cache@v3
-      id: mfem-cache
-      with:
+        repository: ${{ env.MFEM_REPOSITORY }}
         path: ${{ env.MFEM_TOP_DIR }}
-        key: mfem-build-windows-opt 
-      
-    - name: checkout MFEM
-      if: steps.mfem-cache.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: mfem/mfem
-        path: ${{ env.MFEM_TOP_DIR }}
-    
-    - name: build MFEM
-      if: steps.mfem-cache.outputs.cache-hit != 'true'
+        # Fetch the complete history for codecov to access commits ID
+        fetch-depth: 0
+
+    - name: prepare vcpkg binary cache location (Windows)
+      if: matrix.os == 'windows-latest' && steps.vcpkg-cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p vcpkg_cache
+
+    # MFEM build and test
+    - name: MFEM build
       uses: mfem/github-actions/build-mfem@v2.4
       env:
-        HYPRE_TOP_DIR: hypre-2.19.0
-        METIS_TOP_DIR: metis-4.0.3      
         VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
       with:
-        os: windows-latest
-        target: opt
+        os: ${{ matrix.os }}
+        target: ${{ matrix.target }}
         mpi: seq
         build-system: cmake
         hypre-dir: ${{ env.HYPRE_TOP_DIR }}
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
- 
-    # - name: Setup tmate session
-    #   uses: mxschmitt/action-tmate@v3
+        config-options: ${{ matrix.config-opts }}
+        library-only: ${{ matrix.target == 'dbg' }}
 
-    - name: Configuring PULMTLN
-      env: 
-        MFEM_PACKAGE: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
+    - name: MFEM cmake checks
+      if: matrix.build-system == 'cmake' && matrix.target == 'dbg'
       run: |
-        cmake --preset "msbuild-vcpkg" -S pulmtln -B pulmtln/build
-    
-    - name: Building PULMTLN
-      run: |
-        cmake --build pulmtln/build/ --config Release
+        CTEST_CONFIG="Debug"
+        cd ${{ env.MFEM_TOP_DIR }} && cmake --build build --target check --config ${CTEST_CONFIG}
+      shell: bash
 
-    # - name: Configuring and building PULMTLN
-    #   uses: lukka/run-cmake@v10
-    #   id: runcmake
-        
-    #   with:
-    #     cmakeListsTxtPath: '${{ github.workspace }}/pulmtln/CMakeLists.txt'
-    #     configurePreset: 'msbuild-vcpkg'
-    #     configurePresetAdditionalArgs: '[`-DCMAKE_PREFIX_PATH=../mfem`]'
-    #     buildPreset: 'msbuild-vcpkg'
-    #     buildPresetAdditionalArgs: '[`--config Release`]'
- 
-    - name: test PULMTLN
-      run: cd pulmtln && build/bin/Release/pulmtln_tests.exe
-        
-    
+    - name: MFEM cmake tests
+      if: matrix.build-system == 'cmake' && matrix.target == 'opt' && matrix.os != 'ubuntu-latest'
+      run: |
+        CTEST_CONFIG="Release"
+        cd ${{ env.MFEM_TOP_DIR }}/build && \
+        ctest --output-on-failure -C ${CTEST_CONFIG} || \
+        ctest --rerun-failed --output-on-failure -C ${CTEST_CONFIG}
+      shell: bash

@@ -1,6 +1,5 @@
 .vs/
 out/
-build/
 ParaView/
 CMakeSettings.json
 
