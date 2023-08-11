@@ -83,18 +83,14 @@ jobs:
     - run: ls mfem/build
     - run: ls ${{env.MFEM_TOP_DIR}}
 
-    - name: testing environment
-      env:
-        MFEM_DIR: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}
-      run: echo ${{env.MFEM_DIR}}
-
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v3
 
     - name: Configuring and building PULMTLN
+      env: 
+        MFEM_PKG: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
       run: |
         cmake --preset "msbuild-vcpkg" -S pulmtln -B pulmtln/build
-        cat pulmtln/build | grep MFEM
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake

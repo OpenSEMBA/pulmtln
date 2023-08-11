@@ -17,13 +17,17 @@
           "value": "x64"
         },
         "cacheVariables": {
+          "CMAKE_SYSTEM_PREFIX_PATH": {
+            "type": "BOOL",
+            "value": false
+          },
           "CMAKE_TOOLCHAIN_FILE": {
             "type": "FILEPATH",
             "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
           },
           "CMAKE_PREFIX_PATH": {
             "type": "FILEPATH",
-            "value": "mfem/build/"
+            "value": "$env{MFEM_PACKAGE}"
           }
         }
       }
@@ -34,12 +38,6 @@
         "configurePreset": "msbuild-vcpkg",
         "displayName": "Build MSBuild",
         "description": "Build with MSBuild (VS)"
-      }
-    ],
-    "testPresets": [
-      {
-        "name": "default-vs",
-        "configurePreset": "msbuild-vcpkg"
       }
     ]
   }
