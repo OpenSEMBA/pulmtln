@@ -95,6 +95,7 @@ jobs:
     - name: Building PULMTLN
       run: |
         cmake --build pulmtln/build/ --config Release
+        
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake
