@@ -32,6 +32,6 @@ Configure and build presets are available. To configure
 which requires the following environment variables to be set (using ```export```)
 ```
     VCPKG_ROOT=<vcpkg root folder>
-    MFEM_PKG=<mfem folder including cmake config package>
+    MFEM_PACKAGE=<mfem folder including cmake config package>
 ```
 
