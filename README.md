@@ -24,7 +24,7 @@ Additionally needs:
 Configure and build presets are available. To configure
 ``` 
     cmake 
-        -DCMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE
+        -DCMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE  
         --preset "msbuild-vcpkg"
         -S <project folder>
         -B <build folder>
@@ -34,4 +34,4 @@ which requires the following environment variables to be set (using ```export```
     VCPKG_ROOT=<vcpkg root folder>
     MFEM_PACKAGE=<mfem folder including cmake config package>
 ```
-
+Using ```CMAKE_FIND_USE_PACKAGE_REGISTRY=FALSE``` warranties that no previously used package is used for compilation if any of the needed paths is not found (a questionable Windows _feature_). 
