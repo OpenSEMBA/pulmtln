@@ -7,19 +7,13 @@ on:
   push:
     branches:
       - master
-      - dev
   pull_request:
   workflow_dispatch:
 
 env:
   PULMTLN_TOP_DIR: pulmtln
   MFEM_TOP_DIR: mfem
-  HYPRE_TOP_DIR: hypre-2.19.0
-  METIS_TOP_DIR: metis-4.0.3
-  
-  HYPRE_ARCHIVE: v2.19.0.tar.gz
-  METIS_ARCHIVE: metis-4.0.3.tar.gz
-  
+
 jobs:
   builds-and-tests:
     strategy:
@@ -70,6 +64,8 @@ jobs:
       if: steps.mfem-cache.outputs.cache-hit != 'true'
       uses: mfem/github-actions/build-mfem@v2.4
       env:
+        HYPRE_TOP_DIR: hypre-2.19.0
+        METIS_TOP_DIR: metis-4.0.3      
         VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
       with:
         os: windows-latest
@@ -79,10 +75,7 @@ jobs:
         hypre-dir: ${{ env.HYPRE_TOP_DIR }}
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
-    
-    - run: ls mfem/build
-    - run: ls ${{env.MFEM_TOP_DIR}}
-
+ 
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v3
 
@@ -95,7 +88,7 @@ jobs:
     - name: Building PULMTLN
       run: |
         cmake --build pulmtln/build/ --config Release
-        
+
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake
