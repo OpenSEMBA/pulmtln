@@ -86,11 +86,15 @@ jobs:
     # - name: Setup tmate session
     #   uses: mxschmitt/action-tmate@v3
 
-    - name: Configuring and building PULMTLN
+    - name: Configuring PULMTLN
       env: 
         MFEM_PACKAGE: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
       run: |
         cmake --preset "msbuild-vcpkg" -S pulmtln -B pulmtln/build
+    
+    - name: Building PULMTLN
+      run: |
+        cmake --build pulmtln/build/ --config Release
     # - name: Configuring and building PULMTLN
     #   uses: lukka/run-cmake@v10
     #   id: runcmake
