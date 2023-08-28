@@ -5,16 +5,16 @@
 
 namespace pulmtln {
 
-using MatNameToAttribute = std::map<std::string, int>;
+using NameToAttrMap = std::map<std::string, int>;
 
-class BdrConditionValues : public std::map<int,double> {
+class AttrToValueMap : public std::map<int,double> {
 public:
-	BdrConditionValues() = default;
-	BdrConditionValues(const std::map<int,double>& attVals) :
+	AttrToValueMap() = default;
+	AttrToValueMap(const std::map<int,double>& attVals) :
 		std::map<int,double>{attVals}
 	{}
 	
-	mfem::Array<int> getAttributes() const
+	mfem::Array<int> getAttributesAsArray() const
 	{
 		int dbcSize{ (int) size() };
 		mfem::Array<int> bi(dbcSize);
@@ -26,7 +26,7 @@ public:
 		return bi;
 	}
 
-	mfem::Vector getValues() const
+	mfem::Vector getValuesAsArray() const
 	{
 		int dbcSize{ (int) size() };
 		mfem::Vector bv(dbcSize);

@@ -22,7 +22,10 @@ mfem::DenseMatrix MTLPULParameters::getCapacitiveCouplingCoefficients() const
 Driver Driver::loadFromFile(const std::string& fn)
 {
     Parser p{ fn };
-    return Driver{ p.readModel(), p.readSolverOptions() };
+    return Driver{ 
+        p.readModel(), 
+        p.readSolverOptions() 
+    };
 }
 
 Driver::Driver(const Model& model, const SolverOptions& opts) :
@@ -38,14 +41,26 @@ int getNumberContainedInName(const std::string& name)
     return res;
 }
 
-BdrConditionValues initializeBdrConditionValuesTo(
-    const MatNameToAttribute& matToAtt, double value)
+AttrToValueMap buildAttrToValueMap(
+    const NameToAttrMap& matToAtt, double value)
 {
-    BdrConditionValues bcs;
+    AttrToValueMap bcs;
     for (const auto& [mat, att] : matToAtt) {
         bcs[att] = value;
     }
     return bcs;
+}
+
+AttrToValueMap buildBdrVoltagesWithZero(const Materials& mats)
+{
+    auto pecVoltages{ 
+        buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0)};
+    auto openRegionVoltages{
+        buildAttrToValueMap(mats.buildNameToAttrMap<OpenBoundary>(), 0.0)
+    };
+    auto bdrVoltages{ pecVoltages };
+    bdrVoltages.insert(openRegionVoltages.begin(), openRegionVoltages.end());
+    return bdrVoltages;
 }
 
 mfem::DenseMatrix solveCMatrix(
@@ -54,42 +69,40 @@ mfem::DenseMatrix solveCMatrix(
     bool ignoreDielectrics = false)
 {
     const auto& mats{ model.getMaterials() };
-
-    auto pecToBdrMap{ mats.getMatNameToAttributeMap<PEC>() };
-    if (pecToBdrMap.size() < 2) {
+    if (mats.pecs.size() < 2) {
         throw std::runtime_error(
             "The number of conductors must be greater than 2."
         );
     }
     
-    int CSize{ (int)pecToBdrMap.size() - 1 };
-    mfem::DenseMatrix C(CSize);
-
-    std::map<int, double> domainToEpsr;
-
-    for (const auto& d : mats.dielectrics) {
-        if (ignoreDielectrics) {
-            domainToEpsr[d.tag] = 1.0;
-        } else {
-            domainToEpsr[d.tag] = d.relativePermittivity;
+    auto domainToEpsr{
+        buildAttrToValueMap(mats.buildNameToAttrMap<Dielectric>(), 1.0)
+    };
+    if (!ignoreDielectrics) {
+        for (const auto& d : mats.dielectrics) {
+            domainToEpsr.at(d.tag) = d.relativePermittivity;
         }
     }
 
+    mfem::DenseMatrix C((int)mats.pecs.size() - 1);
+
+    // Solves a electrostatic problem for each conductor besides the
+    // reference conductor (Conductor_0).
+    const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  
     for (const auto& [nameI, bdrAttI] : pecToBdrMap) {
         auto numI{ getNumberContainedInName(nameI) };
         if (numI == 0) {
             continue;
         }
         
-        BdrConditionValues bcs{ 
-            initializeBdrConditionValuesTo(pecToBdrMap, 0.0) 
-        };
-        bcs[bdrAttI] = 1.0;
-            
         Mesh mesh{ *model.getMesh() };
-        ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
+        auto bdrVoltages{ buildBdrVoltagesWithZero(mats) };
+        bdrVoltages[bdrAttI] = 1.0;
+
+        ElectrostaticSolver s(mesh, bdrVoltages, domainToEpsr, opts);
         s.Solve();
         
+        // Fills row
         for (const auto& [nameJ, bdrAttJ] : pecToBdrMap) {
             auto numJ{ getNumberContainedInName(nameJ) };
             if (numJ == 0) {
@@ -99,7 +112,7 @@ mfem::DenseMatrix solveCMatrix(
         }
 
         if (opts.exportParaViewSolution) {
-            std::string outputName{"ParaView/DriverResult"};
+            std::string outputName{"ParaView/DriverResult"}; // TODO put representative names.
             if (ignoreDielectrics) {
                 outputName += "_no_dielectrics_";
             }

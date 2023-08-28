@@ -8,12 +8,16 @@ namespace pulmtln {
 
 enum class MaterialType {
 	PEC,
-	Dielectric
+	Dielectric,
+	OpenBoundary,
+	Vacuum
 };
 
 const std::map<std::string, MaterialType> LABEL_TO_MATERIAL_TYPE{
 	{"PEC", MaterialType::PEC},
-	{"Dielectric", MaterialType::Dielectric}
+	{"Dielectric", MaterialType::Dielectric},
+	{"OpenBoundary", MaterialType::OpenBoundary},
+	{"Vacuum", MaterialType::Vacuum}
 };
 
 json readJSON(const std::string& fn)
@@ -47,6 +51,12 @@ Materials readMaterials(const json& j)
 		switch (type) {
 		case MaterialType::PEC:
 			res.pecs.push_back({ name, tag });
+			break;
+		case MaterialType::OpenBoundary:
+			res.openBoundaries.push_back({ name, tag });
+			break;
+		case MaterialType::Vacuum:
+			res.vacuums.push_back({ name, tag });
 			break;
 		case MaterialType::Dielectric:
 		{

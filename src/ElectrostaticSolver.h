@@ -3,7 +3,7 @@
 #include "SolverOptions.h"
 #include "constants.h"
 #include "FES.h"
-#include "BdrConditionValues.h"
+#include "AttrToValueMap.h"
 
 namespace pulmtln {
 
@@ -13,7 +13,7 @@ class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
         Mesh& mesh,
-        const BdrConditionValues& dbc,
+        const AttrToValueMap& dbc,
         const std::map<int, double>& domainToEpsr,
         const SolverOptions&);
     ~ElectrostaticSolver();
@@ -34,7 +34,7 @@ private:
     
     Mesh* mesh_;
 
-    BdrConditionValues dbc_;   // Dirichlet BC Surface Attribute ID and values
+    AttrToValueMap dbc_;   // Dirichlet BC Surface Attribute ID and values
     std::map<int, double> domainToEpsr_; // Domain to epsilon r.
 
     H1_FESpace* H1FESpace_;    // Continuous space for phi

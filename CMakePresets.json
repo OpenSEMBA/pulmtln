@@ -30,7 +30,7 @@
     ],
     "buildPresets": [
       {
-        "name": "msbuild-vcpkg",
+        "name": "msbuild-vcpkg-dbg",
         "configurePreset": "msbuild-vcpkg",
         "displayName": "Build MSBuild",
         "description": "Build with MSBuild (VS)"
