@@ -112,11 +112,11 @@ mfem::DenseMatrix solveCMatrix(
         }
 
         if (opts.exportParaViewSolution) {
-            std::string outputName{"ParaView/DriverResult"}; // TODO put representative names.
-            if (ignoreDielectrics) {
-                outputName += "_no_dielectrics_";
-            }
+            std::string outputName{ opts.exportFolder + "/" + "ParaView/Conductor_"};
             outputName += std::to_string(numI);
+            if (ignoreDielectrics) {
+                outputName += "_no_dielectrics";
+            }
             ParaViewDataCollection pd{ outputName, s.getMesh() };
             s.writeParaViewFields(pd);
         }

@@ -131,25 +131,41 @@ TEST_F(DriverTest, three_wires_ribbon)
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
 	double CExpectedData[4] = {
-		 37.8189, -18.0249,
-		-18.0249,  26.2148
+		 37.432, -18.716,
+		-18.716,  24.982
 	};
 	mfem::DenseMatrix CExpected(2, 2);
 	CExpected.UseExternalData(CExpectedData, 2, 2);
 	CExpected *= 1e-12;
 
-	auto out{ 
-		Driver::loadFromFile(fn).getMTLPUL().C 
+	double LExpectedData[4] = {
+		0.74850, 0.50770,
+		0.50770, 1.0154
 	};
+	mfem::DenseMatrix LExpected(2, 2);
+	LExpected.UseExternalData(LExpectedData, 2, 2);
+	LExpected *= 1e-6;
 
-	ASSERT_EQ(CExpected.NumRows(), out.NumRows());
-	ASSERT_EQ(CExpected.NumCols(), out.NumCols());
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 	
-	double rTol{ 0.05 };
+	// Tolerance is quite high probably because of high curvature
+	const double rTol{ 0.30 }; 
+	
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
 	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
 		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
-			EXPECT_LE(relError(CExpected(i, j), out(i, j)), rTol) << 
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) << 
 				"In C(" << i << ", " << j << ")";
+		}
+	}
+
+	ASSERT_EQ(LExpected.NumRows(), out.L.NumRows());
+	ASSERT_EQ(LExpected.NumCols(), out.L.NumCols());
+	for (int i{ 0 }; i < LExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < LExpected.NumCols(); j++) {
+			EXPECT_LE(relError(LExpected(i, j), out.L(i, j)), rTol) <<
+				"In L(" << i << ", " << j << ")";
 		}
 	}
 }

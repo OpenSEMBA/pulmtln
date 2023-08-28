@@ -1,7 +1,8 @@
 {
   "analysis": {
     "order": 3,
-    "exportParaViewSolution": true
+    "exportParaViewSolution": true,
+    "exportFolder": "Results/three_wires_ribbon/"
   },
   "model": {
     "materials": {
