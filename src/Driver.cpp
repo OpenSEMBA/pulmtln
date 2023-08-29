@@ -7,17 +7,7 @@ namespace pulmtln {
 
 using namespace mfem;
 
-mfem::DenseMatrix MTLPULParameters::getCapacitiveCouplingCoefficients() const
-{
-    mfem::DenseMatrix r(C.NumRows(), C.NumCols());
-    for (auto i{ 0 }; i < C.NumRows(); ++i) {
-        auto selfC{ C(i,i) };
-        for (auto j{ 0 }; j < C.NumCols(); ++j) {
-            r(i, j) = C(i, j) / selfC;
-        }
-    }
-    return r;
-}
+
 
 Driver Driver::loadFromFile(const std::string& fn)
 {
@@ -132,14 +122,14 @@ mfem::DenseMatrix solveLMatrix(
     //          L = mu0 * eps0 * C^{-1}
     auto res{ solveCMatrix(model, opts, true) };
     res.Invert();
-    res *= MU0 * EPSILON0;
+    res *= MU0_NATURAL * EPSILON0_NATURAL;
     return res;
 }
 
 
-MTLPULParameters Driver::getMTLPUL() const
+Parameters Driver::getMTLPUL() const
 {
-    MTLPULParameters res;
+    Parameters res;
 
     // Computes matrices in natural units.
     res.C = solveCMatrix(model_, opts_);
@@ -148,6 +138,10 @@ MTLPULParameters Driver::getMTLPUL() const
     // Converts to SI units.
     res.C *= EPSILON0_SI;
     res.L *= MU0_SI;
+
+    if (opts_.exportMatrices) {
+        res.saveToJSONFile(opts_.exportFolder + "/matrices.pulmtln.out.json");
+    }
 
     return res;
 }

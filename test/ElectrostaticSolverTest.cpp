@@ -183,7 +183,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 
 	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
 	// Expected charge      QExpected = V0 * C 
-	double QExpected{ V * EPSILON0 * 2 * M_PI / log(0.05 / 0.025) };
+	double QExpected{ V * EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025) };
 
 	const double rTol{ 5e-3 }; // 0.5% error.
 

@@ -65,11 +65,11 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     // Setup various coefficients
     if (domainToEpsr_.size() == 0) {
-        epsCoef_ = new ConstantCoefficient(EPSILON0);
+        epsCoef_ = new ConstantCoefficient(EPSILON0_NATURAL);
     }
     else {
         mfem::Vector eps(mesh_->attributes.Max());
-        eps = EPSILON0;
+        eps = EPSILON0_NATURAL;
         for (const auto& [attr, epsr] : domainToEpsr_) {
             assert(attr <= eps.Size());
             eps[attr-1] *= epsr;

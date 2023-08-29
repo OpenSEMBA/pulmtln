@@ -14,6 +14,6 @@ add_library(${LIBRARY_NAME} STATIC
 	"Driver.cpp" 
 	"Parser.cpp"
 	"Model.cpp"
-)
+	"Parameters.cpp")
 
 target_link_libraries(${LIBRARY_NAME} mfem nlohmann_json)
