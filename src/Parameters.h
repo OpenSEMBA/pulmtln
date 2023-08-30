@@ -6,12 +6,18 @@
 namespace pulmtln {
 
 struct Parameters {
-    mfem::DenseMatrix L, C; // Stored in SI units.
+    Parameters() = default;
+    Parameters(const nlohmann::json&);
+
+    bool operator==(const Parameters&) const;
 
     mfem::DenseMatrix getCapacitiveCouplingCoefficients() const;
 
     nlohmann::json toJSON() const;
+
     void saveToJSONFile(const std::string& filename) const;
+    
+    mfem::DenseMatrix L, C; // Stored in SI units.
 };
 
 }
