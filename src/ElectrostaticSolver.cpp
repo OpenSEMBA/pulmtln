@@ -254,10 +254,21 @@ double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
     return charge;
 }
 
-void ElectrostaticSolver::writeParaViewFields(
-    ParaViewDataCollection& pv) const
+void ElectrostaticSolver::writeParaViewFields(ParaViewDataCollection& pv) const
 {
     pv.SetHighOrderOutput(true);
+    pv.SetLevelsOfDetail(3);
+    pv.RegisterField("Phi", phi_);
+    pv.RegisterField("D", d_);
+    pv.RegisterField("E", e_);
+    pv.RegisterField("Rho", rho_);
+
+    pv.Save();
+}
+
+void ElectrostaticSolver::writeVisItFields(
+    VisItDataCollection& pv) const
+{
     pv.SetLevelsOfDetail(3);
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);

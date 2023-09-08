@@ -21,6 +21,7 @@ public:
     void Solve();
 
     void writeParaViewFields(ParaViewDataCollection&) const;
+    void writeVisItFields(VisItDataCollection&) const;
 
     const GridFunction& GetVectorPotential() { return *phi_; }
 

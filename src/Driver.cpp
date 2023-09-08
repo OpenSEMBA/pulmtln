@@ -110,6 +110,16 @@ mfem::DenseMatrix solveCMatrix(
             ParaViewDataCollection pd{ outputName, s.getMesh() };
             s.writeParaViewFields(pd);
         }
+
+        if (opts.exportVisItSolution) {
+            std::string outputName{ opts.exportFolder + "/" + "VisIt/Conductor_" };
+            outputName += std::to_string(numI);
+            if (ignoreDielectrics) {
+                outputName += "_no_dielectrics";
+            }
+            VisItDataCollection dC{ outputName, s.getMesh() };
+            s.writeVisItFields(dC);
+        }
     }
     return C;
 }

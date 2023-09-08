@@ -106,6 +106,7 @@ SolverOptions Parser::readSolverOptions() const
 	setIfExists<int>(j, res.order, "order");
 	setIfExists<bool>(j, res.printIterations, "printIterations");
 	setIfExists<bool>(j, res.exportParaViewSolution, "exportParaviewSolution");
+	setIfExists<bool>(j, res.exportVisItSolution, "exportVisItSolution");
 	setIfExists<std::string>(j, res.exportFolder, "exportFolder");
 
 	return res;

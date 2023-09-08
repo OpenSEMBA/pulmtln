@@ -10,6 +10,7 @@ struct SolverOptions {
 	bool printIterations{ false };
 
 	bool exportParaViewSolution{ true };
+	bool exportVisItSolution{ false };
 	bool exportMatrices{ true };
 	std::string exportFolder{ "" };
 };
