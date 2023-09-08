@@ -61,6 +61,7 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
+
 TEST_F(DriverTest, two_wires_coax)
 {
 	const std::string CASE{ "two_wires_coax" };
@@ -166,6 +167,37 @@ TEST_F(DriverTest, three_wires_ribbon)
 		for (int j{ 0 }; j < LExpected.NumCols(); j++) {
 			EXPECT_LE(relError(LExpected(i, j), out.L(i, j)), rTol) <<
 				"In L(" << i << ", " << j << ")";
+		}
+	}
+}
+
+TEST_F(DriverTest, nested_coax)
+{
+	// Coaxial inside a coaxial
+
+	const std::string CASE{ "nested_coax" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
+	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
+
+	double CExpectedData[4] = {
+		  C01+C12, -C12,
+		 -C12,      C12
+	};
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
+
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+
+	const double rTol{ 0.10 };
+
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) <<
+				"In C(" << i << ", " << j << ")";
 		}
 	}
 }

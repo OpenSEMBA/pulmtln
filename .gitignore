@@ -56,4 +56,6 @@ __pycache__/
 
 
 /CMakeUserPresets.json
-*.json
+
+/to_from_JSONFile_test.pulmtln.out.json
+/Results
