@@ -1,7 +1,7 @@
 #include "ElectrostaticSolver.h"
 
 #include "constants.h"
-#include "BdrConditionValues.h"
+#include "AttrToValueMap.h"
 
 namespace pulmtln {
 
@@ -28,7 +28,7 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
 
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
-    const BdrConditionValues& dbc,
+    const AttrToValueMap& dbc,
     const std::map<int, double>& domainToEpsr,
     const SolverOptions& opts) : 
     opts_(opts),
@@ -61,15 +61,15 @@ ElectrostaticSolver::ElectrostaticSolver(
     L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
-    AttrToMarker(mesh_->bdr_attributes.Max(), dbc.getAttributes(), ess_bdr_);
+    AttrToMarker(mesh_->bdr_attributes.Max(), dbc.getAttributesAsArray(), ess_bdr_);
 
     // Setup various coefficients
     if (domainToEpsr_.size() == 0) {
-        epsCoef_ = new ConstantCoefficient(EPSILON0);
+        epsCoef_ = new ConstantCoefficient(EPSILON0_NATURAL);
     }
     else {
         mfem::Vector eps(mesh_->attributes.Max());
-        eps = EPSILON0;
+        eps = EPSILON0_NATURAL;
         for (const auto& [attr, epsr] : domainToEpsr_) {
             assert(attr <= eps.Size());
             eps[attr-1] *= epsr;
@@ -127,8 +127,6 @@ ElectrostaticSolver::~ElectrostaticSolver()
 
 void ElectrostaticSolver::Assemble()
 {
-    std::cout << "Assembling ... " << std::flush; 
-
     divEpsGrad_->Assemble();
     divEpsGrad_->Finalize();
 
@@ -146,19 +144,15 @@ void ElectrostaticSolver::Assemble()
 
     div_->Assemble();
     div_->Finalize();
-
-    std::cout << "done." << std::endl; 
 }
 
 void ElectrostaticSolver::Solve()
 {
-    std::cout << "Running solver ... " << std::endl;
-
-    std::cout << "Computing phi ..." << std::flush;
+    // Computes phi.
     *phi_ = 0.0;
     {
-        auto dbcs{ dbc_.getAttributes() };
-        auto dbcv{ dbc_.getValues() };
+        auto dbcs{ dbc_.getAttributesAsArray() };
+        auto dbcv{ dbc_.getValuesAsArray() };
         if (dbcs.Size() > 0) {
             // Apply piecewise constant boundary condition
             Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
@@ -198,11 +192,10 @@ void ElectrostaticSolver::Solve()
         divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
     }
 
-    std::cout << "Computing E ..." << std::flush;
+    // Computes E.
     grad_->Mult(*phi_, *e_); *e_ *= -1.0;
-    std::cout << "done." << std::endl;
-
-    std::cout  << "Computing D ..." << std::flush;
+    
+    // Computes D.
     {
         GridFunction ed(HDivFESpace_);
         hCurlHDivEps_->Mult(*e_, ed);
@@ -218,13 +211,10 @@ void ElectrostaticSolver::Solve()
         
         hDivMass_->RecoverFEMSolution(D, ed, *d_);
     }
-    std::cout << "done." << std::endl;
-
-    std::cout << "Computing rho ..." << std::flush;
-    div_->Mult(*d_, *rho_);
-    std::cout  << "done." << std::endl;
     
-    std::cout << "Solver done. " << std::endl; 
+    // Computes rho.
+    div_->Mult(*d_, *rho_);
+    
 }
 
 double ElectrostaticSolver::totalChargeFromRho() const

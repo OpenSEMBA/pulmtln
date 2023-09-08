@@ -17,10 +17,6 @@
           "value": "x64"
         },
         "cacheVariables": {
-          "CMAKE_SYSTEM_PREFIX_PATH": {
-            "type": "BOOL",
-            "value": false
-          },
           "CMAKE_TOOLCHAIN_FILE": {
             "type": "FILEPATH",
             "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
@@ -34,7 +30,7 @@
     ],
     "buildPresets": [
       {
-        "name": "msbuild-vcpkg",
+        "name": "msbuild-vcpkg-dbg",
         "configurePreset": "msbuild-vcpkg",
         "displayName": "Build MSBuild",
         "description": "Build with MSBuild (VS)"

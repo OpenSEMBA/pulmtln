@@ -42,7 +42,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	auto mesh{
 		Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0)
 	};
-	BdrConditionValues bcs{ {
+	AttrToValueMap bcs{ {
 		{1,    1.0}, // bottom boundary.
 		{3,    0.0}, // top boundary.
 	} };
@@ -82,7 +82,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
 	auto mesh{
 		Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0)
 	};
-	BdrConditionValues bcs{ {
+	AttrToValueMap bcs{ {
 		{1,    1.0}, // bottom boundary.
 		{3,    0.0}, // top boundary.
 	} };
@@ -123,7 +123,7 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	mesh.Finalize();
 	mesh.SetAttributes();
 
-	BdrConditionValues bcs{ {
+	AttrToValueMap bcs{ {
 		{1, 1.0}, // bottom boundary.
 		{3, 0.0}, // top boundary.
 	} };
@@ -166,7 +166,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V{ 1.0 };
-	BdrConditionValues bcs{{
+	AttrToValueMap bcs{{
 		{1, 0.0}, // outer boundary
 		{2, V},   // inner boundary
 	}};
@@ -183,7 +183,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 
 	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
 	// Expected charge      QExpected = V0 * C 
-	double QExpected{ V * EPSILON0 * 2 * M_PI / log(0.05 / 0.025) };
+	double QExpected{ V * EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025) };
 
 	const double rTol{ 5e-3 }; // 0.5% error.
 
@@ -215,7 +215,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V{ 1.0 }; // Voltage
-	BdrConditionValues bcs{ {
+	AttrToValueMap bcs{ {
 		{1, 0.0}, // Conductor 0 bdr (GND).
 		{2, V},   // Conductor 1 bdr.
 		{3, 0.0}, // Conductor 2 bdr.

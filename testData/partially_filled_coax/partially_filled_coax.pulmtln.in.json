@@ -1,7 +1,8 @@
 {
   "analysis": {
     "order": 3,
-    "exportParaViewSolution": true
+    "exportParaViewSolution": true,
+    "exportFolder": "Results/partially_filled_coax/"
   },
   "model": {
     "materials": {
@@ -11,6 +12,4 @@
     },  
     "gmshFile": "partially_filled_coax.msh"
   }
-}
-
 }

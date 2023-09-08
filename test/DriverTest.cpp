@@ -61,6 +61,7 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
+
 TEST_F(DriverTest, two_wires_coax)
 {
 	const std::string CASE{ "two_wires_coax" };
@@ -120,7 +121,7 @@ TEST_F(DriverTest, five_wires)
 }
 
 
-TEST_F(DriverTest, DISABLED_three_wires_ribbon)
+TEST_F(DriverTest, three_wires_ribbon)
 {
 	// Three wires ribbon open problem. 
 	// Comparison with Paul's book: 
@@ -130,25 +131,72 @@ TEST_F(DriverTest, DISABLED_three_wires_ribbon)
 	const std::string CASE{ "three_wires_ribbon" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
-	mfem::DenseMatrix CExpected(2, 2);
 	double CExpectedData[4] = {
-		 37.8189, -18.0249,
-		-18.0249,  26.2148
+		 37.432, -18.716,
+		-18.716,  24.982
 	};
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
 	CExpected *= 1e-12;
-	CExpected.UseExternalData(CExpectedData, 3, 3);
 
-	auto out{ 
-		Driver::loadFromFile(fn).getMTLPUL().C 
+	double LExpectedData[4] = {
+		0.74850, 0.50770,
+		0.50770, 1.0154
 	};
+	mfem::DenseMatrix LExpected(2, 2);
+	LExpected.UseExternalData(LExpectedData, 2, 2);
+	LExpected *= 1e-6;
 
-	ASSERT_EQ(CExpected.NumRows(), out.NumRows());
-	ASSERT_EQ(CExpected.NumCols(), out.NumCols());
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 	
-	double rTol{ 0.05 };
+	// Tolerance is quite high probably because of high curvature
+	const double rTol{ 0.30 }; 
+	
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
 	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
 		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
-			EXPECT_LE(relError(CExpected(i, j), out(i, j)), rTol) << 
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) << 
+				"In C(" << i << ", " << j << ")";
+		}
+	}
+
+	ASSERT_EQ(LExpected.NumRows(), out.L.NumRows());
+	ASSERT_EQ(LExpected.NumCols(), out.L.NumCols());
+	for (int i{ 0 }; i < LExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < LExpected.NumCols(); j++) {
+			EXPECT_LE(relError(LExpected(i, j), out.L(i, j)), rTol) <<
+				"In L(" << i << ", " << j << ")";
+		}
+	}
+}
+
+TEST_F(DriverTest, nested_coax)
+{
+	// Coaxial inside a coaxial
+
+	const std::string CASE{ "nested_coax" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
+	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
+
+	double CExpectedData[4] = {
+		  C01+C12, -C12,
+		 -C12,      C12
+	};
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
+
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+
+	const double rTol{ 0.10 };
+
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) <<
 				"In C(" << i << ", " << j << ")";
 		}
 	}

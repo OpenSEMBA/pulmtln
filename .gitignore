@@ -1,6 +1,7 @@
 .vs/
 out/
 build/
+builds/
 ParaView/
 CMakeSettings.json
 
@@ -54,3 +55,7 @@ __pycache__/
 
 
 
+/CMakeUserPresets.json
+
+/to_from_JSONFile_test.pulmtln.out.json
+/Results

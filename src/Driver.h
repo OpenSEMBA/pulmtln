@@ -2,22 +2,15 @@
 
 #include "SolverOptions.h"
 #include "Model.h"
-
-#include <nlohmann/json.hpp>
+#include "Parameters.h"
 
 namespace pulmtln {
-
-struct MTLPULParameters {
-    mfem::DenseMatrix L, C; // Stored in SI units.
-
-    mfem::DenseMatrix getCapacitiveCouplingCoefficients() const;
-};
 
 class Driver {
 public:
     Driver(const Model& model, const SolverOptions& opts);
     
-    MTLPULParameters getMTLPUL() const;
+    Parameters getMTLPUL() const;
 
     static Driver loadFromFile(const std::string& filename);
 

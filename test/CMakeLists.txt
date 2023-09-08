@@ -6,11 +6,11 @@ find_package(GTest CONFIG REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME}_tests
-	 "ElectrostaticSolverTest.cpp"
-	 "mfemTest.cpp"
-	 "DriverTest.cpp"
-     "ParserTest.cpp"
-)
+	"ElectrostaticSolverTest.cpp"
+	"mfemTest.cpp"
+	"DriverTest.cpp"
+    "ParserTest.cpp"
+	"ParametersTest.cpp")
 
 include_directories(./)
  
