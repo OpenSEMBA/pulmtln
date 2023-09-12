@@ -39,19 +39,17 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	//  |  1  |
 	//  +-----+
 	//    1 V
-	auto mesh{
-		Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0)
+	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
+
+	SolverParameters params;
+	params.dirichletBoundaryConditions = {
+		{
+			{1,    1.0}, // bottom boundary.
+			{3,    0.0}, // top boundary.
+		} 
 	};
-	AttrToValueMap bcs{ {
-		{1,    1.0}, // bottom boundary.
-		{3,    0.0}, // top boundary.
-	} };
 
-	SolverOptions opts;
-	opts.order = 3;
-
-
-	ElectrostaticSolver s(mesh, bcs, {}, opts);
+	ElectrostaticSolver s{m, params};
 	s.Solve();
 
 	exportSolution(s, "parallel_plates");
@@ -79,21 +77,16 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
 	//  |  1  |
 	//  +-----+
 	//    1 V
-	auto mesh{
-		Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0)
-	};
-	AttrToValueMap bcs{ {
+	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
+
+	SolverParameters p;
+	p.dirichletBoundaryConditions = { {
 		{1,    1.0}, // bottom boundary.
 		{3,    0.0}, // top boundary.
 	} };
+	p.domainPermittivities = {{ {1, 2.0} }};
 
-	SolverOptions opts;
-	opts.order = 3;
-
-	std::map<int, double> domain2eps{
-		{1, 2.0}
-	};
-	ElectrostaticSolver s(mesh, bcs, domain2eps, opts);
+	ElectrostaticSolver s{m, p, SolverOptions{}};
 	s.Solve();
 
 	exportSolution(s, "Parallel_plates_epsr2");
@@ -111,31 +104,24 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	//       | eps_r=4, D2 |
 	//       +-------------+
 	//         1 V,   Bdr 1
-	auto mesh{
-		Mesh::MakeCartesian2D(1, 10, Element::QUADRILATERAL, 1.0, 1.0)
-	};
-	for (auto i{ 0 }; i < mesh.GetNE(); ++i) {
-		auto center{ getBaricenterOfElement(mesh, i) };
+	auto m{ Mesh::MakeCartesian2D(1, 10, Element::QUADRILATERAL, 1.0, 1.0) };
+	for (auto i{ 0 }; i < m.GetNE(); ++i) {
+		auto center{ getBaricenterOfElement(m, i) };
 		if (center[1] < 0.5) {
-			mesh.SetAttribute(i, 2);
+			m.SetAttribute(i, 2);
 		}
 	}
-	mesh.Finalize();
-	mesh.SetAttributes();
+	m.Finalize();
+	m.SetAttributes();
 
-	AttrToValueMap bcs{ {
+	SolverParameters p;
+	p.dirichletBoundaryConditions = { {
 		{1, 1.0}, // bottom boundary.
 		{3, 0.0}, // top boundary.
 	} };
+	p.domainPermittivities = { {{2, 4.0}} };
 
-	std::map<int, double> domainAttributeToEpsr{
-		{2, 4.0}
-	};
-
-	SolverOptions opts;
-	opts.order = 3;
-
-	ElectrostaticSolver s(mesh, bcs, domainAttributeToEpsr, opts);
+	ElectrostaticSolver s{m, p};
 	s.Solve();
 
 	exportSolution(s, "two_materials");
@@ -155,28 +141,18 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 {
 	// Coaxial case.
 	const std::string CASE{ "empty_coax" };
-	// PhysicalGroups
-	const std::map<std::string, int> matToAtt{
-		{ "Conductor_0", 1 }, // Outer boundary
-		{ "Conductor_1", 2 }, // Inner boundary
-		{ "Vacuum", 3 } // Domain
-	};
 
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
-	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
+	auto m{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V{ 1.0 };
-	AttrToValueMap bcs{{
+	SolverParameters p;
+	p.dirichletBoundaryConditions = {{
 		{1, 0.0}, // outer boundary
 		{2, V},   // inner boundary
 	}};
 	
-	std::map<int, double> domainToEpsr{};
-	
-	SolverOptions opts;
-	opts.order = 3;
-
-	ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
+	ElectrostaticSolver s{m, p};
 	s.Solve();
 
 	exportSolution(s, CASE);
@@ -187,64 +163,67 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 
 	const double rTol{ 5e-3 }; // 0.5% error.
 
-	EXPECT_LE(relError(
-		QExpected, 
-		s.chargeInBoundary(matToAtt.at("Conductor_1"))
-	), rTol);
-
-	EXPECT_LE(relError(
-		-QExpected, 
-		s.chargeInBoundary(matToAtt.at("Conductor_0"))
-	), rTol);
+	EXPECT_LE(relError( QExpected, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
+	EXPECT_LE(relError(-QExpected, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
 }
 
+TEST_F(ElectrostaticSolverTest, wire_in_open_region)
+{
+	// Coaxial case.
+	const std::string CASE{ "empty_coax" };
+
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+	auto m{ Mesh::LoadFromFile(fn.c_str()) };
+
+	const double Q{ 1.0 };
+	SolverParameters p;
+	p.neumannBoundaryConditions = { {
+		{1, 0.0}, // outer boundary
+		{2, Q},   // inner boundary
+	} };
+
+	ElectrostaticSolver s{ m, p };
+	s.Solve();
+
+	exportSolution(s, CASE);
+
+	
+	//// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
+	//// Expected charge      QExpected = V0 * C 
+	//double QExpected{ V * EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025) };
+
+	//const double rTol{ 5e-3 }; // 0.5% error.
+
+	//EXPECT_LE(relError( QExpected, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
+	//EXPECT_LE(relError(-QExpected, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
+	EXPECT_TRUE(false); // TODO
+}
 
 TEST_F(ElectrostaticSolverTest, two_wires_coax)
 {
 	const std::string CASE{ "two_wires_coax" };
 
-	// PhysicalGroups
-	const std::map<std::string, int> matToAtt{
-		{ "Conductor_0", 1 }, // Outer boundary
-		{ "Conductor_1", 2 }, // Inner boundary
-		{ "Conductor_2", 3 }, // Inner boundary
-		{ "Vacuum",      4 } // Domain
-	};
-
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
-	auto mesh{ Mesh::LoadFromFile(fn.c_str()) };
+	auto m{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V{ 1.0 }; // Voltage
-	AttrToValueMap bcs{ {
+	SolverParameters p;
+	p.dirichletBoundaryConditions = { {
 		{1, 0.0}, // Conductor 0 bdr (GND).
 		{2, V},   // Conductor 1 bdr.
 		{3, 0.0}, // Conductor 2 bdr.
 	} };
 
-	std::map<int, double> domainToEpsr{};
-
-	SolverOptions opts;
-	opts.order = 3;
-
-	ElectrostaticSolver s(mesh, bcs, domainToEpsr, opts);
+	ElectrostaticSolver s{m, p};
 	s.Solve();
 
 	exportSolution(s, CASE);
 
-	double CMat11Expected{  2.15605359 };
-	double CMat12Expected{ -0.16413431 };
+	double C11Expected{  2.15605359 };
+	double C12Expected{ -0.16413431 };
 
 	const double rTol{ 2.5e-2 };
 
-	EXPECT_LE(
-		relError(
-			CMat11Expected, 
-			s.chargeInBoundary(matToAtt.at("Conductor_1")) / V
-		), rTol);
-	
-	EXPECT_LE(
-		relError(
-			CMat12Expected, 
-			s.chargeInBoundary(matToAtt.at("Conductor_2")) / V
-		), rTol);
+	EXPECT_LE(relError(C11Expected, s.chargeInBoundary(2) / V), rTol);
+	EXPECT_LE(relError(C12Expected, s.chargeInBoundary(3) / V), rTol);
 }

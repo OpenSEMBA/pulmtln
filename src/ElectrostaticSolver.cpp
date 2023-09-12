@@ -28,13 +28,12 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
 
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
-    const AttrToValueMap& dbc,
-    const std::map<int, double>& domainToEpsr,
-    const SolverOptions& opts) : 
+    const SolverParameters& parameters,
+    const SolverOptions opts) : 
     opts_(opts),
     mesh_(&mesh),
-    dbc_(dbc),
-    domainToEpsr_(domainToEpsr),
+    dbc_(parameters.dirichletBoundaryConditions),
+    domainToEpsr_(parameters.domainPermittivities),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
     HDivFESpace_(NULL),
@@ -61,7 +60,7 @@ ElectrostaticSolver::ElectrostaticSolver(
     L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
-    AttrToMarker(mesh_->bdr_attributes.Max(), dbc.getAttributesAsArray(), ess_bdr_);
+    AttrToMarker(mesh_->bdr_attributes.Max(), dbc_.getAttributesAsArray(), ess_bdr_);
 
     // Setup various coefficients
     if (domainToEpsr_.size() == 0) {

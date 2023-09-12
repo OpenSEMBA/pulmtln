@@ -14,11 +14,11 @@ Driver Driver::loadFromFile(const std::string& fn)
     Parser p{ fn };
     return Driver{ 
         p.readModel(), 
-        p.readSolverOptions() 
+        p.readDriverOptions() 
     };
 }
 
-Driver::Driver(const Model& model, const SolverOptions& opts) :
+Driver::Driver(const Model& model, const DriverOptions& opts) :
     model_{model},
     opts_{opts}
 {}
@@ -55,7 +55,7 @@ AttrToValueMap buildBdrVoltagesWithZero(const Materials& mats)
 
 mfem::DenseMatrix solveCMatrix(
     const Model& model, 
-    const SolverOptions& opts,
+    const DriverOptions& opts,
     bool ignoreDielectrics = false)
 {
     const auto& mats{ model.getMaterials() };
@@ -86,10 +86,13 @@ mfem::DenseMatrix solveCMatrix(
         }
         
         Mesh mesh{ *model.getMesh() };
-        auto bdrVoltages{ buildBdrVoltagesWithZero(mats) };
-        bdrVoltages[bdrAttI] = 1.0;
+        
+        SolverParameters parameters;
+        parameters.dirichletBoundaryConditions = buildBdrVoltagesWithZero(mats);
+        parameters.dirichletBoundaryConditions[bdrAttI] = 1.0;
+        parameters.domainPermittivities = domainToEpsr;
 
-        ElectrostaticSolver s(mesh, bdrVoltages, domainToEpsr, opts);
+        ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
         s.Solve();
         
         // Fills row
@@ -125,7 +128,7 @@ mfem::DenseMatrix solveCMatrix(
 }
 
 mfem::DenseMatrix solveLMatrix(
-    const Model& model, const SolverOptions& opts)
+    const Model& model, const DriverOptions& opts)
 {
     // Inductance matrix can be computed from the 
     // capacitance obtained ignoring dielectrics as

@@ -9,13 +9,18 @@ namespace pulmtln {
 
 using namespace mfem;
 
+struct SolverParameters {
+    AttrToValueMap dirichletBoundaryConditions;
+    AttrToValueMap neumannBoundaryConditions;
+    AttrToValueMap domainPermittivities;
+};
+
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
         Mesh& mesh,
-        const AttrToValueMap& dbc,
-        const std::map<int, double>& domainToEpsr,
-        const SolverOptions&);
+        const SolverParameters&,
+        const SolverOptions = SolverOptions{});
     ~ElectrostaticSolver();
 
     void Solve();
