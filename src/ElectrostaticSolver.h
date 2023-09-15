@@ -10,8 +10,13 @@ namespace pulmtln {
 using namespace mfem;
 
 struct SolverParameters {
-    AttrToValueMap dirichletBoundaryConditions;
-    AttrToValueMap neumannBoundaryConditions;
+    
+    AttrToValueMap dirichletBoundaries;
+    
+    AttrToValueMap neumannBoundaries;
+    
+    std::vector<int> openBoundaries;
+
     AttrToValueMap domainPermittivities;
 };
 
@@ -66,7 +71,7 @@ private:
     ConstantCoefficient oneCoef_;   // Coefficient equal to 1
     Coefficient* epsCoef_;   // Dielectric Permittivity Coefficient
 
-    Array<int> ess_bdr_, ess_bdr_tdofs_; // Essential Boundary Condition DoFs
+    Array<int> ess_bdr_, ess_bdr_tdofs_, open_bdr_; // Essential Boundary Condition DoFs
 
     void Assemble();
 

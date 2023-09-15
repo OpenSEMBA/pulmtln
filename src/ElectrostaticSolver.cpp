@@ -5,11 +5,12 @@
 
 namespace pulmtln {
 
-void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
+Array<int> AttrToMarker(int max_attr, const Array<int>& attrs)
 {
     MFEM_ASSERT(attrs.Max() <= max_attr, "Invalid attribute number present.");
 
-    marker.SetSize(max_attr);
+    Array<int> marker{max_attr};
+
     if (attrs.Size() == 1 && attrs[0] == -1)
     {
         marker = 1;
@@ -24,7 +25,25 @@ void AttrToMarker(int max_attr, const Array<int>& attrs, Array<int>& marker)
             marker[attr - 1] = 1;
         }
     }
+
+    return marker;
 }
+
+Array<int> toArray(const std::vector<int>& v)
+{
+    Array<int> r{ (int)v.size() };
+    for (int i{ 0 }; i < r.Size(); i++) {
+        r[i] = v[i];
+    }
+    return r;
+}
+
+double firstOrderABC(const Vector& pVec)
+{
+    double p{ pVec.Norml2() };
+    return EPSILON0_NATURAL / p;
+}
+
 
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
@@ -32,7 +51,7 @@ ElectrostaticSolver::ElectrostaticSolver(
     const SolverOptions opts) : 
     opts_(opts),
     mesh_(&mesh),
-    dbc_(parameters.dirichletBoundaryConditions),
+    dbc_(parameters.dirichletBoundaries),
     domainToEpsr_(parameters.domainPermittivities),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
@@ -60,13 +79,12 @@ ElectrostaticSolver::ElectrostaticSolver(
     L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
-    AttrToMarker(mesh_->bdr_attributes.Max(), dbc_.getAttributesAsArray(), ess_bdr_);
+    ess_bdr_ = AttrToMarker(mesh_->bdr_attributes.Max(), dbc_.getAttributesAsArray());
 
     // Setup various coefficients
-    if (domainToEpsr_.size() == 0) {
+    if (domainToEpsr_.empty()) {
         epsCoef_ = new ConstantCoefficient(EPSILON0_NATURAL);
-    }
-    else {
+    } else {
         mfem::Vector eps(mesh_->attributes.Max());
         eps = EPSILON0_NATURAL;
         for (const auto& [attr, epsr] : domainToEpsr_) {
@@ -80,8 +98,20 @@ ElectrostaticSolver::ElectrostaticSolver(
     divEpsGrad_ = new BilinearForm(H1FESpace_);
     divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
 
+
+    std::unique_ptr<Coefficient> openRegionCoeff;
+    open_bdr_ = AttrToMarker(mesh_->bdr_attributes.Max(), toArray(parameters.openBoundaries));
+    if (!parameters.openBoundaries.empty()) {
+        openRegionCoeff.reset(new FunctionCoefficient(firstOrderABC));
+        divEpsGrad_->AddBoundaryIntegrator(
+            new BoundaryMassIntegrator(*openRegionCoeff),
+            open_bdr_
+        );
+    }
+
     hDivMass_ = new BilinearForm(HDivFESpace_);
     hDivMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
+
 
     hCurlHDivEps_ = new MixedBilinearForm(HCurlFESpace_, HDivFESpace_);
     hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(*epsCoef_));

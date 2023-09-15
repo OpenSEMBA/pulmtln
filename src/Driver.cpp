@@ -88,8 +88,8 @@ mfem::DenseMatrix solveCMatrix(
         Mesh mesh{ *model.getMesh() };
         
         SolverParameters parameters;
-        parameters.dirichletBoundaryConditions = buildBdrVoltagesWithZero(mats);
-        parameters.dirichletBoundaryConditions[bdrAttI] = 1.0;
+        parameters.dirichletBoundaries = buildBdrVoltagesWithZero(mats);
+        parameters.dirichletBoundaries[bdrAttI] = 1.0;
         parameters.domainPermittivities = domainToEpsr;
 
         ElectrostaticSolver s(mesh, parameters, opts.solverOptions);

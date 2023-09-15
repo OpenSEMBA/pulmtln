@@ -42,7 +42,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
 
 	SolverParameters params;
-	params.dirichletBoundaryConditions = {
+	params.dirichletBoundaries = {
 		{
 			{1,    1.0}, // bottom boundary.
 			{3,    0.0}, // top boundary.
@@ -80,7 +80,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
 	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
 
 	SolverParameters p;
-	p.dirichletBoundaryConditions = { {
+	p.dirichletBoundaries = { {
 		{1,    1.0}, // bottom boundary.
 		{3,    0.0}, // top boundary.
 	} };
@@ -115,7 +115,7 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	m.SetAttributes();
 
 	SolverParameters p;
-	p.dirichletBoundaryConditions = { {
+	p.dirichletBoundaries = { {
 		{1, 1.0}, // bottom boundary.
 		{3, 0.0}, // top boundary.
 	} };
@@ -147,7 +147,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 
 	const double V{ 1.0 };
 	SolverParameters p;
-	p.dirichletBoundaryConditions = {{
+	p.dirichletBoundaries = {{
 		{1, 0.0}, // outer boundary
 		{2, V},   // inner boundary
 	}};
@@ -177,25 +177,25 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 
 	const double Q{ 1.0 };
 	SolverParameters p;
-	p.neumannBoundaryConditions = { {
-		{1, 0.0}, // outer boundary
-		{2, Q},   // inner boundary
+	p.dirichletBoundaries = { {
+		{2, 1.0},   // Inner boundary
 	} };
+	p.openBoundaries = { 1 }; // Outer boundary.
 
 	ElectrostaticSolver s{ m, p };
 	s.Solve();
 
-	exportSolution(s, CASE);
+	exportSolution(s, getCaseName());
 
 	
-	//// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
-	//// Expected charge      QExpected = V0 * C 
-	//double QExpected{ V * EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025) };
+	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
+	// Expected charge      QExpected = V0 * C 
+	double QExpected{ 1.0 * EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025) };
 
-	//const double rTol{ 5e-3 }; // 0.5% error.
+	const double rTol{ 5e-3 }; // 0.5% error.
 
-	//EXPECT_LE(relError( QExpected, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
-	//EXPECT_LE(relError(-QExpected, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
+	EXPECT_LE(relError( QExpected, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
+	EXPECT_LE(relError(-QExpected, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
 	EXPECT_TRUE(false); // TODO
 }
 
@@ -208,7 +208,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 
 	const double V{ 1.0 }; // Voltage
 	SolverParameters p;
-	p.dirichletBoundaryConditions = { {
+	p.dirichletBoundaries = { {
 		{1, 0.0}, // Conductor 0 bdr (GND).
 		{2, V},   // Conductor 1 bdr.
 		{3, 0.0}, // Conductor 2 bdr.
