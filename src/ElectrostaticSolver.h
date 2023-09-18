@@ -33,11 +33,15 @@ public:
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
 
-    const GridFunction& GetVectorPotential() { return *phi_; }
+    const GridFunction& GetPotential() { return *phi_; }
+    const GridFunction& GetElectricField() { return *e_; }
+
 
     double totalChargeFromRho() const;
     double totalCharge() const;
     double chargeInBoundary(int bdrAttribute) const;
+    double totalEnergy() const;
+
 
     Mesh* getMesh() { return mesh_; }
 private:

@@ -6,7 +6,7 @@
 using namespace mfem;
 using namespace pulmtln;
 
-mfem::Vector getBaricenterOfElement(Mesh& mesh, int e)
+Vector getBaricenterOfElement(Mesh& mesh, int e)
 {
 	Element* elem{ mesh.GetElement(e) };
 	mfem::Vector center({ 0.0, 0.0 });
@@ -20,6 +20,13 @@ mfem::Vector getBaricenterOfElement(Mesh& mesh, int e)
 	return center;
 }
 
+void wireField(const Vector& pos, Vector& res)
+{
+	// Assumes a charge of 1 unit in the wire.
+	double norm = pos.Norml2();
+	res = pos;
+	res /= (norm * 2.0 * M_PI);
+}
 
 void exportSolution(ElectrostaticSolver& s, const std::string& caseName)
 {
@@ -29,6 +36,7 @@ void exportSolution(ElectrostaticSolver& s, const std::string& caseName)
 
 class ElectrostaticSolverTest : public ::testing::Test {
 };
+
 
 TEST_F(ElectrostaticSolverTest, parallel_plates)
 {
@@ -64,6 +72,79 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 
 	EXPECT_LE(relError(-1.0, s.chargeInBoundary(3)), rTol);
 
+	EXPECT_NEAR(0.0, s.chargeInBoundary(2), aTol);
+
+	// Expected energy formula (1/2) * epsilon_0 * E^2 * A.
+	// Area A = 1.0 * 1.0
+	// Electric field is constant = 1.0 V/m.
+	double expectedEnergy{ 0.5 * EPSILON0_NATURAL };
+	EXPECT_LE(relError(expectedEnergy, s.totalEnergy()), rTol);
+
+}
+
+TEST_F(ElectrostaticSolverTest, parallel_plates_energy)
+{
+	//    0 V
+	//  +-----+
+	//  |  3  |
+	//  |4   2|
+	//  |  1  |
+	//  +-----+
+	//    1 V
+	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
+
+	SolverParameters params;
+	params.dirichletBoundaries = {
+		{
+			{1,    1.0}, // bottom boundary.
+			{3,    0.0}, // top boundary.
+		}
+	};
+
+	ElectrostaticSolver s{ m, params };
+	s.Solve();
+
+	// Expected energy formula (1/2) * epsilon_0 * E^2 * A.
+	// Area A = 1.0 * 1.0
+	// Electric field is constant = 1.0 V/m.
+	const double rTol{ 1e-5 }; // Error percentage of 0.001%
+	double expectedEnergy{ 0.5 * EPSILON0_NATURAL };
+	EXPECT_LE(relError(expectedEnergy, s.totalEnergy()), rTol);
+
+}
+
+
+TEST_F(ElectrostaticSolverTest, parallel_plates_neumann)
+{
+	//    Q = -1 
+	//  +-----+
+	//  |  3  |
+	//  |4   2|
+	//  |  1  |
+	//  +-----+
+	//    Q = 1 
+	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
+
+	SolverParameters params;
+	params.neumannBoundaries = {
+		{
+			{1,  1.0}, // bottom boundary.
+			{3, -1.0}, // top boundary.
+		}
+	};
+
+	ElectrostaticSolver s{ m, params };
+	s.Solve();
+
+	exportSolution(s, "parallel_plates_neumann");
+
+	const double aTol{ 1e-5 };
+	const double rTol{ 1e-5 }; // Error percentage of 0.001%
+
+	EXPECT_NEAR(0.0, s.totalCharge(), aTol);
+
+	EXPECT_LE(relError(1.0, s.chargeInBoundary(1)), rTol);
+    EXPECT_LE(relError(-1.0, s.chargeInBoundary(3)), rTol);
 	EXPECT_NEAR(0.0, s.chargeInBoundary(2), aTol);
 
 }
@@ -177,8 +258,8 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 
 	const double Q{ 1.0 };
 	SolverParameters p;
-	p.dirichletBoundaries = { {
-		{2, 1.0},   // Inner boundary
+	p.neumannBoundaries = { {
+		{2, 1.0 / (2*M_PI*25e-3)},   // Inner boundary, 1 unit of charge in total.
 	} };
 	p.openBoundaries = { 1 }; // Outer boundary.
 
@@ -187,16 +268,10 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 
 	exportSolution(s, getCaseName());
 
-	
-	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
-	// Expected charge      QExpected = V0 * C 
-	double QExpected{ 1.0 * EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025) };
+	VectorFunctionCoefficient exactField{2, wireField};
+	auto error = s.GetElectricField().ComputeL2Error(exactField);
 
-	const double rTol{ 5e-3 }; // 0.5% error.
-
-	EXPECT_LE(relError( QExpected, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
-	EXPECT_LE(relError(-QExpected, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
-	EXPECT_TRUE(false); // TODO
+	EXPECT_LE(error, 1e-9);
 }
 
 TEST_F(ElectrostaticSolverTest, two_wires_coax)

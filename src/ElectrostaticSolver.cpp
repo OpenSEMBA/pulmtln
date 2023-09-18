@@ -100,8 +100,8 @@ ElectrostaticSolver::ElectrostaticSolver(
 
 
     std::unique_ptr<Coefficient> openRegionCoeff;
-    open_bdr_ = AttrToMarker(mesh_->bdr_attributes.Max(), toArray(parameters.openBoundaries));
     if (!parameters.openBoundaries.empty()) {
+        open_bdr_ = AttrToMarker(mesh_->bdr_attributes.Max(), toArray(parameters.openBoundaries));
         openRegionCoeff.reset(new FunctionCoefficient(firstOrderABC));
         divEpsGrad_->AddBoundaryIntegrator(
             new BoundaryMassIntegrator(*openRegionCoeff),
@@ -263,7 +263,7 @@ double ElectrostaticSolver::totalCharge() const
     return rt_surf_int(*d_);
 }
 
-double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
+std::unique_ptr<LinearForm> buildSurfaceIntegratorForBoundary(RT_FESpace* fes, int bdrAttribute)
 {
     mfem::Array<int> attr(1);
     attr[0] = bdrAttribute;
@@ -275,12 +275,33 @@ double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
     }
     PWCoefficient pwcoeff{ attr, coefs };
 
-    LinearForm surf_int(HDivFESpace_);
-    surf_int.AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(pwcoeff));
-    surf_int.Assemble();
-    auto charge{ surf_int(*d_) };
+    auto surf_int =  std::make_unique<LinearForm>(fes);
+    surf_int->AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(pwcoeff));
+    surf_int->Assemble();
 
-    return charge;
+    return surf_int;
+}
+
+double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
+{
+    auto surf_int{ buildSurfaceIntegratorForBoundary(HDivFESpace_, bdrAttribute) };
+    return (*surf_int)(*d_);
+}
+
+double ElectrostaticSolver::totalEnergy() const
+{
+    BilinearForm mass{ HCurlFESpace_ };
+    ConstantCoefficient eps{ EPSILON0_NATURAL };
+    mass.AddDomainIntegrator(new VectorFEMassIntegrator(eps));
+    mass.Assemble();
+    
+    GridFunction aux(e_->FESpace());
+    mass.Mult(*e_, aux);
+
+    double energy{ 0.0 };
+    energy = 0.5*InnerProduct(*e_, aux);
+
+    return energy;
 }
 
 void ElectrostaticSolver::writeParaViewFields(ParaViewDataCollection& pv) const
