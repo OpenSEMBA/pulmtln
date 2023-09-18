@@ -7,9 +7,14 @@ namespace pulmtln {
 
 Array<int> AttrToMarker(int max_attr, const Array<int>& attrs)
 {
-    MFEM_ASSERT(attrs.Max() <= max_attr, "Invalid attribute number present.");
-
     Array<int> marker{max_attr};
+    marker = 0;
+
+    if (attrs.Size() == 0) {
+        return marker;
+    }
+    
+    MFEM_ASSERT(attrs.Max() <= max_attr, "Invalid attribute number present.");
 
     if (attrs.Size() == 1 && attrs[0] == -1)
     {
@@ -51,8 +56,7 @@ ElectrostaticSolver::ElectrostaticSolver(
     const SolverOptions opts) : 
     opts_(opts),
     mesh_(&mesh),
-    dbc_(parameters.dirichletBoundaries),
-    domainToEpsr_(parameters.domainPermittivities),
+    parameters_(parameters),
     H1FESpace_(NULL),
     HCurlFESpace_(NULL),
     HDivFESpace_(NULL),
@@ -60,10 +64,12 @@ ElectrostaticSolver::ElectrostaticSolver(
     divEpsGrad_(NULL),
     hDivMass_(NULL),
     hCurlHDivEps_(NULL),
+    h1SurfMass_(NULL),
     rhod_(NULL),
     grad_(NULL),
     phi_(NULL),
     rho_(NULL),
+    sigma_src_(NULL),
     e_(NULL),
     d_(NULL),
     oneCoef_(1.0)
@@ -79,15 +85,18 @@ ElectrostaticSolver::ElectrostaticSolver(
     L2FESpace_ = new L2_FESpace(mesh_, order - 1, mesh_->Dimension());
 
     // Select surface attributes for Dirichlet BCs
-    ess_bdr_ = AttrToMarker(mesh_->bdr_attributes.Max(), dbc_.getAttributesAsArray());
+    ess_bdr_ = AttrToMarker(
+        mesh_->bdr_attributes.Max(),
+        parameters.dirichletBoundaries.getAttributesAsArray()
+    );
 
     // Setup various coefficients
-    if (domainToEpsr_.empty()) {
+    if (parameters_.domainPermittivities.empty()) {
         epsCoef_ = new ConstantCoefficient(EPSILON0_NATURAL);
     } else {
         mfem::Vector eps(mesh_->attributes.Max());
         eps = EPSILON0_NATURAL;
-        for (const auto& [attr, epsr] : domainToEpsr_) {
+        for (const auto& [attr, epsr] : parameters_.domainPermittivities) {
             assert(attr <= eps.Size());
             eps[attr-1] *= epsr;
         }
@@ -112,7 +121,12 @@ ElectrostaticSolver::ElectrostaticSolver(
     hDivMass_ = new BilinearForm(HDivFESpace_);
     hDivMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
 
+    sigma_src_ = new GridFunction(H1FESpace_);
+    *sigma_src_ = 0.0;
 
+    h1SurfMass_ = new BilinearForm(H1FESpace_);
+    h1SurfMass_->AddBoundaryIntegrator(new MassIntegrator);
+    
     hCurlHDivEps_ = new MixedBilinearForm(HCurlFESpace_, HDivFESpace_);
     hCurlHDivEps_->AddDomainIntegrator(new VectorFEMassIntegrator(*epsCoef_));
 
@@ -138,6 +152,7 @@ ElectrostaticSolver::~ElectrostaticSolver()
     delete rhod_;
     delete d_;
     delete e_;
+    delete sigma_src_;
     
     delete grad_;
     delete div_;
@@ -145,6 +160,7 @@ ElectrostaticSolver::~ElectrostaticSolver()
     delete divEpsGrad_;
     delete hDivMass_;
     delete hCurlHDivEps_;
+    delete h1SurfMass_;
     
     delete H1FESpace_;
     delete HCurlFESpace_;
@@ -165,6 +181,9 @@ void ElectrostaticSolver::Assemble()
     hCurlHDivEps_->Assemble();
     hCurlHDivEps_->Finalize();
 
+    h1SurfMass_->Assemble();
+    h1SurfMass_->Finalize();
+
     *rhod_ = 0.0;
     rhod_->Assemble();
 
@@ -175,27 +194,45 @@ void ElectrostaticSolver::Assemble()
     div_->Finalize();
 }
 
+void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
+    const AttrToValueMap& bdrValues,
+    GridFunction& gf) const
+{
+    auto attributes{ bdrValues.getAttributesAsArray() };
+    auto values{ bdrValues.getValuesAsArray() };
+    if (attributes.Size() == 0) {
+        return;
+    }
+
+    // Apply piecewise constant boundary condition
+    Array<int> bdr_attr(mesh_->bdr_attributes.Max());
+    for (int i = 0; i < attributes.Size(); i++)
+    {
+        ConstantCoefficient voltage(values[i]);
+        bdr_attr = 0;
+        if (attributes[i] <= bdr_attr.Size())
+        {
+            bdr_attr[attributes[i] - 1] = 1;
+        }
+        gf.ProjectBdrCoefficient(voltage, bdr_attr);
+    }
+}
+
 void ElectrostaticSolver::Solve()
 {
+    // Initialize the surface charge density
+    if (sigma_src_)
+    {
+        *sigma_src_ = 0.0;
+        applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
+        h1SurfMass_->AddMult(*sigma_src_, *rhod_);
+    }
+    
     // Computes phi.
     *phi_ = 0.0;
     {
-        auto dbcs{ dbc_.getAttributesAsArray() };
-        auto dbcv{ dbc_.getValuesAsArray() };
-        if (dbcs.Size() > 0) {
-            // Apply piecewise constant boundary condition
-            Array<int> dbc_bdr_attr(mesh_->bdr_attributes.Max());
-            for (int i = 0; i < dbcs.Size(); i++)
-            {
-                ConstantCoefficient voltage(dbcv[i]);
-                dbc_bdr_attr = 0;
-                if (dbcs[i] <= dbc_bdr_attr.Size())
-                {
-                    dbc_bdr_attr[dbcs[i] - 1] = 1;
-                }
-                phi_->ProjectBdrCoefficient(voltage, dbc_bdr_attr);
-            }
-        }
+        auto dbcs{ parameters_.dirichletBoundaries.getAttributesAsArray() };
+        applyBoundaryValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);
 
         // Determine the essential BC degrees of freedom
         if (dbcs.Size() > 0) {
@@ -205,6 +242,7 @@ void ElectrostaticSolver::Solve()
             ess_bdr_tdofs_.SetSize(1);
             ess_bdr_tdofs_[0] = 0;
         }
+
 
         // Apply essential BC and form linear system
         SparseMatrix DivEpsGrad;

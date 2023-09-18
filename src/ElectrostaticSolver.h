@@ -49,8 +49,7 @@ private:
     
     Mesh* mesh_;
 
-    AttrToValueMap dbc_;   // Dirichlet BC Surface Attribute ID and values
-    std::map<int, double> domainToEpsr_; // Domain to epsilon r.
+    SolverParameters parameters_;
 
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E
@@ -59,6 +58,7 @@ private:
 
     BilinearForm* divEpsGrad_; // Laplacian operator
     BilinearForm* hDivMass_;   // For Computing D from E
+    BilinearForm* h1SurfMass_; // For Surface Charge Density Source 
 
     MixedBilinearForm* hCurlHDivEps_; // For computing D from E
     
@@ -71,6 +71,7 @@ private:
     GridFunction* rho_;       // Volumetric Charge Density (Div(D))
     GridFunction* e_;         // Electric Field
     GridFunction* d_;         // Electric Flux Density (aka Dielectric Flux)
+    GridFunction* sigma_src_; // Surface Charge Density Source
 
     ConstantCoefficient oneCoef_;   // Coefficient equal to 1
     Coefficient* epsCoef_;   // Dielectric Permittivity Coefficient
@@ -78,7 +79,9 @@ private:
     Array<int> ess_bdr_, ess_bdr_tdofs_, open_bdr_; // Essential Boundary Condition DoFs
 
     void Assemble();
-
+    void applyBoundaryValuesToGridFunction(
+        const AttrToValueMap& bdrValues, 
+        GridFunction& gf) const;
 };
 
 }
