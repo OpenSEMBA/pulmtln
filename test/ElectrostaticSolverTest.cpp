@@ -347,7 +347,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open)
 	const double V{ 1.0 }; // Voltage
 	SolverParameters p;
 	p.dirichletBoundaries = { {
-		{1,  V},   // Conductor 1 bdr.
+		{1,  V}, // Conductor 1 bdr.
 		{2, -V}, // Conductor 2 bdr.
 	} };
 	p.openBoundaries = { 3 };
@@ -367,10 +367,13 @@ TEST_F(ElectrostaticSolverTest, two_wires_open)
 		std::acosh( (d*d - rw1*rw1 - rw2*rw2) / (2*rw1*rw2) )
 	};
 	
-	const double rTol{ 2.5e-2 };
 	double chargeInOpenBoundary{ s.chargeInBoundary(3) };
 	EXPECT_LE(1e-6, std::abs(chargeInOpenBoundary));
 
+	const double rTol{ 1e-2 };
 	double CComputed{ s.chargeInBoundary(1) / (2*V) };
 	EXPECT_LE(relError(CExpected, CComputed), rTol);
+
+	double CComputedEnergy{ 2.0 * s.totalEnergy() / (4.0*V*V) };
+	EXPECT_LE(relError(CExpected, CComputedEnergy), rTol);
 }

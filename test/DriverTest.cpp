@@ -149,8 +149,8 @@ TEST_F(DriverTest, three_wires_ribbon)
 
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 	
-	// Tolerance is quite high probably because of high curvature
-	const double rTol{ 0.30 }; 
+	// Tolerance is quite high probably because open region is not far enough.
+	const double rTol{ 0.25 }; 
 	
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
 	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());

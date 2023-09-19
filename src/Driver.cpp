@@ -41,16 +41,13 @@ AttrToValueMap buildAttrToValueMap(
     return bcs;
 }
 
-AttrToValueMap buildBdrVoltagesWithZero(const Materials& mats)
+std::vector<int> getAttributesInMap(const NameToAttrMap& m)
 {
-    auto pecVoltages{ 
-        buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0)};
-    auto openRegionVoltages{
-        buildAttrToValueMap(mats.buildNameToAttrMap<OpenBoundary>(), 0.0)
-    };
-    auto bdrVoltages{ pecVoltages };
-    bdrVoltages.insert(openRegionVoltages.begin(), openRegionVoltages.end());
-    return bdrVoltages;
+    std::vector<int> res;
+    for (const auto& [k,v] : m) {
+        res.push_back(v);
+    }
+    return res;
 }
 
 mfem::DenseMatrix solveCMatrix(
@@ -88,9 +85,11 @@ mfem::DenseMatrix solveCMatrix(
         Mesh mesh{ *model.getMesh() };
         
         SolverParameters parameters;
-        parameters.dirichletBoundaries = buildBdrVoltagesWithZero(mats);
+        parameters.dirichletBoundaries = 
+            buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
         parameters.dirichletBoundaries[bdrAttI] = 1.0;
         parameters.domainPermittivities = domainToEpsr;
+        parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
 
         ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
         s.Solve();
@@ -101,7 +100,7 @@ mfem::DenseMatrix solveCMatrix(
             if (numJ == 0) {
                 continue;
             }
-            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ));
+            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ)) / 2.0;
         }
 
         if (opts.exportParaViewSolution) {
