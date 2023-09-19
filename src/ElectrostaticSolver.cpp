@@ -46,7 +46,8 @@ Array<int> toArray(const std::vector<int>& v)
 double firstOrderABC(const Vector& pVec)
 {
     double p{ pVec.Norml2() };
-    return EPSILON0_NATURAL / p;
+
+    return EPSILON0_NATURAL / (p * std::log(p));
 }
 
 
@@ -120,10 +121,7 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     hDivMass_ = new BilinearForm(HDivFESpace_);
     hDivMass_->AddDomainIntegrator(new VectorFEMassIntegrator);
-
-    sigma_src_ = new GridFunction(H1FESpace_);
-    *sigma_src_ = 0.0;
-
+        
     h1SurfMass_ = new BilinearForm(H1FESpace_);
     h1SurfMass_->AddBoundaryIntegrator(new MassIntegrator);
     
@@ -141,6 +139,7 @@ ElectrostaticSolver::ElectrostaticSolver(
     d_ = new GridFunction(HDivFESpace_);
     e_ = new GridFunction(HCurlFESpace_);
     rho_ = new GridFunction(L2FESpace_);
+    sigma_src_ = new GridFunction(H1FESpace_);
 
     Assemble();
 }
