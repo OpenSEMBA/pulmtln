@@ -270,7 +270,6 @@ TEST_F(ElectrostaticSolverTest, empty_coax_neumann)
 
 	exportSolution(s, getCaseName());
 
-	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
 	const double rTol{ 5e-3 }; // 0.5% error.
 	EXPECT_LE(relError( 1.0, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
 	EXPECT_LE(relError(-1.0, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
@@ -284,10 +283,9 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
 	auto m{ Mesh::LoadFromFile(fn.c_str()) };
 	
-	const double Q{ 1.0 };
 	SolverParameters p;
-	p.neumannBoundaries = { {
-		{2, 1.0 / (2*M_PI*25e-3)},   // Inner boundary, 1 unit of charge in total.
+	p.dirichletBoundaries = { {
+		{2, 1.0}
 	} };
 	p.openBoundaries = { 1 }; // Outer boundary.
 
@@ -296,10 +294,19 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 
 	exportSolution(s, getCaseName());
 
-	VectorFunctionCoefficient exactField{2, wireField};
+	double Q = s.chargeInBoundary(2);
+	ConstantCoefficient chargeCoeff{ Q };
+	VectorFunctionCoefficient exactField{2, wireField, &chargeCoeff};
 	auto error = s.GetElectricField().ComputeL2Error(exactField);
+	EXPECT_LE(error, 1.2);
 
-	EXPECT_LE(error, 1e-9);
+	double CExpected = EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025);
+	auto U{ s.totalEnergy()};
+	double CComputed = 0.5 * std::pow(Q,2) / U;
+
+	const double rTol{ 1e-2 }; // 1% error.
+	EXPECT_LE(relError(CExpected, CComputed), rTol);
+
 }
 
 TEST_F(ElectrostaticSolverTest, two_wires_coax)
@@ -331,32 +338,39 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 	EXPECT_LE(relError(C12Expected, s.chargeInBoundary(3) / V), rTol);
 }
 
-TEST_F(ElectrostaticSolverTest, two_wires_coax_open)
+TEST_F(ElectrostaticSolverTest, two_wires_open)
 {
-	const std::string CASE{ "two_wires_coax" };
+	const std::string CASE{ "two_wires_open" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
 	auto m{ Mesh::LoadFromFile(fn.c_str()) };
 
 	const double V{ 1.0 }; // Voltage
 	SolverParameters p;
 	p.dirichletBoundaries = { {
-		{2, V},   // Conductor 1 bdr.
-		{3, 0.0}, // Conductor 2 bdr.
+		{1,  V},   // Conductor 1 bdr.
+		{2, -V}, // Conductor 2 bdr.
 	} };
-	p.openBoundaries = { 1 };
+	p.openBoundaries = { 3 };
 
 	ElectrostaticSolver s{ m, p };
 	s.Solve();
 
 	exportSolution(s, getCaseName());
 
-	//double C11Expected{ 2.15605359 };
-	//double C12Expected{ -0.16413431 };
+	// Capacity between two straight wires.
+	double d = 50;
+	double rw1 = 2;
+	double rw2 = 2;
 
-	//const double rTol{ 2.5e-2 };
+	double CExpected{ 
+		2*M_PI*EPSILON0_NATURAL /
+		std::acosh( (d*d - rw1*rw1 - rw2*rw2) / (2*rw1*rw2) )
+	};
+	
+	const double rTol{ 2.5e-2 };
+	double chargeInOpenBoundary{ s.chargeInBoundary(3) };
+	EXPECT_LE(1e-6, std::abs(chargeInOpenBoundary));
 
-	//EXPECT_LE(relError(C11Expected, s.chargeInBoundary(2) / V), rTol);
-	//EXPECT_LE(relError(C12Expected, s.chargeInBoundary(3) / V), rTol);
-
-	EXPECT_TRUE(false);
+	double CComputed{ s.chargeInBoundary(1) / (2*V) };
+	EXPECT_LE(relError(CExpected, CComputed), rTol);
 }

@@ -43,11 +43,11 @@ Array<int> toArray(const std::vector<int>& v)
     return r;
 }
 
-double firstOrderABC(const Vector& pVec)
+double firstOrderABC(const Vector& rVec)
 {
-    double p{ pVec.Norml2() };
+    double r{ rVec.Norml2() };
 
-    return EPSILON0_NATURAL / (p * std::log(p));
+    return EPSILON0_NATURAL / (r);
 }
 
 
@@ -228,7 +228,7 @@ void ElectrostaticSolver::Solve()
     }
     
     // Computes phi.
-    *phi_ = 0.0;
+    *phi_ = 0.0; 
     {
         auto dbcs{ parameters_.dirichletBoundaries.getAttributesAsArray() };
         applyBoundaryValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);
@@ -348,7 +348,7 @@ void ElectrostaticSolver::writeParaViewFields(ParaViewDataCollection& pv) const
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
-    pv.RegisterField("Rho", rho_);
+    //pv.RegisterField("Rho", rho_);
 
     pv.Save();
 }
@@ -360,7 +360,7 @@ void ElectrostaticSolver::writeVisItFields(
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
-    pv.RegisterField("Rho", rho_);
+    //pv.RegisterField("Rho", rho_);
 
     pv.Save();
 }
