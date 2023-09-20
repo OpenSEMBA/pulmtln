@@ -14,11 +14,11 @@ Driver Driver::loadFromFile(const std::string& fn)
     Parser p{ fn };
     return Driver{ 
         p.readModel(), 
-        p.readSolverOptions() 
+        p.readDriverOptions() 
     };
 }
 
-Driver::Driver(const Model& model, const SolverOptions& opts) :
+Driver::Driver(const Model& model, const DriverOptions& opts) :
     model_{model},
     opts_{opts}
 {}
@@ -41,21 +41,18 @@ AttrToValueMap buildAttrToValueMap(
     return bcs;
 }
 
-AttrToValueMap buildBdrVoltagesWithZero(const Materials& mats)
+std::vector<int> getAttributesInMap(const NameToAttrMap& m)
 {
-    auto pecVoltages{ 
-        buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0)};
-    auto openRegionVoltages{
-        buildAttrToValueMap(mats.buildNameToAttrMap<OpenBoundary>(), 0.0)
-    };
-    auto bdrVoltages{ pecVoltages };
-    bdrVoltages.insert(openRegionVoltages.begin(), openRegionVoltages.end());
-    return bdrVoltages;
+    std::vector<int> res;
+    for (const auto& [k,v] : m) {
+        res.push_back(v);
+    }
+    return res;
 }
 
 mfem::DenseMatrix solveCMatrix(
     const Model& model, 
-    const SolverOptions& opts,
+    const DriverOptions& opts,
     bool ignoreDielectrics = false)
 {
     const auto& mats{ model.getMaterials() };
@@ -86,10 +83,15 @@ mfem::DenseMatrix solveCMatrix(
         }
         
         Mesh mesh{ *model.getMesh() };
-        auto bdrVoltages{ buildBdrVoltagesWithZero(mats) };
-        bdrVoltages[bdrAttI] = 1.0;
+        
+        SolverParameters parameters;
+        parameters.dirichletBoundaries = 
+            buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
+        parameters.dirichletBoundaries[bdrAttI] = 1.0;
+        parameters.domainPermittivities = domainToEpsr;
+        parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
 
-        ElectrostaticSolver s(mesh, bdrVoltages, domainToEpsr, opts);
+        ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
         s.Solve();
         
         // Fills row
@@ -98,7 +100,7 @@ mfem::DenseMatrix solveCMatrix(
             if (numJ == 0) {
                 continue;
             }
-            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ));
+            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ)) / 2.0;
         }
 
         if (opts.exportParaViewSolution) {
@@ -110,12 +112,22 @@ mfem::DenseMatrix solveCMatrix(
             ParaViewDataCollection pd{ outputName, s.getMesh() };
             s.writeParaViewFields(pd);
         }
+
+        if (opts.exportVisItSolution) {
+            std::string outputName{ opts.exportFolder + "/" + "VisIt/Conductor_" };
+            outputName += std::to_string(numI);
+            if (ignoreDielectrics) {
+                outputName += "_no_dielectrics";
+            }
+            VisItDataCollection dC{ outputName, s.getMesh() };
+            s.writeVisItFields(dC);
+        }
     }
     return C;
 }
 
 mfem::DenseMatrix solveLMatrix(
-    const Model& model, const SolverOptions& opts)
+    const Model& model, const DriverOptions& opts)
 {
     // Inductance matrix can be computed from the 
     // capacitance obtained ignoring dielectrics as

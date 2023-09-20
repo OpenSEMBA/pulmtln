@@ -8,7 +8,7 @@ namespace pulmtln {
 
 class Driver {
 public:
-    Driver(const Model& model, const SolverOptions& opts);
+    Driver(const Model& model, const DriverOptions& opts);
     
     Parameters getMTLPUL() const;
 
@@ -16,7 +16,7 @@ public:
 
 private:
     Model model_;
-    SolverOptions opts_;
+    DriverOptions opts_;
 };
 
 }

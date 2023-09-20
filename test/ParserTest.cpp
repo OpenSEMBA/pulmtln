@@ -14,8 +14,8 @@ TEST_F(ParserTest, empty_coax)
 		casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" 
 	};
 
-	auto opts{ parser.readSolverOptions() };
-	EXPECT_EQ(3, opts.order);
+	auto opts{ parser.readDriverOptions() };
+	EXPECT_EQ(3, opts.solverOptions.order);
 	EXPECT_EQ(true, opts.exportParaViewSolution);
 
 	auto model{ parser.readModel() };
@@ -40,8 +40,8 @@ TEST_F(ParserTest, partially_filled_coax)
 		casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
 	};
 
-	auto opts{ parser.readSolverOptions() };
-	EXPECT_EQ(3, opts.order);
+	auto opts{ parser.readDriverOptions() };
+	EXPECT_EQ(3, opts.solverOptions.order);
 	EXPECT_EQ(true, opts.exportParaViewSolution);
 
 	auto model{ parser.readModel() };

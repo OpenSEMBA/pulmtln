@@ -9,24 +9,39 @@ namespace pulmtln {
 
 using namespace mfem;
 
+struct SolverParameters {
+    
+    AttrToValueMap dirichletBoundaries;
+    
+    AttrToValueMap neumannBoundaries;
+    
+    std::vector<int> openBoundaries;
+
+    AttrToValueMap domainPermittivities;
+};
+
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
         Mesh& mesh,
-        const AttrToValueMap& dbc,
-        const std::map<int, double>& domainToEpsr,
-        const SolverOptions&);
+        const SolverParameters&,
+        const SolverOptions = SolverOptions{});
     ~ElectrostaticSolver();
 
     void Solve();
 
     void writeParaViewFields(ParaViewDataCollection&) const;
+    void writeVisItFields(VisItDataCollection&) const;
 
-    const GridFunction& GetVectorPotential() { return *phi_; }
+    const GridFunction& GetPotential() { return *phi_; }
+    const GridFunction& GetElectricField() { return *e_; }
+
 
     double totalChargeFromRho() const;
     double totalCharge() const;
     double chargeInBoundary(int bdrAttribute) const;
+    double totalEnergy() const;
+
 
     Mesh* getMesh() { return mesh_; }
 private:
@@ -34,8 +49,7 @@ private:
     
     Mesh* mesh_;
 
-    AttrToValueMap dbc_;   // Dirichlet BC Surface Attribute ID and values
-    std::map<int, double> domainToEpsr_; // Domain to epsilon r.
+    SolverParameters parameters_;
 
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E
@@ -44,6 +58,7 @@ private:
 
     BilinearForm* divEpsGrad_; // Laplacian operator
     BilinearForm* hDivMass_;   // For Computing D from E
+    BilinearForm* h1SurfMass_; // For Surface Charge Density Source 
 
     MixedBilinearForm* hCurlHDivEps_; // For computing D from E
     
@@ -56,14 +71,17 @@ private:
     GridFunction* rho_;       // Volumetric Charge Density (Div(D))
     GridFunction* e_;         // Electric Field
     GridFunction* d_;         // Electric Flux Density (aka Dielectric Flux)
+    GridFunction* sigma_src_; // Surface Charge Density Source
 
     ConstantCoefficient oneCoef_;   // Coefficient equal to 1
     Coefficient* epsCoef_;   // Dielectric Permittivity Coefficient
 
-    Array<int> ess_bdr_, ess_bdr_tdofs_; // Essential Boundary Condition DoFs
+    Array<int> ess_bdr_, ess_bdr_tdofs_, open_bdr_; // Essential Boundary Condition DoFs
 
     void Assemble();
-
+    void applyBoundaryValuesToGridFunction(
+        const AttrToValueMap& bdrValues, 
+        GridFunction& gf) const;
 };
 
 }

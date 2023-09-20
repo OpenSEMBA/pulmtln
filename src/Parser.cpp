@@ -98,14 +98,16 @@ static void setIfExists(const json& j, T& entry, std::string labelToCheck)
 	}
 }
 
-SolverOptions Parser::readSolverOptions() const
+DriverOptions Parser::readDriverOptions() const
 {
 	const auto& j{ json_.at("analysis") };
 	
-	SolverOptions res;
-	setIfExists<int>(j, res.order, "order");
-	setIfExists<bool>(j, res.printIterations, "printIterations");
+	DriverOptions res;
+	setIfExists<int>(j,  res.solverOptions.order, "order");
+	setIfExists<bool>(j, res.solverOptions.printIterations, "printIterations");
+
 	setIfExists<bool>(j, res.exportParaViewSolution, "exportParaviewSolution");
+	setIfExists<bool>(j, res.exportVisItSolution, "exportVisItSolution");
 	setIfExists<std::string>(j, res.exportFolder, "exportFolder");
 
 	return res;

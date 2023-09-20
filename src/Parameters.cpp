@@ -31,7 +31,7 @@ DenseMatrix toDenseMatrix(const std::vector<std::vector<double>>& v)
         }
     }
     
-    DenseMatrix r(v.size(), v[0].size());
+    DenseMatrix r(int(v.size()), int(v[0].size()));
     for (auto i{ 0 }; i < r.NumRows(); ++i) {
         for (auto j{ 0 }; j < r.NumCols(); ++j) {
             r(i, j) = v[i][j];

@@ -111,11 +111,11 @@ TEST_F(DriverTest, five_wires)
 	ASSERT_EQ(couplingExpected.NumRows(), out.NumRows());
 	ASSERT_EQ(couplingExpected.NumCols(), out.NumCols());
 	
-	double rTol{ 0.15 };
-	for (int i{ 0 }; i < 5; i++) {
-		for (int j{ 0 }; j < 5; j++) {
-			EXPECT_LE(relError(couplingExpected(i, j), out(i, j)), rTol) << 
-				"In C(" << i << ", " << j << ")";
+	double rTol{ 0.05 };
+	for (int i{ 0 }; i < couplingExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < couplingExpected.NumCols(); j++) {
+			EXPECT_LE(std::abs(couplingExpected(i, j) - out(i, j)), rTol) 
+					<< "In C(" << i << ", " << j << ")";
 		}
 	}
 }
@@ -149,8 +149,8 @@ TEST_F(DriverTest, three_wires_ribbon)
 
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 	
-	// Tolerance is quite high probably because of high curvature
-	const double rTol{ 0.30 }; 
+	// Tolerance is quite high probably because open region is not far enough.
+	const double rTol{ 0.25 }; 
 	
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
 	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());

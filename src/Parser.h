@@ -12,7 +12,7 @@ public:
 	Parser(const std::string& filename);
 
 	Model readModel() const;
-	SolverOptions readSolverOptions() const;
+	DriverOptions readDriverOptions() const;
 
 private:
 	nlohmann::json json_;
