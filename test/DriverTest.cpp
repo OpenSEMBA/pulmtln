@@ -201,3 +201,36 @@ TEST_F(DriverTest, nested_coax)
 		}
 	}
 }
+
+TEST_F(DriverTest, agrawal1981)
+{
+	// Agrawal, Ashok K. and Price, Harold J.
+	// Experimental Characterization of Partially Degenerate Three-Conductor
+	// Transmission Lines in the Time Domain. IEEE-TEMC. 1981.
+
+	const std::string CASE{ "agrawal1981" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	// P.U.L. Capacitances obtained from eigenvectors.
+	double CExpectedData[9] = {
+		  74.54, -34.57, -34.2,
+		 -34.63,  73.87, -33.96,
+		 -34.29, -34.0,   73.41
+	};
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
+	CExpected *= 1e-12;
+
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+
+	const double rTol{ 0.5 };
+
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) <<
+				"In C(" << i << ", " << j << ")";
+		}
+	}
+}
