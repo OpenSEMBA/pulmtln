@@ -73,6 +73,8 @@ mfem::DenseMatrix solveCMatrix(
 
     mfem::DenseMatrix C((int)mats.pecs.size() - 1);
 
+
+    const bool isOpenProblem{model.isOpen()};
     // Solves a electrostatic problem for each conductor besides the
     // reference conductor (Conductor_0).
     const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  
@@ -85,9 +87,14 @@ mfem::DenseMatrix solveCMatrix(
         Mesh mesh{ *model.getMesh() };
         
         SolverParameters parameters;
-        parameters.dirichletBoundaries = 
-            buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
-        parameters.dirichletBoundaries[bdrAttI] = 1.0;
+        if (isOpenProblem) {
+            parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
+            parameters.dirichletBoundaries[bdrAttI] = 1.0;
+        }
+        else {
+            parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0);
+            parameters.dirichletBoundaries[bdrAttI] = 1.0;
+        }
         parameters.domainPermittivities = domainToEpsr;
         parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
 
@@ -100,7 +107,13 @@ mfem::DenseMatrix solveCMatrix(
             if (numJ == 0) {
                 continue;
             }
-            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ)) / 2.0;
+            auto charge{ s.chargeInBoundary(pecToBdrMap.at(nameJ)) };
+            if (isOpenProblem) {
+                C(numI - 1, numJ - 1) = charge / 2.0;
+            }
+            else {
+                C(numI - 1, numJ - 1) = charge;
+            }
         }
 
         if (opts.exportParaViewSolution) {

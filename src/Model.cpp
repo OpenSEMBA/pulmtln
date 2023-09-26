@@ -2,5 +2,10 @@
 
 namespace pulmtln {
 
+bool Model::isOpen() const
+{
+	
+}
+
 
 }

@@ -19,6 +19,8 @@ public:
 	const mfem::Mesh* getMesh() const { return &mesh_; }
 
 	const Materials& getMaterials() const { return materials_;  }
+
+	bool isOpen() const;
 private:	
 	Materials materials_;
 	mfem::Mesh mesh_;

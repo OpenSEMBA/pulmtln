@@ -150,7 +150,7 @@ TEST_F(DriverTest, three_wires_ribbon)
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 	
 	// Tolerance is quite high probably because open region is not far enough.
-	const double rTol{ 0.25 }; 
+	const double rTol{ 0.21 }; 
 	
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
 	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
@@ -212,18 +212,19 @@ TEST_F(DriverTest, agrawal1981)
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
 	// P.U.L. Capacitances obtained from eigenvectors.
-	double CExpectedData[9] = {
+	const int nConductors = 3;
+	double CExpectedData[nConductors*nConductors] = {
 		  74.54, -34.57, -34.2,
 		 -34.63,  73.87, -33.96,
 		 -34.29, -34.0,   73.41
 	};
-	mfem::DenseMatrix CExpected(2, 2);
-	CExpected.UseExternalData(CExpectedData, 2, 2);
+	mfem::DenseMatrix CExpected(nConductors, nConductors);
+	CExpected.UseExternalData(CExpectedData, nConductors, nConductors);
 	CExpected *= 1e-12;
 
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 
-	const double rTol{ 0.5 };
+	const double rTol{ 0.10 };
 
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
 	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());

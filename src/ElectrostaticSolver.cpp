@@ -47,7 +47,7 @@ double firstOrderABC(const Vector& rVec)
 {
     double r{ rVec.Norml2() };
 
-    return EPSILON0_NATURAL / (r);
+    return - EPSILON0_NATURAL / (r * std::log(r));
 }
 
 
