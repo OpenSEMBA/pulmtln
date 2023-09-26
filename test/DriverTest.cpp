@@ -61,7 +61,6 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
-
 TEST_F(DriverTest, two_wires_coax)
 {
 	const std::string CASE{ "two_wires_coax" };
@@ -119,7 +118,6 @@ TEST_F(DriverTest, five_wires)
 		}
 	}
 }
-
 
 TEST_F(DriverTest, three_wires_ribbon)
 {

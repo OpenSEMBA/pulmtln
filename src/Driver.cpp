@@ -74,7 +74,7 @@ mfem::DenseMatrix solveCMatrix(
     mfem::DenseMatrix C((int)mats.pecs.size() - 1);
 
 
-    const bool isOpenProblem{model.isFullyOpen()};
+    const bool isOpenProblem{ model.isFullyOpen() };
     // Solves a electrostatic problem for each conductor besides the
     // reference conductor (Conductor_0).
     const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  

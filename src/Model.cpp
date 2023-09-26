@@ -2,6 +2,7 @@
 
 #include <set>
 #include <assert.h>
+#include "CoordGraph.h"
 
 namespace pulmtln {
 
@@ -21,28 +22,26 @@ std::vector<const Element*> getElementsWithAttribute(const Mesh& mesh, int attr)
 
 std::multimap<int, const Element*> determineClosedLoops(const std::vector<const Element*>&elems)
 {
-	assert(std::all_of(
-		elems.begin(), 
-		elems.end(),
-		[](const Element* e) {return e->GetType() == Element::Type::SEGMENT}
-	));
-
+	CoordGraph cG;
 	std::map<int, const Element*> vToE;
 	for (const auto& e : elems) {
-		std::set<int> segmentVertices;
-		for (auto i{ 0 }; i < e->GetNVertices(); ++i) {
-			segmentVertices.insert(e->GetVertices()[i]);
-		}
-		vToE.emplace(*segmentVertices.begin(), e);
+		assert(e->GetType() == Element::Type::SEGMENT);
+		int v0{ e->GetVertices()[0] };
+		int v1{ e->GetVertices()[1] };
+		cG.addEdge(v0, v1);
+		vToE[v0] = e;
 	}
 
-	for (auto it1{ vToE.begin() }; it1 != vToE.end(); ++it1) {
-		auto it2{ std::next(it1) };
-		if (it2 == vToE.end()) {
-			it2 == vToE.begin();
+	std::multimap<int, const Element*> res;
+	int cycleCount{ 0 };
+	for (const auto& cycle : cG.findCycles()) {
+		for (const auto& v : cycle) {
+			res.emplace(cycleCount, vToE.at(v));
 		}
-		
+		cycleCount++;
 	}
+	
+	return res;
 }
 
 bool elementsFormOpenLoops(const std::vector<const Element*>& elems)
