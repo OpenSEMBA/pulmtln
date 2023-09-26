@@ -20,7 +20,7 @@ public:
 
 	const Materials& getMaterials() const { return materials_;  }
 
-	bool isOpen() const;
+	bool isFullyOpen() const;
 private:	
 	Materials materials_;
 	mfem::Mesh mesh_;
