@@ -21,7 +21,7 @@ public:
 	}
 
 protected:
-	Parameters p;
+	PULParameters p;
 };
 
 TEST_F(ParametersTest, toJSON)
@@ -43,7 +43,7 @@ TEST_F(ParametersTest, saveToJSONFile)
 	std::ifstream ifs{ fn };
 	j << ifs;
 
-	Parameters r{ j };
+	PULParameters r{ j };
 
 	EXPECT_EQ(p, r);
 

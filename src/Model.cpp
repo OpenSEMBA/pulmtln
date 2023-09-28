@@ -2,7 +2,8 @@
 
 #include <set>
 #include <assert.h>
-#include "CoordGraph.h"
+
+#include "DirectedGraph.h"
 
 namespace pulmtln {
 
@@ -22,19 +23,19 @@ std::vector<const Element*> getElementsWithAttribute(const Mesh& mesh, int attr)
 
 std::multimap<int, const Element*> determineClosedLoops(const std::vector<const Element*>&elems)
 {
-	CoordGraph cG;
+	DirectedGraph g;
 	std::map<int, const Element*> vToE;
 	for (const auto& e : elems) {
 		assert(e->GetType() == Element::Type::SEGMENT);
 		int v0{ e->GetVertices()[0] };
 		int v1{ e->GetVertices()[1] };
-		cG.addEdge(v0, v1);
+		g.addEdge(v0, v1);
 		vToE[v0] = e;
 	}
 
 	std::multimap<int, const Element*> res;
 	int cycleCount{ 0 };
-	for (const auto& cycle : cG.findCycles()) {
+	for (const auto& cycle : g.findCycles()) {
 		for (const auto& v : cycle) {
 			res.emplace(cycleCount, vToE.at(v));
 		}

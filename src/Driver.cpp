@@ -3,11 +3,9 @@
 #include "ElectrostaticSolver.h"
 #include "Parser.h"
 
-namespace pulmtln {
-
 using namespace mfem;
 
-
+namespace pulmtln {
 
 Driver Driver::loadFromFile(const std::string& fn)
 {
@@ -48,6 +46,32 @@ std::vector<int> getAttributesInMap(const NameToAttrMap& m)
         res.push_back(v);
     }
     return res;
+}
+
+void exportFieldSolutions(
+    const DriverOptions& opts, 
+    ElectrostaticSolver& s,
+    int numI, bool ignoreDielectrics)
+{
+    if (opts.exportParaViewSolution) {
+        std::string outputName{ opts.exportFolder + "/" + "ParaView/Conductor_" };
+        outputName += std::to_string(numI);
+        if (ignoreDielectrics) {
+            outputName += "_no_dielectrics";
+        }
+        ParaViewDataCollection pd{ outputName, s.getMesh() };
+        s.writeParaViewFields(pd);
+    }
+
+    if (opts.exportVisItSolution) {
+        std::string outputName{ opts.exportFolder + "/" + "VisIt/Conductor_" };
+        outputName += std::to_string(numI);
+        if (ignoreDielectrics) {
+            outputName += "_no_dielectrics";
+        }
+        VisItDataCollection dC{ outputName, s.getMesh() };
+        s.writeVisItFields(dC);
+    }
 }
 
 mfem::DenseMatrix solveCMatrix(
@@ -116,25 +140,7 @@ mfem::DenseMatrix solveCMatrix(
             }
         }
 
-        if (opts.exportParaViewSolution) {
-            std::string outputName{ opts.exportFolder + "/" + "ParaView/Conductor_"};
-            outputName += std::to_string(numI);
-            if (ignoreDielectrics) {
-                outputName += "_no_dielectrics";
-            }
-            ParaViewDataCollection pd{ outputName, s.getMesh() };
-            s.writeParaViewFields(pd);
-        }
-
-        if (opts.exportVisItSolution) {
-            std::string outputName{ opts.exportFolder + "/" + "VisIt/Conductor_" };
-            outputName += std::to_string(numI);
-            if (ignoreDielectrics) {
-                outputName += "_no_dielectrics";
-            }
-            VisItDataCollection dC{ outputName, s.getMesh() };
-            s.writeVisItFields(dC);
-        }
+        exportFieldSolutions(opts, s, numI, ignoreDielectrics);
     }
     return C;
 }
@@ -152,9 +158,9 @@ mfem::DenseMatrix solveLMatrix(
 }
 
 
-Parameters Driver::getMTLPUL() const
+PULParameters Driver::getMTLPUL() const
 {
-    Parameters res;
+    PULParameters res;
 
     // Computes matrices in natural units.
     res.C = solveCMatrix(model_, opts_);

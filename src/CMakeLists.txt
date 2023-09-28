@@ -18,6 +18,6 @@ add_library(${LIBRARY_NAME} STATIC
 	"Parser.cpp"
 	"Model.cpp"
 	"Parameters.cpp" 
-	"CoordGraph.cpp")
+	"DirectedGraph.cpp")
 
 target_link_libraries(${LIBRARY_NAME} mfem nlohmann_json Boost::graph)

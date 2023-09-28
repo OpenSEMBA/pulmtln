@@ -10,7 +10,7 @@ class Driver {
 public:
     Driver(const Model& model, const DriverOptions& opts);
     
-    Parameters getMTLPUL() const;
+    PULParameters getMTLPUL() const;
 
     static Driver loadFromFile(const std::string& filename);
 
