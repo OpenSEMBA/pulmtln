@@ -3,8 +3,6 @@
 #include <set>
 #include <assert.h>
 
-#include "DirectedGraph.h"
-
 namespace pulmtln {
 
 using namespace mfem;
@@ -55,7 +53,7 @@ bool Model::isFullyOpen() const
 	assert(materials_.openBoundaries.size() <= 1);
 	
 	for (const auto& m : materials_.openBoundaries) {
-		if (!elementsFormOpenLoops(getElementsWithAttribute(mesh_, m.tag))) {
+		if (!elementsFormOpenLoops(getElementsWithAttribute(mesh_, m.attribute))) {
 			return true;
 		}
 	}

@@ -7,7 +7,7 @@ namespace pulmtln {
 
 struct Material {
 	std::string name;
-	int tag;
+	int attribute;
 };
 
 struct PEC : public Material {
@@ -35,22 +35,22 @@ struct Materials {
 		NameToAttrMap res;
 		if constexpr (std::is_same<T, PEC>()) {
 			for (const auto& m : pecs) {
-				res[m.name] = m.tag;
+				res[m.name] = m.attribute;
 			}
 		}
 		if constexpr (std::is_same<T, OpenBoundary>()) {
 			for (const auto& m : openBoundaries) {
-				res[m.name] = m.tag;
+				res[m.name] = m.attribute;
 			}
 		}
 		if constexpr (std::is_same<T, Vacuum>()) {
 			for (const auto& m : vacuums) {
-				res[m.name] = m.tag;
+				res[m.name] = m.attribute;
 			}
 		}
 		else if constexpr (std::is_same<T, Dielectric>()) {
 			for (const auto& m : dielectrics) {
-				res[m.name] = m.tag;
+				res[m.name] = m.attribute;
 			}
 		}
 		return res;

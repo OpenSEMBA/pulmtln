@@ -47,21 +47,21 @@ Materials readMaterials(const json& j)
 				mat.value().at("type").get<std::string>()
 			)
 		};
-		auto tag{ mat.value().at("tag").get<int>() };
+		auto attribute{ mat.value().at("tag").get<int>() };
 		switch (type) {
 		case MaterialType::PEC:
-			res.pecs.push_back({ name, tag });
+			res.pecs.push_back({ name, attribute });
 			break;
 		case MaterialType::OpenBoundary:
-			res.openBoundaries.push_back({ name, tag });
+			res.openBoundaries.push_back({ name, attribute });
 			break;
 		case MaterialType::Vacuum:
-			res.vacuums.push_back({ name, tag });
+			res.vacuums.push_back({ name, attribute });
 			break;
 		case MaterialType::Dielectric:
 		{
 			double epsR{ mat.value().at("eps_r").get<double>() };
-			res.dielectrics.push_back({ name, tag, epsR });
+			res.dielectrics.push_back({ name, attribute, epsR });
 			break;
 		}
 		default:

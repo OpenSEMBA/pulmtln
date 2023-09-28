@@ -74,6 +74,12 @@ void exportFieldSolutions(
     }
 }
 
+
+DirectedGraph getDomainGraph() const;
+std::map<DomainId, DomainConductors> classifyConductorsInDomains() const;
+
+bool isFullyOpen() const;
+
 mfem::DenseMatrix solveCMatrix(
     const Model& model, 
     const DriverOptions& opts,
@@ -91,7 +97,7 @@ mfem::DenseMatrix solveCMatrix(
     };
     if (!ignoreDielectrics) {
         for (const auto& d : mats.dielectrics) {
-            domainToEpsr.at(d.tag) = d.relativePermittivity;
+            domainToEpsr.at(d.attribute) = d.relativePermittivity;
         }
     }
 
@@ -108,20 +114,19 @@ mfem::DenseMatrix solveCMatrix(
             continue;
         }
         
-        Mesh mesh{ *model.getMesh() };
-        
         SolverParameters parameters;
         if (isOpenProblem) {
-            parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
-            parameters.dirichletBoundaries[bdrAttI] = 1.0;
+            parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);          
         }
         else {
             parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0);
-            parameters.dirichletBoundaries[bdrAttI] = 1.0;
         }
+        parameters.dirichletBoundaries[bdrAttI] = 1.0;
         parameters.domainPermittivities = domainToEpsr;
         parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
 
+        Mesh mesh{ *model.getMesh() };
+        
         ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
         s.Solve();
         
@@ -177,7 +182,21 @@ PULParameters Driver::getMTLPUL() const
     return res;
 }
 
+PULParametersByDomain Driver::getMTLPULByDomain() const
+{
+    PULParametersByDomain res;
 
+    auto domainToConductor{ model_.classifyConductorsInDomains() };
+        //// Computes matrices in natural units.
+        //res.C = solveCMatrix(model_, opts_);
+        //res.L = solveLMatrix(model_, opts_);
+
+        //// Converts to SI units.
+        //res.C *= EPSILON0_SI;
+        //res.L *= MU0_SI;
+
+    return res;
+}
 
 
 }

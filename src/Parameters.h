@@ -22,7 +22,7 @@ struct PULParameters {
     mfem::DenseMatrix L, C; // Stored in SI units.
 };
 
-struct PULParametersByDomainGraph {
+struct PULParametersByDomain {
     using DomainId = VertexId;
 
     DirectedGraph domainGraph;

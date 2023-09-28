@@ -22,9 +22,9 @@ TEST_F(ParserTest, empty_coax)
 	const auto& pecs{ model.getMaterials().pecs };
 	ASSERT_EQ(2, pecs.size());
 	EXPECT_EQ(pecs[0].name, "Conductor_0");
-	EXPECT_EQ(pecs[0].tag, 1);
+	EXPECT_EQ(pecs[0].attribute, 1);
 	EXPECT_EQ(pecs[1].name, "Conductor_1");
-	EXPECT_EQ(pecs[1].tag, 2);
+	EXPECT_EQ(pecs[1].attribute, 2);
 
 	const auto& diel{ model.getMaterials().dielectrics };
 	ASSERT_EQ(0, diel.size());
@@ -48,14 +48,14 @@ TEST_F(ParserTest, partially_filled_coax)
 	const auto& pecs{ model.getMaterials().pecs };
 	ASSERT_EQ(2, pecs.size());
 	EXPECT_EQ(pecs[0].name, "Conductor_0");
-	EXPECT_EQ(pecs[0].tag, 1);
+	EXPECT_EQ(pecs[0].attribute, 1);
 	EXPECT_EQ(pecs[1].name, "Conductor_1");
-	EXPECT_EQ(pecs[1].tag, 2);
+	EXPECT_EQ(pecs[1].attribute, 2);
 
 	const auto& diels{ model.getMaterials().dielectrics };
 	ASSERT_EQ(1, diels.size());
 	EXPECT_EQ(diels[0].name, "Dielectric_1");
-	EXPECT_EQ(diels[0].tag, 4);
+	EXPECT_EQ(diels[0].attribute, 4);
 	EXPECT_EQ(diels[0].relativePermittivity, 4.0);
 
 	EXPECT_NE(0, model.getMesh()->GetNE());
