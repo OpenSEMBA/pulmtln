@@ -68,6 +68,9 @@ public:
 
     /// @brief Returns the boundary of the graph, formed by all the external edges. 
     DirectedGraph getBoundaryGraph() const;
+
+    /// @brief Returns edges as a list of pairs.
+    std::vector<std::pair<VertexId, VertexId>> getEdgesAsPairs() const;
     
 private:
     VertexMap vertexMap_;

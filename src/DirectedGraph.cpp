@@ -45,6 +45,18 @@ void DirectedGraph::addEdge(const VertexId& id1, const VertexId& id2)
     add_edge(vertexMap_[id1], vertexMap_[id2], graph_);
 }
 
+void DirectedGraph::addClosedPath(const std::vector<VertexId>& vIds)
+{
+    if (vIds.size() == 1) {
+        throw std::runtime_error("Paths must contain at least two vertices.");
+    }
+    
+    for (auto i{0}; i < vIds.size(); ++i) {
+        auto iNext{ (i + 1) % vIds.size() };
+        addEdge(vIds[i], vIds[iNext]);
+    }
+}
+
 std::vector<DirectedGraph> DirectedGraph::split() const
 {
     if (num_vertices(graph_) == 0) {
@@ -108,5 +120,25 @@ std::vector<Path> DirectedGraph::findCycles() const
     tiernan_all_cycles(graph_, vis);
     return res;
 }
+
+
+std::vector<std::pair<VertexId,VertexId>> DirectedGraph::getEdgesAsPairs() const
+{
+    std::vector<std::pair<VertexId, VertexId>> res;
+
+    graph_traits<graph_t>::edge_iterator ei, ei_end;
+    for (tie(ei, ei_end) = edges(graph_); ei != ei_end; ++ei) {
+        auto src = source(*ei, graph_);
+        auto tgt = target(*ei, graph_);
+
+        auto srcId = graph_[src].id;
+        auto tgtId = graph_[tgt].id;
+
+        res.push_back(std::make_pair(srcId, tgtId));
+    }
+
+    return res;
+}
+
 
 }

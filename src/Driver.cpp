@@ -21,14 +21,6 @@ Driver::Driver(const Model& model, const DriverOptions& opts) :
     opts_{opts}
 {}
 
-int getNumberContainedInName(const std::string& name) 
-{
-    std::stringstream ss{ name.substr(name.find("_") + 1) };
-    int res;
-    ss >> res;
-    return res;
-}
-
 AttrToValueMap buildAttrToValueMap(
     const NameToAttrMap& matToAtt, double value)
 {
@@ -93,7 +85,7 @@ SolverParameters buildSolverParameters(
     parameters.domainPermittivities = domainToEpsr;
     parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
 
-    if (model.isFullyOpen()) {
+    if (model.determineOpenness() == Model::OpennessType::open) {
         parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
     }
     else {
@@ -120,7 +112,7 @@ mfem::DenseMatrix solveCMatrix(
     // reference conductor (Conductor_0).
     const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  
     for (const auto& [nameI, bdrAttI] : pecToBdrMap) {
-        auto numI{ getNumberContainedInName(nameI) };
+        auto numI{ Materials::getNumberContainedInName(nameI) };
         if (numI == 0) {
             continue;
         }
@@ -135,12 +127,12 @@ mfem::DenseMatrix solveCMatrix(
         
         // Fills row
         for (const auto& [nameJ, bdrAttJ] : pecToBdrMap) {
-            auto numJ{ getNumberContainedInName(nameJ) };
+            auto numJ{ Materials::getNumberContainedInName(nameJ) };
             if (numJ == 0) {
                 continue;
             }
             auto charge{ s.chargeInBoundary(pecToBdrMap.at(nameJ)) };
-            if (model.isFullyOpen()) {
+            if (model.determineOpenness() == Model::OpennessType::open) {
                 C(numI - 1, numJ - 1) = charge / 2.0;
             }
             else {
@@ -209,7 +201,7 @@ PULParametersByDomain Driver::getMTLPULByDomain() const
         res.domainToPUL[id] = buildPULParametersForModel(
             buildModelForDomain(model_, domain),
             opts_
-        )
+        );
     }
     
     res.domainGraph = Domain::buildGraph(idToDomain);

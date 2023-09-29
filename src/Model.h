@@ -7,7 +7,12 @@ namespace pulmtln {
 
 class Model {
 public:
-	
+	enum class OpennessType {
+		open,
+		semiopen,
+		closed
+	};
+
 	Model() = default;
 	Model(
 		mfem::Mesh& mesh,
@@ -21,7 +26,7 @@ public:
 
 	const Materials& getMaterials() const { return materials_;  }
 	
-	bool isFullyOpen() const;
+	OpennessType determineOpenness() const;
 	
 private:	
 	Materials materials_;

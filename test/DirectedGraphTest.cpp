@@ -111,16 +111,15 @@ TEST_F(DirectedGraphTest, domainBoundaries)
 	g.addClosedPath({ 2,9,5 });
 	g.addClosedPath({ 5,9,7 });
 	g.addClosedPath({ 7,9,6 });
-	g.addClosedPath({ 6,7,9 });
 	g.addClosedPath({ 6,9,8 });
 	g.addClosedPath({ 6,8,4 });
 	g.addClosedPath({ 4,8,1 });
 
-	auto f{ g.getBoundaryGraph() };
-	EXPECT_EQ(f.edgesSize(), 8);
-	EXPECT_EQ(f.verticesSize(), 8);
+	auto allBoundaries{ g.getBoundaryGraph() };
+	EXPECT_EQ(allBoundaries.edgesSize(), 8);
+	EXPECT_EQ(allBoundaries.verticesSize(), 8);
 
-	auto bdrs{ g.split()};
+	auto bdrs{ allBoundaries.split()};
 	ASSERT_EQ(bdrs.size(), 2);
 	ASSERT_EQ(bdrs[0].findCycles().size(), 1);
 	EXPECT_EQ(Path({ 1, 2, 9, 8 }), bdrs[0].findCycles()[0]);

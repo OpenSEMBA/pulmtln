@@ -3,6 +3,8 @@
 #include <set>
 #include <assert.h>
 
+#include "DirectedGraph.h"
+
 namespace pulmtln {
 
 using namespace mfem;

@@ -8,22 +8,26 @@ using namespace pulmtln;
 
 class ModelTest : public ::testing::Test {};
 
-TEST_F(ModelTest, empty_coax_is_not_open)
+TEST_F(ModelTest, empty_coax_is_closed)
 {
-	Model m{ Parser{ inputCase("empty_coax")}.readModel() };
-	EXPECT_FALSE(m.isFullyOpen());
+	EXPECT_EQ(
+		Parser{ inputCase("empty_coax") }.readModel().determineOpenness(), 
+		Model::OpennessType::closed
+	);
 }
 
-TEST_F(ModelTest, agrawal1981_is_not_open)
+TEST_F(ModelTest, agrawal1981_is_semiopen)
 {
-	Model m{ Parser{ inputCase("agrawal1981")}.readModel() };
-	EXPECT_FALSE(m.isFullyOpen());
+	EXPECT_EQ(
+		Parser{ inputCase("agrawal1981") }.readModel().determineOpenness(),
+		Model::OpennessType::semiopen
+	);
 }
 
 TEST_F(ModelTest, three_wires_ribbon_is_open)
 {
-	Model m{ Parser{ inputCase("three_wires_ribbon")}.readModel() };
-	EXPECT_TRUE(m.isFullyOpen());
+	EXPECT_EQ(
+		Parser{ inputCase("three_wires_ribbon")}.readModel().determineOpenness(),
+		Model::OpennessType::open
+	);
 }
-
-

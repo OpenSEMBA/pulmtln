@@ -11,7 +11,7 @@ struct Domain {
     using IdToDomain = std::map<Id, Domain>;
 
     ConductorId ground;
-    std::vector<ConductorId> conductorIds;
+    std::set<ConductorId> conductorIds;
     std::set<int> elements;
 
     static IdToDomain buildDomains(const Model&);

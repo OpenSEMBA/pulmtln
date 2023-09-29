@@ -55,6 +55,14 @@ struct Materials {
 		}
 		return res;
 	}
+
+	static int getNumberContainedInName(const std::string& name)
+	{
+		std::stringstream ss{ name.substr(name.find("_") + 1) };
+		int res;
+		ss >> res;
+		return res;
+	}
 };
 
 }
