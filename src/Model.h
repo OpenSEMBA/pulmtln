@@ -2,7 +2,6 @@
 
 #include "AttrToValueMap.h"
 #include "Materials.h"
-#include "DirectedGraph.h"
 
 namespace pulmtln {
 
@@ -21,7 +20,8 @@ public:
 	const mfem::Mesh* getMesh() const { return &mesh_; }
 
 	const Materials& getMaterials() const { return materials_;  }
-
+	
+	bool isFullyOpen() const;
 	
 private:	
 	Materials materials_;

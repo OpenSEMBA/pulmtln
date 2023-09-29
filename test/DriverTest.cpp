@@ -14,10 +14,7 @@ class DriverTest : public ::testing::Test {};
 TEST_F(DriverTest, empty_coax)
 {
 	// Empty Coaxial case.
-	const std::string CASE{ "empty_coax" };
-	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
-	
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("empty_coax")).getMTLPUL() };
 
 	auto CExpected{ EPSILON0_SI * 2 * M_PI / log(0.05 / 0.025) };
 
@@ -38,11 +35,7 @@ TEST_F(DriverTest, partially_filled_coax)
 	// Dielectric internal radius -> rI_dielectric = 25 mm
 	// Dielectric external radius -> rO_dielectric = 35 mm
 	// Dielectric permittivity -> eps_r = 4.0
-
-	const std::string CASE{ "partially_filled_coax" };
-	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
-
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("partially_filled_coax")).getMTLPUL() };
 
 	// Equivalent capacity is the series of the inner and outer capacitors.
 	auto COut{       EPSILON0_SI * 2 * M_PI / log(0.050 / 0.035) };

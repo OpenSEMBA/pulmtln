@@ -51,11 +51,11 @@ std::vector<int> getAttributesInMap(const NameToAttrMap& m)
 void exportFieldSolutions(
     const DriverOptions& opts, 
     ElectrostaticSolver& s,
-    int numI, bool ignoreDielectrics)
+    const std::string name, 
+    bool ignoreDielectrics)
 {
     if (opts.exportParaViewSolution) {
-        std::string outputName{ opts.exportFolder + "/" + "ParaView/Conductor_" };
-        outputName += std::to_string(numI);
+        std::string outputName{ opts.exportFolder + "/" + "ParaView/" + name };
         if (ignoreDielectrics) {
             outputName += "_no_dielectrics";
         }
@@ -64,8 +64,7 @@ void exportFieldSolutions(
     }
 
     if (opts.exportVisItSolution) {
-        std::string outputName{ opts.exportFolder + "/" + "VisIt/Conductor_" };
-        outputName += std::to_string(numI);
+        std::string outputName{ opts.exportFolder + "/" + "VisIt/" + name };
         if (ignoreDielectrics) {
             outputName += "_no_dielectrics";
         }
@@ -75,10 +74,34 @@ void exportFieldSolutions(
 }
 
 
-DirectedGraph getDomainGraph() const;
-std::map<DomainId, DomainConductors> classifyConductorsInDomains() const;
+SolverParameters buildSolverParameters(
+    const Model& model, 
+    bool ignoreDielectrics)
+{
+    const Materials& mats = model.getMaterials();
 
-bool isFullyOpen() const;
+    SolverParameters parameters;
+
+    auto domainToEpsr{
+        buildAttrToValueMap(mats.buildNameToAttrMap<Dielectric>(), 1.0)
+    };
+    if (!ignoreDielectrics) {
+        for (const auto& d : mats.dielectrics) {
+            domainToEpsr.at(d.attribute) = d.relativePermittivity;
+        }
+    }
+    parameters.domainPermittivities = domainToEpsr;
+    parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
+
+    if (model.isFullyOpen()) {
+        parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
+    }
+    else {
+        parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0);
+    }
+ 
+    return parameters;
+}
 
 mfem::DenseMatrix solveCMatrix(
     const Model& model, 
@@ -92,19 +115,7 @@ mfem::DenseMatrix solveCMatrix(
         );
     }
     
-    auto domainToEpsr{
-        buildAttrToValueMap(mats.buildNameToAttrMap<Dielectric>(), 1.0)
-    };
-    if (!ignoreDielectrics) {
-        for (const auto& d : mats.dielectrics) {
-            domainToEpsr.at(d.attribute) = d.relativePermittivity;
-        }
-    }
-
     mfem::DenseMatrix C((int)mats.pecs.size() - 1);
-
-
-    const bool isOpenProblem{ model.isFullyOpen() };
     // Solves a electrostatic problem for each conductor besides the
     // reference conductor (Conductor_0).
     const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  
@@ -114,16 +125,8 @@ mfem::DenseMatrix solveCMatrix(
             continue;
         }
         
-        SolverParameters parameters;
-        if (isOpenProblem) {
-            parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);          
-        }
-        else {
-            parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), 0.0);
-        }
+        auto parameters{ buildSolverParameters(model, ignoreDielectrics) };
         parameters.dirichletBoundaries[bdrAttI] = 1.0;
-        parameters.domainPermittivities = domainToEpsr;
-        parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
 
         Mesh mesh{ *model.getMesh() };
         
@@ -137,7 +140,7 @@ mfem::DenseMatrix solveCMatrix(
                 continue;
             }
             auto charge{ s.chargeInBoundary(pecToBdrMap.at(nameJ)) };
-            if (isOpenProblem) {
+            if (model.isFullyOpen()) {
                 C(numI - 1, numJ - 1) = charge / 2.0;
             }
             else {
@@ -145,7 +148,7 @@ mfem::DenseMatrix solveCMatrix(
             }
         }
 
-        exportFieldSolutions(opts, s, numI, ignoreDielectrics);
+        exportFieldSolutions(opts, s, nameI, ignoreDielectrics);
     }
     return C;
 }
@@ -162,18 +165,22 @@ mfem::DenseMatrix solveLMatrix(
     return res;
 }
 
-
-PULParameters Driver::getMTLPUL() const
+PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& opts)
 {
     PULParameters res;
 
-    // Computes matrices in natural units.
-    res.C = solveCMatrix(model_, opts_);
-    res.L = solveLMatrix(model_, opts_);
-    
-    // Converts to SI units.
+    res.C = solveCMatrix(m, opts);
     res.C *= EPSILON0_SI;
+
+    res.L = solveLMatrix(m, opts);
     res.L *= MU0_SI;
+    
+    return res;
+}
+
+PULParameters Driver::getMTLPUL() const
+{
+    auto res{ buildPULParametersForModel(model_, opts_)};
 
     if (opts_.exportMatrices) {
         res.saveToJSONFile(opts_.exportFolder + "/matrices.pulmtln.out.json");
@@ -182,18 +189,30 @@ PULParameters Driver::getMTLPUL() const
     return res;
 }
 
+Model buildModelForDomain(const Model& model, const Domain& domain)
+{
+    Model res;
+
+    // TODO
+    // Removes mesh elements not in domain.
+
+    return res;
+}
+
 PULParametersByDomain Driver::getMTLPULByDomain() const
 {
     PULParametersByDomain res;
 
-    auto domainToConductor{ model_.classifyConductorsInDomains() };
-        //// Computes matrices in natural units.
-        //res.C = solveCMatrix(model_, opts_);
-        //res.L = solveLMatrix(model_, opts_);
-
-        //// Converts to SI units.
-        //res.C *= EPSILON0_SI;
-        //res.L *= MU0_SI;
+    auto idToDomain{ Domain::buildDomains(model_) };
+    
+    for (const auto& [id, domain] : idToDomain) {
+        res.domainToPUL[id] = buildPULParametersForModel(
+            buildModelForDomain(model_, domain),
+            opts_
+        )
+    }
+    
+    res.domainGraph = Domain::buildGraph(idToDomain);
 
     return res;
 }

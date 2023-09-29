@@ -3,7 +3,7 @@
 #include <mfem.hpp>
 #include <nlohmann/json.hpp>
 
-#include "DirectedGraph.h"
+#include "Domain.h"
 
 namespace pulmtln {
 
@@ -23,10 +23,8 @@ struct PULParameters {
 };
 
 struct PULParametersByDomain {
-    using DomainId = VertexId;
-
     DirectedGraph domainGraph;
-    std::map<DomainId, PULParameters> domainToPUL;
+    std::map<Domain::Id, PULParameters> domainToPUL;
 };
 
 }

@@ -13,7 +13,7 @@ add_executable(${PROJECT_NAME}_tests
 	"ParametersTest.cpp"
 	"ModelTest.cpp"
 	"DirectedGraphTest.cpp"
-)
+	"DomainTest.cpp")
 
 include_directories(./)
  
