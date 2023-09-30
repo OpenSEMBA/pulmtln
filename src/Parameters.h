@@ -23,7 +23,7 @@ struct PULParameters {
 };
 
 struct PULParametersByDomain {
-    DirectedGraph domainGraph;
+    DomainTree domainTree;
     std::map<Domain::Id, PULParameters> domainToPUL;
 };
 

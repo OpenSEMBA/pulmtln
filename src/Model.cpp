@@ -50,16 +50,20 @@ bool elementsFormOpenLoops(const std::vector<const Element*>& elems)
 	return determineClosedLoops(elems).size() != elems.size();
 }
 
-bool Model::isFullyOpen() const
+Model::OpennessType Model::determineOpenness() const
 {
 	assert(materials_.openBoundaries.size() <= 1);
-	
+
+	if (materials_.openBoundaries.size() == 0) {
+		return OpennessType::closed;
+	}
+
 	for (const auto& m : materials_.openBoundaries) {
 		if (!elementsFormOpenLoops(getElementsWithAttribute(mesh_, m.attribute))) {
-			return true;
+			return OpennessType::open;
 		}
 	}
-	return false;
+	return OpennessType::semiopen;
 }
 
 

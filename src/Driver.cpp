@@ -204,7 +204,7 @@ PULParametersByDomain Driver::getMTLPULByDomain() const
         );
     }
     
-    res.domainGraph = Domain::buildGraph(idToDomain);
+    res.domainTree = DomainTree{idToDomain};
 
     return res;
 }

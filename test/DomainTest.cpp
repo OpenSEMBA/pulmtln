@@ -19,10 +19,7 @@ TEST_F(DomainTest, build_domains_for_empty_coax)
 	EXPECT_EQ(1, domains.count(0));
 
 	EXPECT_EQ(0, domains.at(0).ground);
-
-	ASSERT_EQ(1, domains.at(0).conductorIds.size());
-	EXPECT_EQ(1, *domains.at(0).conductorIds.begin());
-
+	EXPECT_EQ(IdSet({0,1}), domains.at(0).conductorIds);
 	EXPECT_EQ(model.getMesh()->GetNE(), domains.at(0).elements.size());
 }
 
@@ -38,12 +35,10 @@ TEST_F(DomainTest, nested_coax)
 	EXPECT_EQ(1, domains.count(1));
 
 	EXPECT_EQ(0,                        domains.at(0).ground);
-	ASSERT_EQ(1,                        domains.at(0).conductorIds.size());
-	EXPECT_EQ(1,                        *domains.at(0).conductorIds.begin());
+	EXPECT_EQ(IdSet({0,1}),             domains.at(0).conductorIds);
 	EXPECT_GT(model.getMesh()->GetNE(), domains.at(0).elements.size());
 
 	EXPECT_EQ(1,                        domains.at(1).ground);
-	ASSERT_EQ(2,                        domains.at(1).conductorIds.size());
-	EXPECT_EQ(1,                        *domains.at(1).conductorIds.begin());
+	EXPECT_EQ(IdSet({1,2}),             domains.at(1).conductorIds);
 	EXPECT_GT(model.getMesh()->GetNE(), domains.at(1).elements.size());
 }

@@ -13,29 +13,75 @@ DirectedGraph buildMeshGraph(const mfem::Mesh& mesh)
 		}
 		meshGraph.addClosedPath(vs);
 	}
+
+	return meshGraph;
 }
 
 bool isPECInDomain(const PEC& pec, const IdSet& verticesInDomain, const mfem::Mesh& mesh)
 {
-	// TODO
-	return false;
+	IdSet verticesWithAttribute;
+	for (auto e{ 0 }; e < mesh.GetNBE(); ++e) {
+		const mfem::Element* elem{ mesh.GetBdrElement(e) };
+		if (elem->GetAttribute() != pec.attribute) {
+			continue;
+		}
+		verticesWithAttribute.insert(
+			elem->GetVertices(),
+			elem->GetVertices() + elem->GetNVertices());
+	}
+
+	IdSet common;
+	std::set_intersection(
+		verticesInDomain.begin(), verticesInDomain.end(),
+		verticesWithAttribute.begin(), verticesWithAttribute.end(),
+		std::inserter(common, common.begin())
+	);
+
+	return common.size() > 0;
 }
 	
-DirectedGraph buildGraph(const Domain::IdToDomain& domains)
+DomainTree::DomainTree(const Domain::IdToDomain& domains)
 {
-	int mostExternalDomain{ -1 };
-	for (auto& [id, dom] : domains) {
-		if (dom.conductorIds.count(0) == 1) {
-			mostExternalDomain = id;
-			break;
+	// Check conductor 0 must be in a single domain.
+	bool foundOnce{ false };
+	for (const auto& [id, dom] : domains) {
+		if (dom.conductorIds.count(0) && !foundOnce) {
+			foundOnce = true;
+			continue;
+		}
+		if (dom.conductorIds.count(0) && foundOnce) {
+			throw std::runtime_error(
+				"Conductor 0 must be only in a single domain."
+			);
+		}
+	}
+	if (!foundOnce) {
+		throw std::runtime_error("Conductor 0 is not present");
+	}
+	
+	std::multimap<Domain::ConductorId, Domain::Id> condIdToDomId;
+	for (const auto& [domId, dom] : domains) {
+		addVertex(domId);
+		for (const auto& condId : dom.conductorIds) {
+			condIdToDomId.emplace(condId, domId);
 		}
 	}
 
-	// TODO
+	int prevCondId{ -1 };
+	int prevDomId{ -1 };
+	for (const auto& [cId, dId] : condIdToDomId) {
+		if (cId == prevCondId) {
+			addEdge(prevDomId, dId);
+		}
+		else {
+			prevCondId = cId;
+			prevDomId = dId;
+			addVertex(dId);
+		}
+	}
 
-	DirectedGraph res;
-
-	return res;
+	// Post-conditions
+	assert(findCycles().size() == 0);
 }
 
 Domain::IdToDomain Domain::buildDomains(const Model& model)
@@ -48,10 +94,11 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 
 	Domain::IdToDomain res;
 	Domain::Id id{ 0 };
-	for (const auto& domainGraph : buildMeshGraph(mesh).split()) {
-		Domain domain;
-		auto vsInDomain{ domainGraph.getVertices() };
+	for (const auto& domainMeshGraph : buildMeshGraph(mesh).split()) {
 
+		const auto vsInDomain{ domainMeshGraph.getVertices() };
+
+		Domain domain;
 		// Determine which elements belong to domain.
 		for (auto e{ 0 }; e < mesh.GetNE(); ++e) {
 			const auto& elem{ *mesh.GetElement(e) };
@@ -78,29 +125,30 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 	}
 
 	// Sets grounds.
-	auto domainGraph{ Domain::buildGraph(res) };
-
-
+	for (auto& [domId, dom] : res) {
+		if (dom.conductorIds.count(0) == 1) {
+			dom.ground = 0;
+		}
+	}
+	for (const auto& edge : DomainTree{ res }.getEdgesAsPairs()) {
+		const auto& c1{ res[edge.first].conductorIds };
+		const auto& c2{ res[edge.second].conductorIds };
+		std::set<ConductorId> common;
+		std::set_intersection(
+			c1.begin(), c1.end(),
+			c2.begin(), c2.end(),
+			std::inserter(common, common.begin())
+		);
+		assert(common.size() == 1);
+		res[edge.second].ground = *common.begin();
+	}
 	
-
-
 	// Post conditions.
 	// All elements belong to a single domain.
-	// If domain contains conductor 0. That one is always ground.
+	// Conductor 0 is always ground and is in a single domain.
 
 	return res;
 }
 
-DirectedGraph Domain::buildGraph(const IdToDomain&)
-{
-	// Builds graph in which vertices represent domains with edges pointing to subdomains.
-	// Starts with domain 0.
-		
-	DirectedGraph res;
-
-	// TODO
-
-	return res;
-}
 
 }
