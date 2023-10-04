@@ -15,14 +15,14 @@ public:
 
 	Model() = default;
 	Model(
-		mfem::Mesh& mesh,
+		mfem::Mesh& mesh,     // Model gets ownership.
 		const Materials& materials) :
-		mesh_{mesh},
+		mesh_{std::make_unique<mfem::Mesh>(std::move(mesh))},
 		materials_{materials}
 	{}
 
-	mfem::Mesh* getMesh() { return &mesh_; }
-	const mfem::Mesh* getMesh() const { return &mesh_; }
+	mfem::Mesh* getMesh() { return mesh_.get(); }
+	const mfem::Mesh* getMesh() const { return mesh_.get(); }
 
 	const Materials& getMaterials() const { return materials_;  }
 	
@@ -30,7 +30,7 @@ public:
 	
 private:	
 	Materials materials_;
-	mfem::Mesh mesh_;
+	std::unique_ptr<mfem::Mesh> mesh_;
 };
 
 }

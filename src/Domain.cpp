@@ -17,27 +17,37 @@ DirectedGraph buildMeshGraph(const mfem::Mesh& mesh)
 	return meshGraph;
 }
 
-bool isPECInDomain(const PEC& pec, const IdSet& verticesInDomain, const mfem::Mesh& mesh)
+Domain::ElementIds getBdrElemsInDomain(
+	const Material* mat, 
+	const IdSet& verticesInDomain, 
+	const mfem::Mesh& mesh)
 {
-	IdSet verticesWithAttribute;
+	Domain::ElementIds res;
+	
 	for (auto e{ 0 }; e < mesh.GetNBE(); ++e) {
 		const mfem::Element* elem{ mesh.GetBdrElement(e) };
-		if (elem->GetAttribute() != pec.attribute) {
+		if (elem->GetAttribute() != mat->attribute) {
 			continue;
 		}
+		IdSet verticesWithAttribute;
 		verticesWithAttribute.insert(
 			elem->GetVertices(),
 			elem->GetVertices() + elem->GetNVertices());
+		
+		IdSet common;
+		std::set_intersection(
+			verticesInDomain.begin(), verticesInDomain.end(),
+			verticesWithAttribute.begin(), verticesWithAttribute.end(),
+			std::inserter(common, common.begin()) );
+
+		if (common.size() < 2) {
+			continue;
+		}
+
+		res.insert(e);
 	}
 
-	IdSet common;
-	std::set_intersection(
-		verticesInDomain.begin(), verticesInDomain.end(),
-		verticesWithAttribute.begin(), verticesWithAttribute.end(),
-		std::inserter(common, common.begin())
-	);
-
-	return common.size() > 0;
+	return res;
 }
 	
 DomainTree::DomainTree(const Domain::IdToDomain& domains)
@@ -107,16 +117,16 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 				elem.GetVertices() + elem.GetNVertices(),
 				[&vsInDomain](int i) { return vsInDomain.count(i) == 1; }
 			)) {
-				domain.elements.insert(e);
+				domain.elems.insert(e);
 			}
 		}
 
 		// Determine conductors in domain.
 		for (const auto& pec : model.getMaterials().pecs) {
-			if (isPECInDomain(pec, vsInDomain, mesh)) {
-				domain.conductorIds.insert(
-					Materials::getNumberContainedInName(pec.name) 
-				);
+			auto bdrElems = getBdrElemsInDomain(&pec, vsInDomain, mesh);
+			if (!bdrElems.empty()) {
+				domain.conductorIds.insert(Materials::getNumberContainedInName(pec.name));
+				domain.bdrElems.insert(bdrElems.begin(), bdrElems.end());
 			}
 		}
 

@@ -181,14 +181,39 @@ PULParameters Driver::getMTLPUL() const
     return res;
 }
 
-Model buildModelForDomain(const Model& model, const Domain& domain)
+Model buildModelForDomain(Model& model, const Domain& domain)
 {
-    Model res;
+    auto& globalMesh{ *model.getMesh() };
+    
+    // We must modify attributes in the global mesh to identify elements in subdomain.
+    auto globalMeshBackup{ globalMesh };
+    
+    // --
+    for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
+        if (domain.elems.count(e)) {
+            globalMesh.GetElement(e)->SetAttribute(1);
+        }
+        else {
+            globalMesh.GetElement(e)->SetAttribute(0);
+        }
+    }
+    globalMesh.SetAttributes();
 
-    // TODO
-    // Removes mesh elements not in domain.
+    // --
+    Array<int> subdomainAttrs(1);
+    subdomainAttrs[0] = 1;
+    auto domainMesh{ SubMesh::CreateFromDomain(globalMesh, subdomainAttrs)};
 
-    return res;
+    // Restores original attributes in global mesh.
+    for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
+        globalMesh.GetElement(e)->SetAttribute(
+            globalMeshBackup.GetElement(e)->GetAttribute()
+        );
+    }
+    globalMesh.SetAttributes();
+
+
+    return Model{domainMesh, model.getMaterials()};
 }
 
 PULParametersByDomain Driver::getMTLPULByDomain() const

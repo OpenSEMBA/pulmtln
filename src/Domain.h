@@ -8,11 +8,13 @@ namespace pulmtln {
 struct Domain {
     using Id = int;
     using ConductorId = int;
+    using ElementIds = std::set<int>;
     using IdToDomain = std::map<Id, Domain>;
 
     ConductorId ground{-1};
     std::set<ConductorId> conductorIds;
-    std::set<int> elements;
+    ElementIds elems;   
+    ElementIds bdrElems;
 
     static IdToDomain buildDomains(const Model&);
 
