@@ -16,8 +16,8 @@ Driver Driver::loadFromFile(const std::string& fn)
     };
 }
 
-Driver::Driver(const Model& model, const DriverOptions& opts) :
-    model_{model},
+Driver::Driver(Model&& model, const DriverOptions& opts) :
+    model_{ std::move(model) },
     opts_{opts}
 {}
 
@@ -181,10 +181,75 @@ PULParameters Driver::getMTLPUL() const
     return res;
 }
 
-Model buildModelForDomain(Model& model, const Domain& domain)
+// A copy from Alejandro's build face map to have 2D support.
+Array<int> buildFaceMap(const Mesh& pm, const Mesh& sm,
+    const Array<int>& parent_element_ids)
 {
-    auto& globalMesh{ *model.getMesh() };
-    
+    // TODO: Check if parent is really a parent of mesh
+
+    Array<int> pfids;
+    switch (sm.Dimension()) {
+    case 1:
+        pfids.SetSize(sm.GetNV());
+        break;
+    case 2:
+        pfids.SetSize(sm.GetNEdges());
+        break;
+    case 3:
+        pfids.SetSize(sm.GetNFaces());
+        break;
+    default:
+        MFEM_ABORT("Wrong dimension in Submesh @ BuildFaceMap.");
+    }
+    pfids = -1;
+
+    for (int i = 0; i < sm.GetNE(); i++)
+    {
+        int peid = parent_element_ids[i];
+
+        Array<int> sel_faces, pel_faces, o;
+
+        MFEM_ASSERT(sm.GetElement(i)->GetType() == pm.GetElement(peid)->GetType(),
+            "Elements for Parent and SubMesh in BuildFaceMap do not match.");
+
+        switch (sm.GetElement(i)->GetType()) {
+        case Element::POINT:
+            MFEM_ABORT("Element Type is Point, cannot have interfaces.");
+            break;
+        case Element::SEGMENT:
+            sm.GetElementVertices(i, sel_faces);
+            pm.GetElementVertices(peid, pel_faces);
+            break;
+        case Element::TRIANGLE:
+        case Element::QUADRILATERAL:
+            sm.GetElementEdges(i, sel_faces, o);
+            pm.GetElementEdges(peid, pel_faces, o);
+            break;
+        case Element::PYRAMID:
+        case Element::WEDGE:
+        case Element::TETRAHEDRON:
+        case Element::HEXAHEDRON:
+            sm.GetElementFaces(i, sel_faces, o);
+            pm.GetElementFaces(peid, pel_faces, o);
+            break;
+        }
+
+        MFEM_ASSERT(sel_faces.Size() == pel_faces.Size(), "internal error");
+
+        for (int j = 0; j < sel_faces.Size(); j++)
+        {
+            if (pfids[sel_faces[j]] != -1)
+            {
+                MFEM_ASSERT(pfids[sel_faces[j]] == pel_faces[j], "internal error");
+            }
+            pfids[sel_faces[j]] = pel_faces[j];
+        }
+    }
+    return pfids;
+}
+
+Model buildModelForDomain(Mesh& globalMesh, const Materials& materials, const Domain& domain)
+{
     // We must modify attributes in the global mesh to identify elements in subdomain.
     auto globalMeshBackup{ globalMesh };
     
@@ -198,11 +263,25 @@ Model buildModelForDomain(Model& model, const Domain& domain)
         }
     }
     globalMesh.SetAttributes();
-
+    globalMesh.Finalize();
     // --
     Array<int> subdomainAttrs(1);
     subdomainAttrs[0] = 1;
     auto domainMesh{ SubMesh::CreateFromDomain(globalMesh, subdomainAttrs)};
+
+    // Sets bdr attributes in domain mesh.
+    auto parentFaceIdMap = SubMeshUtils::BuildFaceMap(
+        globalMesh, domainMesh, domainMesh.GetParentElementIDMap());
+    const auto faceToBdrElem{ globalMesh.GetFaceToBdrElMap() };
+    for (auto b{ 0 }; b < domainMesh.GetNBE(); b++) {
+        domainMesh.GetBdrElement(b)->SetAttribute(
+            globalMesh.GetBdrAttribute(
+                faceToBdrElem[
+                    parentFaceIdMap[
+                        domainMesh.GetBdrFace(b)]]
+            )
+        );
+    }
 
     // Restores original attributes in global mesh.
     for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
@@ -211,20 +290,21 @@ Model buildModelForDomain(Model& model, const Domain& domain)
         );
     }
     globalMesh.SetAttributes();
+    globalMesh.Finalize();
 
-
-    return Model{domainMesh, model.getMaterials()};
+    return Model{domainMesh, materials};
 }
 
-PULParametersByDomain Driver::getMTLPULByDomain() const
+PULParametersByDomain Driver::getMTLPULByDomains() const
 {
     PULParametersByDomain res;
 
     auto idToDomain{ Domain::buildDomains(model_) };
     
     for (const auto& [id, domain] : idToDomain) {
+        auto globalMesh{ *model_.getMesh() };
         res.domainToPUL[id] = buildPULParametersForModel(
-            buildModelForDomain(model_, domain),
+            buildModelForDomain(globalMesh, model_.getMaterials(), domain),
             opts_
         );
     }

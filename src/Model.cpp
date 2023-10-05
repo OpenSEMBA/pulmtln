@@ -59,7 +59,7 @@ Model::OpennessType Model::determineOpenness() const
 	}
 
 	for (const auto& m : materials_.openBoundaries) {
-		if (!elementsFormOpenLoops(getElementsWithAttribute(mesh_, m.attribute))) {
+		if (!elementsFormOpenLoops(getElementsWithAttribute(*mesh_, m.attribute))) {
 			return OpennessType::open;
 		}
 	}

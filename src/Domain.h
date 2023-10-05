@@ -30,6 +30,7 @@ public:
     DomainTree(const Domain::IdToDomain&);
 
     using DirectedGraph::getEdgesAsPairs;
+    using DirectedGraph::verticesSize;
 };
 
 }

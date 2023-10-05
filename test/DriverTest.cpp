@@ -54,6 +54,20 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
+
+TEST_F(DriverTest, partially_filled_coax_by_domains)
+{
+	auto dr{ Driver::loadFromFile(inputCase("partially_filled_coax")) };
+	auto globalOut{ dr.getMTLPUL() };
+
+	auto out{ dr.getMTLPULByDomains() };
+	EXPECT_EQ(1, out.domainTree.verticesSize());
+	ASSERT_EQ(1, out.domainToPUL.size());
+	ASSERT_EQ(1, out.domainToPUL.count(0));
+	EXPECT_EQ(globalOut, out.domainToPUL.at(0));
+}
+
+
 TEST_F(DriverTest, two_wires_coax)
 {
 	const std::string CASE{ "two_wires_coax" };
