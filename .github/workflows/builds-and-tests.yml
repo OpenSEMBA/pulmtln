@@ -57,7 +57,7 @@ jobs:
       if: steps.mfem-cache.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
-        repository: mfem/mfem
+        repository: AlejandroMunozManterola/mfem
         path: ${{ env.MFEM_TOP_DIR }}
     
     - name: build MFEM
