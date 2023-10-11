@@ -184,8 +184,11 @@ PULParameters Driver::getMTLPUL() const
 Model buildModelForDomain(Mesh& globalMesh, const Materials& materials, const Domain& domain)
 {
     // We must modify attributes in the global mesh to identify elements in subdomain.
-    auto globalMeshBackup{ globalMesh };
-    
+    std::map<int, int> elemToAttBackup;
+    for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
+        elemToAttBackup.emplace(e, globalMesh.GetElement(e)->GetAttribute());
+    }
+
     // --
     for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
         if (domain.elems.count(e)) {
@@ -202,6 +205,14 @@ Model buildModelForDomain(Mesh& globalMesh, const Materials& materials, const Do
     subdomainAttrs[0] = 1;
     auto domainMesh{ SubMesh::CreateFromDomain(globalMesh, subdomainAttrs)};
 
+    // Sets attributes in domain mesh.
+    for (auto e{ 0 }; e < domainMesh.GetNE(); ++e) {
+        const auto parentAttribute{
+            elemToAttBackup.at(domainMesh.GetParentElementIDMap()[e])
+        };
+        domainMesh.GetElement(e)->SetAttribute(parentAttribute);
+    }
+
     // Sets bdr attributes in domain mesh.
     auto parentFaceIdMap = SubMeshUtils::BuildFaceMap(
         globalMesh, domainMesh, domainMesh.GetParentElementIDMap());
@@ -215,12 +226,12 @@ Model buildModelForDomain(Mesh& globalMesh, const Materials& materials, const Do
             )
         );
     }
+    domainMesh.SetAttributes();
+    domainMesh.Finalize();
 
     // Restores original attributes in global mesh.
     for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
-        globalMesh.GetElement(e)->SetAttribute(
-            globalMeshBackup.GetElement(e)->GetAttribute()
-        );
+        globalMesh.GetElement(e)->SetAttribute(elemToAttBackup.at(e));
     }
     globalMesh.SetAttributes();
     globalMesh.Finalize();

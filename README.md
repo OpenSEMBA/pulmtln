@@ -13,14 +13,26 @@ Per Unit Length Multiconductor Transmission Line Network solver. Features:
 - ``` pulmtln ``` has the same license as MFEM.
 
 ## Compiling
-Compilation needs vcpkg with the following packages:
-- gtest
-- nlohmann_json
+Compilation needs vcpkg with the packages stated in the ```vcpkg.json``` manifest. 
 
 Additionally needs:
-- mfem
+- mfem (with the version pointed by the external/mfem-geg submodule)
 
 ### Compiling in windows (cmake)
+
+#### Manually (Windows/Linux)
+Compile mfem in external/mfem-geg
+```
+    cmake -S external/mfem-geg -B mfem-build/rls
+    cmake --build mfem-build/rls  --config Release
+```
+Launch cmake in root.
+```
+    cmake -S . -B pulmtln-build/rls -Dmfem_DIR=mfem-build/rls
+    cmake --build pulmtln-build/rls --config Release
+```
+
+#### Using presets
 Configure and build presets are available. To configure
 ``` 
     cmake 

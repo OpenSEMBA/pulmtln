@@ -51,8 +51,7 @@ PULParameters::PULParameters(const json& j)
 }
 
 bool PULParameters::operator==(const PULParameters& rhs) const
-{
-    
+{ 
     return
         toVecVec(C) == toVecVec(rhs.C) &&
         toVecVec(L) == toVecVec(rhs.L);

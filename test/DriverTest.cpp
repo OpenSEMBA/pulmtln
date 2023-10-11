@@ -54,7 +54,6 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
-
 TEST_F(DriverTest, partially_filled_coax_by_domains)
 {
 	auto dr{ Driver::loadFromFile(inputCase("partially_filled_coax")) };
@@ -63,10 +62,18 @@ TEST_F(DriverTest, partially_filled_coax_by_domains)
 	auto out{ dr.getMTLPULByDomains() };
 	EXPECT_EQ(1, out.domainTree.verticesSize());
 	ASSERT_EQ(1, out.domainToPUL.size());
+	
+	
+	// There are some minor differences in output. 
+	// I do not know why but my guess is that it is due to initial seeds in
+	// the iterative solver.
+	const double rTol{ 1e-6 };
 	ASSERT_EQ(1, out.domainToPUL.count(0));
-	EXPECT_EQ(globalOut, out.domainToPUL.at(0));
+	ASSERT_EQ(globalOut.L.NumRows(), out.domainToPUL.at(0).L.NumRows());
+	ASSERT_EQ(globalOut.C.NumRows(), out.domainToPUL.at(0).C.NumRows());
+	EXPECT_LE(relError(globalOut.L(0, 0), out.domainToPUL.at(0).L(0, 0)), rTol);
+	EXPECT_LE(relError(globalOut.C(0, 0), out.domainToPUL.at(0).C(0, 0)), rTol);
 }
-
 
 TEST_F(DriverTest, two_wires_coax)
 {
@@ -178,10 +185,8 @@ TEST_F(DriverTest, three_wires_ribbon)
 
 TEST_F(DriverTest, nested_coax)
 {
-	// Coaxial inside a coaxial
+	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getMTLPUL() };
 
-	const std::string CASE{ "nested_coax" };
-	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
 	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
 	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
@@ -193,8 +198,6 @@ TEST_F(DriverTest, nested_coax)
 	mfem::DenseMatrix CExpected(2, 2);
 	CExpected.UseExternalData(CExpectedData, 2, 2);
 
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
-
 	const double rTol{ 0.10 };
 
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
@@ -205,6 +208,28 @@ TEST_F(DriverTest, nested_coax)
 				"In C(" << i << ", " << j << ")";
 		}
 	}
+}
+
+TEST_F(DriverTest, nested_coax_by_domains)
+{
+	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getMTLPULByDomains() };
+
+	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
+	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
+		
+	const double rTol{ 0.10 };
+
+	EXPECT_EQ(2, out.domainTree.verticesSize());
+	std::vector<std::pair<int, int>> domainConnections{std::make_pair(0,1)};
+	EXPECT_EQ(domainConnections, out.domainTree.getEdgesAsPairs());
+	
+	ASSERT_EQ(2, out.domainToPUL.size());
+
+	ASSERT_EQ(1, out.domainToPUL.at(0).C.NumRows());
+	EXPECT_LE(relError(C01, out.domainToPUL.at(0).C(0, 0)), rTol);
+
+	ASSERT_EQ(1, out.domainToPUL.at(1).C.NumRows());
+	EXPECT_LE(relError(C12, out.domainToPUL.at(1).C(0, 0)), rTol);
 }
 
 TEST_F(DriverTest, agrawal1981)

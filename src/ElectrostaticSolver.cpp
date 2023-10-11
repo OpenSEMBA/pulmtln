@@ -98,7 +98,8 @@ ElectrostaticSolver::ElectrostaticSolver(
         mfem::Vector eps(mesh_->attributes.Max());
         eps = EPSILON0_NATURAL;
         for (const auto& [attr, epsr] : parameters_.domainPermittivities) {
-            assert(attr <= eps.Size());
+            const auto epsSize{ eps.Size() };
+            assert(attr <= epsSize);
             eps[attr-1] *= epsr;
         }
         epsCoef_ = new PWConstCoefficient(eps);
