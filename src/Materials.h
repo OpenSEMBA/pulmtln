@@ -5,9 +5,12 @@
 
 namespace pulmtln {
 
+using MaterialId = int;
+using Attribute = int;
+
 struct Material {
 	std::string name;
-	int attribute;
+	Attribute attribute;
 };
 
 struct PEC : public Material {

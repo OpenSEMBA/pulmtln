@@ -5,14 +5,19 @@
 
 namespace pulmtln {
 
-Array<int> AttrToMarker(int max_attr, const Array<int>& attrs)
+Array<int> AttrToMarker(const Mesh& mesh, const Array<int>& attrs)
 {
-    Array<int> marker{max_attr};
+    if (attrs.Size() == 0) {
+        return Array<int>();
+    }
+
+    int maxAttrInConditions{*std::max_element(attrs.begin(), attrs.end())};
+    int maxAttrInMesh{ mesh.bdr_attributes.Max() };
+    int maxAttr{ std::max({maxAttrInConditions, maxAttrInMesh}) };
+
+    Array<int> marker(maxAttr);
     marker = 0;
 
-    if (attrs.Size() == 0) {
-        return marker;
-    }
     
     MFEM_ASSERT(attrs.Max() <= max_attr, "Invalid attribute number present.");
 
@@ -87,7 +92,7 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     // Select surface attributes for Dirichlet BCs
     ess_bdr_ = AttrToMarker(
-        mesh_->bdr_attributes.Max(),
+        *mesh_,
         parameters.dirichletBoundaries.getAttributesAsArray()
     );
 
@@ -112,7 +117,7 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     std::unique_ptr<Coefficient> openRegionCoeff;
     if (!parameters.openBoundaries.empty()) {
-        open_bdr_ = AttrToMarker(mesh_->bdr_attributes.Max(), toArray(parameters.openBoundaries));
+        open_bdr_ = AttrToMarker(*mesh_, toArray(parameters.openBoundaries));
         openRegionCoeff.reset(new FunctionCoefficient(firstOrderABC));
         divEpsGrad_->AddBoundaryIntegrator(
             new BoundaryMassIntegrator(*openRegionCoeff),

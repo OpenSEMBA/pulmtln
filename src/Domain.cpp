@@ -1,5 +1,7 @@
 #include "Domain.h"
 
+using namespace mfem;
+
 namespace pulmtln {
 
 DirectedGraph buildMeshGraph(const mfem::Mesh& mesh)
@@ -69,7 +71,7 @@ DomainTree::DomainTree(const Domain::IdToDomain& domains)
 		throw std::runtime_error("Conductor 0 is not present");
 	}
 	
-	std::multimap<Domain::ConductorId, Domain::Id> condIdToDomId;
+	std::multimap<MaterialId, Domain::Id> condIdToDomId;
 	for (const auto& [domId, dom] : domains) {
 		addVertex(domId);
 		for (const auto& condId : dom.conductorIds) {
@@ -143,7 +145,7 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 	for (const auto& edge : DomainTree{ res }.getEdgesAsPairs()) {
 		const auto& c1{ res[edge.first].conductorIds };
 		const auto& c2{ res[edge.second].conductorIds };
-		std::set<ConductorId> common;
+		std::set<MaterialId> common;
 		std::set_intersection(
 			c1.begin(), c1.end(),
 			c2.begin(), c2.end(),
@@ -158,6 +160,67 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 	// Conductor 0 is always ground and is in a single domain.
 
 	return res;
+}
+
+Model Domain::buildModelForDomain(
+	mfem::Mesh& globalMesh, 
+	const Materials& materials, 
+	const Domain& domain)
+{
+	// We must modify attributes in the global mesh to identify elements in subdomain.
+	std::map<int, int> elemToAttBackup;
+	for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
+		elemToAttBackup.emplace(e, globalMesh.GetElement(e)->GetAttribute());
+	}
+
+	// --
+	for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
+		if (domain.elems.count(e)) {
+			globalMesh.GetElement(e)->SetAttribute(1);
+		}
+		else {
+			globalMesh.GetElement(e)->SetAttribute(2);
+		}
+	}
+	globalMesh.SetAttributes();
+	globalMesh.Finalize();
+	// --
+	Array<int> subdomainAttrs(1);
+	subdomainAttrs[0] = 1;
+	auto domainMesh{ SubMesh::CreateFromDomain(globalMesh, subdomainAttrs) };
+
+	// Sets attributes in domain mesh.
+	for (auto e{ 0 }; e < domainMesh.GetNE(); ++e) {
+		const auto parentAttribute{
+			elemToAttBackup.at(domainMesh.GetParentElementIDMap()[e])
+		};
+		domainMesh.GetElement(e)->SetAttribute(parentAttribute);
+	}
+
+	// Sets bdr attributes in domain mesh.
+	auto parentFaceIdMap = SubMeshUtils::BuildFaceMap(
+		globalMesh, domainMesh, domainMesh.GetParentElementIDMap());
+	const auto faceToBdrElem{ globalMesh.GetFaceToBdrElMap() };
+	for (auto b{ 0 }; b < domainMesh.GetNBE(); b++) {
+		domainMesh.GetBdrElement(b)->SetAttribute(
+			globalMesh.GetBdrAttribute(
+				faceToBdrElem[
+					parentFaceIdMap[
+						domainMesh.GetBdrFace(b)]]
+			)
+		);
+	}
+	domainMesh.SetAttributes();
+	domainMesh.Finalize();
+
+	// Restores original attributes in global mesh.
+	for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
+		globalMesh.GetElement(e)->SetAttribute(elemToAttBackup.at(e));
+	}
+	globalMesh.SetAttributes();
+	globalMesh.Finalize();
+
+	return Model{ domainMesh, materials };
 }
 
 

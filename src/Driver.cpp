@@ -95,25 +95,44 @@ SolverParameters buildSolverParameters(
     return parameters;
 }
 
+NameToAttrMap getConductorsInModel(const Model& model)
+{
+    
+    auto allPECs{ model.getMaterials().buildNameToAttrMap<PEC>() };
+    
+    NameToAttrMap res;
+    const auto& mesh{ *model.getMesh() };
+    for (const auto& [name, attr] : allPECs) {
+        for (auto e{ 0 }; e < mesh.GetNBE(); e++) {
+            if (mesh.GetBdrElement(e)->GetAttribute() == attr) {
+                res.emplace(name, attr);
+                break;
+            }
+        }
+    }
+
+    return res;
+}
+
 mfem::DenseMatrix solveCMatrix(
     const Model& model, 
     const DriverOptions& opts,
     bool ignoreDielectrics = false)
 {
-    const auto& mats{ model.getMaterials() };
-    if (mats.pecs.size() < 2) {
+    const auto conductors{ getConductorsInModel(model) };
+    
+    if (conductors.size() < 2) {
         throw std::runtime_error(
             "The number of conductors must be greater than 2."
         );
     }
     
-    mfem::DenseMatrix C((int)mats.pecs.size() - 1);
     // Solves a electrostatic problem for each conductor besides the
-    // reference conductor (Conductor_0).
-    const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  
-    for (const auto& [nameI, bdrAttI] : pecToBdrMap) {
-        auto numI{ Materials::getNumberContainedInName(nameI) };
-        if (numI == 0) {
+    // ground conductor
+    mfem::DenseMatrix C((int) conductors.size() - 1);
+    int row{ 0 };
+    for (const auto& [nameI, bdrAttI] : conductors) {
+        if (Materials::getNumberContainedInName(nameI) == model.getGroundConductorId()) {
             continue;
         }
         
@@ -126,21 +145,23 @@ mfem::DenseMatrix solveCMatrix(
         s.Solve();
         
         // Fills row
-        for (const auto& [nameJ, bdrAttJ] : pecToBdrMap) {
-            auto numJ{ Materials::getNumberContainedInName(nameJ) };
-            if (numJ == 0) {
+        int col{ 0 };
+        for (const auto& [nameJ, bdrAttJ] : conductors) {
+            if (Materials::getNumberContainedInName(nameJ) == model.getGroundConductorId()) {
                 continue;
             }
-            auto charge{ s.chargeInBoundary(pecToBdrMap.at(nameJ)) };
+            auto charge{ s.chargeInBoundary(conductors.at(nameJ)) };
             if (model.determineOpenness() == Model::OpennessType::open) {
-                C(numI - 1, numJ - 1) = charge / 2.0;
+                C(row, col) = charge / 2.0;
             }
             else {
-                C(numI - 1, numJ - 1) = charge;
+                C(row, col) = charge;
             }
+            col++;
         }
 
         exportFieldSolutions(opts, s, nameI, ignoreDielectrics);
+        row++;
     }
     return C;
 }
@@ -181,64 +202,6 @@ PULParameters Driver::getMTLPUL() const
     return res;
 }
 
-Model buildModelForDomain(Mesh& globalMesh, const Materials& materials, const Domain& domain)
-{
-    // We must modify attributes in the global mesh to identify elements in subdomain.
-    std::map<int, int> elemToAttBackup;
-    for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
-        elemToAttBackup.emplace(e, globalMesh.GetElement(e)->GetAttribute());
-    }
-
-    // --
-    for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
-        if (domain.elems.count(e)) {
-            globalMesh.GetElement(e)->SetAttribute(1);
-        }
-        else {
-            globalMesh.GetElement(e)->SetAttribute(0);
-        }
-    }
-    globalMesh.SetAttributes();
-    globalMesh.Finalize();
-    // --
-    Array<int> subdomainAttrs(1);
-    subdomainAttrs[0] = 1;
-    auto domainMesh{ SubMesh::CreateFromDomain(globalMesh, subdomainAttrs)};
-
-    // Sets attributes in domain mesh.
-    for (auto e{ 0 }; e < domainMesh.GetNE(); ++e) {
-        const auto parentAttribute{
-            elemToAttBackup.at(domainMesh.GetParentElementIDMap()[e])
-        };
-        domainMesh.GetElement(e)->SetAttribute(parentAttribute);
-    }
-
-    // Sets bdr attributes in domain mesh.
-    auto parentFaceIdMap = SubMeshUtils::BuildFaceMap(
-        globalMesh, domainMesh, domainMesh.GetParentElementIDMap());
-    const auto faceToBdrElem{ globalMesh.GetFaceToBdrElMap() };
-    for (auto b{ 0 }; b < domainMesh.GetNBE(); b++) {
-        domainMesh.GetBdrElement(b)->SetAttribute(
-            globalMesh.GetBdrAttribute(
-                faceToBdrElem[
-                    parentFaceIdMap[
-                        domainMesh.GetBdrFace(b)]]
-            )
-        );
-    }
-    domainMesh.SetAttributes();
-    domainMesh.Finalize();
-
-    // Restores original attributes in global mesh.
-    for (auto e{ 0 }; e < globalMesh.GetNE(); ++e) {
-        globalMesh.GetElement(e)->SetAttribute(elemToAttBackup.at(e));
-    }
-    globalMesh.SetAttributes();
-    globalMesh.Finalize();
-
-    return Model{domainMesh, materials};
-}
-
 PULParametersByDomain Driver::getMTLPULByDomains() const
 {
     PULParametersByDomain res;
@@ -248,7 +211,7 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
     for (const auto& [id, domain] : idToDomain) {
         auto globalMesh{ *model_.getMesh() };
         res.domainToPUL[id] = buildPULParametersForModel(
-            buildModelForDomain(globalMesh, model_.getMaterials(), domain),
+            Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
             opts_
         );
     }
