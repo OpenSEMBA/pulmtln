@@ -220,7 +220,10 @@ Model Domain::buildModelForDomain(
 	globalMesh.SetAttributes();
 	globalMesh.Finalize();
 
-	return Model{ domainMesh, materials };
+	Model res{ domainMesh, materials };
+	res.setGroundConductorId(domain.ground);
+
+	return res;
 }
 
 
