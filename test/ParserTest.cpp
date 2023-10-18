@@ -2,6 +2,7 @@
 
 #include "Parser.h"
 #include "TestUtils.h"
+#include "constants.h"
 
 using namespace pulmtln;
 
@@ -26,8 +27,11 @@ TEST_F(ParserTest, empty_coax)
 	EXPECT_EQ(pecs[1].name, "Conductor_1");
 	EXPECT_EQ(pecs[1].attribute, 2);
 
-	const auto& diel{ model.getMaterials().dielectrics };
-	ASSERT_EQ(0, diel.size());
+	const auto& diels{ model.getMaterials().dielectrics };
+	ASSERT_EQ(1, diels.size());
+	EXPECT_EQ(diels[0].name, "Vacuum_0");
+	EXPECT_EQ(diels[0].attribute, 3);
+	EXPECT_EQ(diels[0].relativePermittivity, VACUUM_RELATIVE_PERMITTIVITY);
 
 	EXPECT_NE(0, model.getMesh()->GetNE());
 	EXPECT_EQ(2, model.getMesh()->bdr_attributes.Size());
@@ -53,10 +57,13 @@ TEST_F(ParserTest, partially_filled_coax)
 	EXPECT_EQ(pecs[1].attribute, 2);
 
 	const auto& diels{ model.getMaterials().dielectrics };
-	ASSERT_EQ(1, diels.size());
+	ASSERT_EQ(2, diels.size());
 	EXPECT_EQ(diels[0].name, "Dielectric_1");
 	EXPECT_EQ(diels[0].attribute, 4);
 	EXPECT_EQ(diels[0].relativePermittivity, 4.0);
+	EXPECT_EQ(diels[1].name, "Vacuum_0");
+	EXPECT_EQ(diels[1].attribute, 3);
+	EXPECT_EQ(diels[1].relativePermittivity, VACUUM_RELATIVE_PERMITTIVITY);
 
 	EXPECT_NE(0, model.getMesh()->GetNE());
 	EXPECT_EQ(2, model.getMesh()->bdr_attributes.Size());

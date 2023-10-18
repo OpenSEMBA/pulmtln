@@ -10,7 +10,7 @@ namespace pulmtln {
 using namespace mfem;
 
 std::vector<const Element*> getElementsWithAttribute(const Mesh& mesh, int attr)
-{	
+{
 	std::vector<const Element*> res;
 	for (auto e{ 0 }; e < mesh.GetNBE(); ++e) {
 		const auto elemPtr{ mesh.GetBdrElement(e) };
@@ -21,7 +21,7 @@ std::vector<const Element*> getElementsWithAttribute(const Mesh& mesh, int attr)
 	return res;
 }
 
-std::multimap<int, const Element*> determineClosedLoops(const std::vector<const Element*>&elems)
+std::multimap<int, const Element*> determineClosedLoops(const std::vector<const Element*>& elems)
 {
 	DirectedGraph g;
 	std::map<int, const Element*> vToE;
@@ -41,8 +41,44 @@ std::multimap<int, const Element*> determineClosedLoops(const std::vector<const 
 		}
 		cycleCount++;
 	}
-	
+
 	return res;
+}
+
+Materials filterOutMaterialsNotPresentInMesh(
+	const Materials& materials, 
+	const Mesh& mesh)
+{
+	NameToAttrMap matInMesh;
+	NameToAttrMap allMats{ materials.buildNameToAttrMap() };
+	for (const auto& [name, attr] : allMats) {
+		for (auto e{ 0 }; e < mesh.GetNBE(); e++) {
+			if (mesh.GetBdrElement(e)->GetAttribute() == attr) {
+				matInMesh.emplace(name, attr);
+				break;
+			}
+		}
+	}
+	for (const auto& [name, attr] : allMats) {
+		for (auto e{ 0 }; e < mesh.GetNE(); e++) {
+			if (mesh.GetElement(e)->GetAttribute() == attr) {
+				matInMesh.emplace(name, attr);
+				break;
+			}
+		}
+	}
+
+	Materials res{ materials };
+	res.removeMaterialsNotInList(matInMesh);
+	return res;
+}
+
+Model::Model(
+	Mesh& mesh,  
+	const Materials& materials) :
+	mesh_{ std::make_unique<mfem::Mesh>(std::move(mesh)) }
+{
+	materials_ = filterOutMaterialsNotPresentInMesh(materials, *mesh_);
 }
 
 bool elementsFormOpenLoops(const std::vector<const Element*>& elems)

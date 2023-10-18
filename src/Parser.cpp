@@ -1,6 +1,8 @@
 #include "Parser.h"
+#include "constants.h"
 
 #include <filesystem>
+
 
 using json = nlohmann::json;
 
@@ -56,7 +58,7 @@ Materials readMaterials(const json& j)
 			res.openBoundaries.push_back({ name, attribute });
 			break;
 		case MaterialType::Vacuum:
-			res.vacuums.push_back({ name, attribute });
+			res.dielectrics.push_back({ name, attribute, VACUUM_RELATIVE_PERMITTIVITY });
 			break;
 		case MaterialType::Dielectric:
 		{

@@ -8,6 +8,7 @@
     "materials": {
       "Conductor_0": {"type": "PEC", "tag": 1 },
       "Conductor_1": {"type": "PEC", "tag": 2 },
+      "Vacuum_0":    {"type": "Vacuum", "tag": 3},
       "Dielectric_1": {"type": "Dielectric", "eps_r": 4.0, "tag": 4}
     },  
     "gmshFile": "partially_filled_coax.msh"
