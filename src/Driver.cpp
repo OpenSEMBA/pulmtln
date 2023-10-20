@@ -147,8 +147,7 @@ mfem::DenseMatrix solveCMatrix(
 	return C;
 }
 
-mfem::DenseMatrix solveLMatrix(
-	const Model& model, const DriverOptions& opts)
+DenseMatrix solveLMatrix(const Model& model, const DriverOptions& opts)
 {
 	// Inductance matrix can be computed from the 
 	// capacitance obtained ignoring dielectrics as
@@ -156,6 +155,25 @@ mfem::DenseMatrix solveLMatrix(
 	auto res{ solveCMatrix(model, opts, true) };
 	res.Invert();
 	res *= MU0_NATURAL * EPSILON0_NATURAL;
+	return res;
+}
+
+DenseMatrix symmetrizeMatrix(const DenseMatrix& m)
+{
+	assert(m.NumRows() == m.NumCols());
+	
+	DenseMatrix res(m.NumRows(), m.NumCols());
+	for (int i{ 0 }; i < m.NumRows(); i++) {
+		for (int j{ i }; j < m.NumCols(); j++) {
+			if (i == j) {
+				res(i, j) = m(i, j);
+			}
+			auto v{ (m(i,j) + m(j,i)) / 2.0 };
+			res(i, j) = v;
+			res(j, i) = v;
+		}
+	}
+
 	return res;
 }
 
@@ -168,6 +186,11 @@ PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& op
 
 	res.L = solveLMatrix(m, opts);
 	res.L *= MU0_SI;
+
+	if (opts.makeMatricesSymmetric) {
+		res.C = symmetrizeMatrix(res.C);
+		res.L = symmetrizeMatrix(res.L);
+	}
 
 	return res;
 }

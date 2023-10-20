@@ -1,6 +1,7 @@
 {
   "analysis": {
     "order": 3,
+    "makeMatricesSymmetric": true,
     "exportParaViewSolution": true
   },
   "model": {
