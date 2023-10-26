@@ -11,9 +11,14 @@ static std::string casesFolder()   { return testDataFolder(); }
 static std::string outFolder()     { return "ParaView/"; }
 
 
-static std::string smbCase(const std::string& caseName)
+static std::string smbCase(const std::string& name)
 {
-	return casesFolder() + caseName + "/" + caseName + ".smb.json";
+	return casesFolder() + name + "/" + name + ".smb.json";
+}
+
+static std::string inputCase(const std::string& name)
+{
+	return casesFolder() + name + "/" + name + ".pulmtln.in.json";
 }
 
 static std::string getCaseName()

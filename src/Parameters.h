@@ -3,13 +3,15 @@
 #include <mfem.hpp>
 #include <nlohmann/json.hpp>
 
+#include "Domain.h"
+
 namespace pulmtln {
 
-struct Parameters {
-    Parameters() = default;
-    Parameters(const nlohmann::json&);
+struct PULParameters {
+    PULParameters() = default;
+    PULParameters(const nlohmann::json&);
 
-    bool operator==(const Parameters&) const;
+    bool operator==(const PULParameters&) const;
 
     mfem::DenseMatrix getCapacitiveCouplingCoefficients() const;
 
@@ -18,6 +20,11 @@ struct Parameters {
     void saveToJSONFile(const std::string& filename) const;
     
     mfem::DenseMatrix L, C; // Stored in SI units.
+};
+
+struct PULParametersByDomain {
+    DomainTree domainTree;
+    std::map<Domain::Id, PULParameters> domainToPUL;
 };
 
 }

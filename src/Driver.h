@@ -8,9 +8,10 @@ namespace pulmtln {
 
 class Driver {
 public:
-    Driver(const Model& model, const DriverOptions& opts);
+    Driver(Model&& model, const DriverOptions& opts);
     
-    Parameters getMTLPUL() const;
+    PULParameters getMTLPUL() const;
+    PULParametersByDomain getMTLPULByDomains() const;
 
     static Driver loadFromFile(const std::string& filename);
 

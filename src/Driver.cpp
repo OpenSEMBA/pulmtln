@@ -3,162 +3,227 @@
 #include "ElectrostaticSolver.h"
 #include "Parser.h"
 
-namespace pulmtln {
-
 using namespace mfem;
 
-
+namespace pulmtln {
 
 Driver Driver::loadFromFile(const std::string& fn)
 {
-    Parser p{ fn };
-    return Driver{ 
-        p.readModel(), 
-        p.readDriverOptions() 
-    };
+	Parser p{ fn };
+	return Driver{
+		p.readModel(),
+		p.readDriverOptions()
+	};
 }
 
-Driver::Driver(const Model& model, const DriverOptions& opts) :
-    model_{model},
-    opts_{opts}
+Driver::Driver(Model&& model, const DriverOptions& opts) :
+	model_{ std::move(model) },
+	opts_{ opts }
 {}
 
-int getNumberContainedInName(const std::string& name) 
-{
-    std::stringstream ss{ name.substr(name.find("_") + 1) };
-    int res;
-    ss >> res;
-    return res;
-}
-
 AttrToValueMap buildAttrToValueMap(
-    const NameToAttrMap& matToAtt, double value)
+	const NameToAttrMap& matToAtt, double value)
 {
-    AttrToValueMap bcs;
-    for (const auto& [mat, att] : matToAtt) {
-        bcs[att] = value;
-    }
-    return bcs;
+	AttrToValueMap bcs;
+	for (const auto& [mat, att] : matToAtt) {
+		bcs[att] = value;
+	}
+	return bcs;
 }
 
 std::vector<int> getAttributesInMap(const NameToAttrMap& m)
 {
-    std::vector<int> res;
-    for (const auto& [k,v] : m) {
-        res.push_back(v);
-    }
-    return res;
+	std::vector<int> res;
+	for (const auto& [k, v] : m) {
+		res.push_back(v);
+	}
+	return res;
+}
+
+void exportFieldSolutions(
+	const DriverOptions& opts,
+	ElectrostaticSolver& s,
+	const std::string name,
+	bool ignoreDielectrics)
+{
+	if (opts.exportParaViewSolution) {
+		std::string outputName{ opts.exportFolder + "/" + "ParaView/" + name };
+		if (ignoreDielectrics) {
+			outputName += "_no_dielectrics";
+		}
+		ParaViewDataCollection pd{ outputName, s.getMesh() };
+		s.writeParaViewFields(pd);
+	}
+
+	if (opts.exportVisItSolution) {
+		std::string outputName{ opts.exportFolder + "/" + "VisIt/" + name };
+		if (ignoreDielectrics) {
+			outputName += "_no_dielectrics";
+		}
+		VisItDataCollection dC{ outputName, s.getMesh() };
+		s.writeVisItFields(dC);
+	}
+}
+
+
+SolverParameters buildSolverParameters(
+	const Model& model,
+	bool ignoreDielectrics)
+{
+	const Materials& mats = model.getMaterials();
+
+	SolverParameters parameters;
+
+	auto domainToEpsr{
+		buildAttrToValueMap(mats.buildNameToAttrMapFor<Dielectric>(), 1.0)
+	};
+	if (!ignoreDielectrics) {
+		for (const auto& d : mats.dielectrics) {
+			domainToEpsr.at(d.attribute) = d.relativePermittivity;
+		}
+	}
+	parameters.domainPermittivities = domainToEpsr;
+	parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMapFor<OpenBoundary>());
+
+	if (model.determineOpenness() == Model::OpennessType::open) {
+		parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMapFor<PEC>(), -1.0);
+	}
+	else {
+		parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMapFor<PEC>(), 0.0);
+	}
+
+	return parameters;
 }
 
 mfem::DenseMatrix solveCMatrix(
-    const Model& model, 
-    const DriverOptions& opts,
-    bool ignoreDielectrics = false)
+	const Model& model,
+	const DriverOptions& opts,
+	bool ignoreDielectrics = false)
 {
-    const auto& mats{ model.getMaterials() };
-    if (mats.pecs.size() < 2) {
-        throw std::runtime_error(
-            "The number of conductors must be greater than 2."
-        );
-    }
-    
-    auto domainToEpsr{
-        buildAttrToValueMap(mats.buildNameToAttrMap<Dielectric>(), 1.0)
-    };
-    if (!ignoreDielectrics) {
-        for (const auto& d : mats.dielectrics) {
-            domainToEpsr.at(d.tag) = d.relativePermittivity;
-        }
-    }
+	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
 
-    mfem::DenseMatrix C((int)mats.pecs.size() - 1);
+	if (conductors.size() < 2) {
+		throw std::runtime_error(
+			"The number of conductors must be greater than 2."
+		);
+	}
 
-    // Solves a electrostatic problem for each conductor besides the
-    // reference conductor (Conductor_0).
-    const auto pecToBdrMap{ mats.buildNameToAttrMap<PEC>() };  
-    for (const auto& [nameI, bdrAttI] : pecToBdrMap) {
-        auto numI{ getNumberContainedInName(nameI) };
-        if (numI == 0) {
-            continue;
-        }
-        
-        Mesh mesh{ *model.getMesh() };
-        
-        SolverParameters parameters;
-        parameters.dirichletBoundaries = 
-            buildAttrToValueMap(mats.buildNameToAttrMap<PEC>(), -1.0);
-        parameters.dirichletBoundaries[bdrAttI] = 1.0;
-        parameters.domainPermittivities = domainToEpsr;
-        parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMap<OpenBoundary>());
+	// Solves a electrostatic problem for each conductor besides the
+	// ground conductor
+	mfem::DenseMatrix C((int)conductors.size() - 1);
+	int row{ 0 };
+	for (const auto& [nameI, bdrAttI] : conductors) {
+		if (Materials::getNumberContainedInName(nameI) == model.getGroundConductorId()) {
+			continue;
+		}
 
-        ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
-        s.Solve();
-        
-        // Fills row
-        for (const auto& [nameJ, bdrAttJ] : pecToBdrMap) {
-            auto numJ{ getNumberContainedInName(nameJ) };
-            if (numJ == 0) {
-                continue;
-            }
-            C(numI - 1, numJ - 1) = s.chargeInBoundary(pecToBdrMap.at(nameJ)) / 2.0;
-        }
+		auto parameters{ buildSolverParameters(model, ignoreDielectrics) };
+		parameters.dirichletBoundaries[bdrAttI] = 1.0;
 
-        if (opts.exportParaViewSolution) {
-            std::string outputName{ opts.exportFolder + "/" + "ParaView/Conductor_"};
-            outputName += std::to_string(numI);
-            if (ignoreDielectrics) {
-                outputName += "_no_dielectrics";
-            }
-            ParaViewDataCollection pd{ outputName, s.getMesh() };
-            s.writeParaViewFields(pd);
-        }
+		Mesh mesh{ *model.getMesh() };
 
-        if (opts.exportVisItSolution) {
-            std::string outputName{ opts.exportFolder + "/" + "VisIt/Conductor_" };
-            outputName += std::to_string(numI);
-            if (ignoreDielectrics) {
-                outputName += "_no_dielectrics";
-            }
-            VisItDataCollection dC{ outputName, s.getMesh() };
-            s.writeVisItFields(dC);
-        }
-    }
-    return C;
+		ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
+		s.Solve();
+
+		// Fills row
+		int col{ 0 };
+		for (const auto& [nameJ, bdrAttJ] : conductors) {
+			if (Materials::getNumberContainedInName(nameJ) == model.getGroundConductorId()) {
+				continue;
+			}
+			auto charge{ s.chargeInBoundary(conductors.at(nameJ)) };
+			if (model.determineOpenness() == Model::OpennessType::open) {
+				C(row, col) = charge / 2.0;
+			}
+			else {
+				C(row, col) = charge;
+			}
+			col++;
+		}
+
+		exportFieldSolutions(opts, s, nameI, ignoreDielectrics);
+		row++;
+	}
+	return C;
 }
 
-mfem::DenseMatrix solveLMatrix(
-    const Model& model, const DriverOptions& opts)
+DenseMatrix solveLMatrix(const Model& model, const DriverOptions& opts)
 {
-    // Inductance matrix can be computed from the 
-    // capacitance obtained ignoring dielectrics as
-    //          L = mu0 * eps0 * C^{-1}
-    auto res{ solveCMatrix(model, opts, true) };
-    res.Invert();
-    res *= MU0_NATURAL * EPSILON0_NATURAL;
-    return res;
+	// Inductance matrix can be computed from the 
+	// capacitance obtained ignoring dielectrics as
+	//          L = mu0 * eps0 * C^{-1}
+	auto res{ solveCMatrix(model, opts, true) };
+	res.Invert();
+	res *= MU0_NATURAL * EPSILON0_NATURAL;
+	return res;
 }
 
-
-Parameters Driver::getMTLPUL() const
+DenseMatrix symmetrizeMatrix(const DenseMatrix& m)
 {
-    Parameters res;
+	assert(m.NumRows() == m.NumCols());
+	
+	DenseMatrix res(m.NumRows(), m.NumCols());
+	for (int i{ 0 }; i < m.NumRows(); i++) {
+		for (int j{ i }; j < m.NumCols(); j++) {
+			if (i == j) {
+				res(i, j) = m(i, j);
+			}
+			auto v{ (m(i,j) + m(j,i)) / 2.0 };
+			res(i, j) = v;
+			res(j, i) = v;
+		}
+	}
 
-    // Computes matrices in natural units.
-    res.C = solveCMatrix(model_, opts_);
-    res.L = solveLMatrix(model_, opts_);
-    
-    // Converts to SI units.
-    res.C *= EPSILON0_SI;
-    res.L *= MU0_SI;
-
-    if (opts_.exportMatrices) {
-        res.saveToJSONFile(opts_.exportFolder + "/matrices.pulmtln.out.json");
-    }
-
-    return res;
+	return res;
 }
 
+PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& opts)
+{
+	PULParameters res;
 
+	res.C = solveCMatrix(m, opts);
+	res.C *= EPSILON0_SI;
+
+	res.L = solveLMatrix(m, opts);
+	res.L *= MU0_SI;
+
+	if (opts.makeMatricesSymmetric) {
+		res.C = symmetrizeMatrix(res.C);
+		res.L = symmetrizeMatrix(res.L);
+	}
+
+	return res;
+}
+
+PULParameters Driver::getMTLPUL() const
+{
+	auto res{ buildPULParametersForModel(model_, opts_) };
+
+	if (opts_.exportMatrices) {
+		res.saveToJSONFile(opts_.exportFolder + "/matrices.pulmtln.out.json");
+	}
+
+	return res;
+}
+
+PULParametersByDomain Driver::getMTLPULByDomains() const
+{
+	PULParametersByDomain res;
+
+	auto idToDomain{ Domain::buildDomains(model_) };
+
+	for (const auto& [id, domain] : idToDomain) {
+		auto globalMesh{ *model_.getMesh() };
+		res.domainToPUL[id] = buildPULParametersForModel(
+			Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
+			opts_
+		);
+	}
+
+	res.domainTree = DomainTree{ idToDomain };
+
+	return res;
+}
 
 
 }

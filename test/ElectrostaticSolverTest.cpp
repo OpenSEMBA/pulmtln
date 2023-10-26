@@ -370,7 +370,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open)
 	double chargeInOpenBoundary{ s.chargeInBoundary(3) };
 	EXPECT_LE(1e-6, std::abs(chargeInOpenBoundary));
 
-	const double rTol{ 1e-2 };
+	const double rTol{ 5e-4 };
 	double CComputed{ s.chargeInBoundary(1) / (2*V) };
 	EXPECT_LE(relError(CExpected, CComputed), rTol);
 

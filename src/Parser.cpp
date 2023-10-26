@@ -1,6 +1,8 @@
 #include "Parser.h"
+#include "constants.h"
 
 #include <filesystem>
+
 
 using json = nlohmann::json;
 
@@ -47,21 +49,21 @@ Materials readMaterials(const json& j)
 				mat.value().at("type").get<std::string>()
 			)
 		};
-		auto tag{ mat.value().at("tag").get<int>() };
+		auto attribute{ mat.value().at("tag").get<int>() };
 		switch (type) {
 		case MaterialType::PEC:
-			res.pecs.push_back({ name, tag });
+			res.pecs.push_back({ name, attribute });
 			break;
 		case MaterialType::OpenBoundary:
-			res.openBoundaries.push_back({ name, tag });
+			res.openBoundaries.push_back({ name, attribute });
 			break;
 		case MaterialType::Vacuum:
-			res.vacuums.push_back({ name, tag });
+			res.dielectrics.push_back({ name, attribute, VACUUM_RELATIVE_PERMITTIVITY });
 			break;
 		case MaterialType::Dielectric:
 		{
 			double epsR{ mat.value().at("eps_r").get<double>() };
-			res.dielectrics.push_back({ name, tag, epsR });
+			res.dielectrics.push_back({ name, attribute, epsR });
 			break;
 		}
 		default:
@@ -105,6 +107,9 @@ DriverOptions Parser::readDriverOptions() const
 	DriverOptions res;
 	setIfExists<int>(j,  res.solverOptions.order, "order");
 	setIfExists<bool>(j, res.solverOptions.printIterations, "printIterations");
+	
+	setIfExists<bool>(j, res.makeMatricesSymmetric, "makeMatricesSymmetric");
+	setIfExists<bool>(j, res.exportMatrices, "exportMatrices");
 
 	setIfExists<bool>(j, res.exportParaViewSolution, "exportParaviewSolution");
 	setIfExists<bool>(j, res.exportVisItSolution, "exportVisItSolution");

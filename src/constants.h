@@ -5,6 +5,8 @@
 
 namespace pulmtln {
 
+static const double VACUUM_RELATIVE_PERMITTIVITY{ 1.0 };
+
 // Permittivity of Free Space (natural units)
 static const double EPSILON0_NATURAL{ 1.0 };
 

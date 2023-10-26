@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include "TestUtils.h"
 
@@ -14,17 +14,14 @@ class DriverTest : public ::testing::Test {};
 TEST_F(DriverTest, empty_coax)
 {
 	// Empty Coaxial case.
-	const std::string CASE{ "empty_coax" };
-	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
-	
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("empty_coax")).getMTLPUL() };
 
 	auto CExpected{ EPSILON0_SI * 2 * M_PI / log(0.05 / 0.025) };
 
-	const double rTol{ 0.005 }; 
+	const double rTol{ 0.005 };
 	ASSERT_EQ(1, out.C.NumCols() * out.C.NumRows());
 	EXPECT_LE(relError(CExpected, out.C(0, 0)), rTol);
-	
+
 	auto LExpected{ EPSILON0_SI * MU0_SI / CExpected };
 	ASSERT_EQ(1, out.L.NumCols() * out.L.NumRows());
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
@@ -38,15 +35,11 @@ TEST_F(DriverTest, partially_filled_coax)
 	// Dielectric internal radius -> rI_dielectric = 25 mm
 	// Dielectric external radius -> rO_dielectric = 35 mm
 	// Dielectric permittivity -> eps_r = 4.0
-
-	const std::string CASE{ "partially_filled_coax" };
-	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
-
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("partially_filled_coax")).getMTLPUL() };
 
 	// Equivalent capacity is the series of the inner and outer capacitors.
-	auto COut{       EPSILON0_SI * 2 * M_PI / log(0.050 / 0.035) };
-	auto CIn{  4.0 * EPSILON0_SI * 2 * M_PI / log(0.035 / 0.025) };
+	auto COut{ EPSILON0_SI * 2 * M_PI / log(0.050 / 0.035) };
+	auto CIn{ 4.0 * EPSILON0_SI * 2 * M_PI / log(0.035 / 0.025) };
 	auto CExpected = COut * CIn / (COut + CIn);
 
 	const double rTol{ 0.002 }; // 0.2% Error.
@@ -61,6 +54,26 @@ TEST_F(DriverTest, partially_filled_coax)
 	EXPECT_LE(relError(LExpected, out.L(0, 0)), rTol);
 }
 
+TEST_F(DriverTest, partially_filled_coax_by_domains)
+{
+	auto dr{ Driver::loadFromFile(inputCase("partially_filled_coax")) };
+	auto globalOut{ dr.getMTLPUL() };
+
+	auto out{ dr.getMTLPULByDomains() };
+	EXPECT_EQ(1, out.domainTree.verticesSize());
+	ASSERT_EQ(1, out.domainToPUL.size());
+
+
+	// There are some minor differences in output. 
+	// I do not know why but my guess is that it is due to initial seeds in
+	// the iterative solver.
+	const double rTol{ 1e-6 };
+	ASSERT_EQ(1, out.domainToPUL.count(0));
+	ASSERT_EQ(globalOut.L.NumRows(), out.domainToPUL.at(0).L.NumRows());
+	ASSERT_EQ(globalOut.C.NumRows(), out.domainToPUL.at(0).C.NumRows());
+	EXPECT_LE(relError(globalOut.L(0, 0), out.domainToPUL.at(0).L(0, 0)), rTol);
+	EXPECT_LE(relError(globalOut.C(0, 0), out.domainToPUL.at(0).C(0, 0)), rTol);
+}
 
 TEST_F(DriverTest, two_wires_coax)
 {
@@ -73,15 +86,27 @@ TEST_F(DriverTest, two_wires_coax)
 	CMatExpected(1, 0) = CMatExpected(0, 1);
 	CMatExpected(1, 1) = CMatExpected(0, 0);
 	CMatExpected *= EPSILON0_SI;
-	
+
 	const double rTol{ 2.5e-2 };
-	
+
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
-	ASSERT_EQ(2, out.C.NumCols());
-	ASSERT_EQ(2, out.C.NumRows());
-	for (int i{ 0 }; i < 2; i++) {
-		for (int j{ 0 }; j < 2; j++) {
+
+	const int N{ 2 };
+	ASSERT_EQ(N, out.C.NumCols());
+	ASSERT_EQ(N, out.C.NumRows());
+
+	// Compares with analytical solution.
+	for (int i{ 0 }; i < N; i++) {
+		for (int j{ 0 }; j < N; j++) {
 			EXPECT_LE(relError(CMatExpected(i, j), out.C(i, j)), rTol);
+		}
+	}
+
+	// Checks matrix are symmetric.
+	for (int i{ 0 }; i < N; i++) {
+		for (int j{ 0 }; j < N; j++) {
+			EXPECT_EQ(out.C(i, j), out.C(j, i));
+			EXPECT_EQ(out.L(i, j), out.L(j, i));
 		}
 	}
 }
@@ -104,22 +129,21 @@ TEST_F(DriverTest, five_wires)
 	};
 	couplingExpected.UseExternalData(couplingExpectedData, 5, 5);
 
-	auto out{ 
-		Driver::loadFromFile(fn).getMTLPUL().getCapacitiveCouplingCoefficients() 
+	auto out{
+		Driver::loadFromFile(fn).getMTLPUL().getCapacitiveCouplingCoefficients()
 	};
 
 	ASSERT_EQ(couplingExpected.NumRows(), out.NumRows());
 	ASSERT_EQ(couplingExpected.NumCols(), out.NumCols());
-	
+
 	double rTol{ 0.05 };
 	for (int i{ 0 }; i < couplingExpected.NumRows(); i++) {
 		for (int j{ 0 }; j < couplingExpected.NumCols(); j++) {
-			EXPECT_LE(std::abs(couplingExpected(i, j) - out(i, j)), rTol) 
-					<< "In C(" << i << ", " << j << ")";
+			EXPECT_LE(std::abs(couplingExpected(i, j) - out(i, j)), rTol)
+				<< "In C(" << i << ", " << j << ")";
 		}
 	}
 }
-
 
 TEST_F(DriverTest, three_wires_ribbon)
 {
@@ -148,15 +172,15 @@ TEST_F(DriverTest, three_wires_ribbon)
 	LExpected *= 1e-6;
 
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
-	
+
 	// Tolerance is quite high probably because open region is not far enough.
-	const double rTol{ 0.25 }; 
-	
+	const double rTol{ 0.21 };
+
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
 	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
 	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
 		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
-			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) << 
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) <<
 				"In C(" << i << ", " << j << ")";
 		}
 	}
@@ -173,20 +197,72 @@ TEST_F(DriverTest, three_wires_ribbon)
 
 TEST_F(DriverTest, nested_coax)
 {
-	// Coaxial inside a coaxial
+	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getMTLPUL() };
 
-	const std::string CASE{ "nested_coax" };
-	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
 	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
 	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
 
 	double CExpectedData[4] = {
-		  C01+C12, -C12,
+		  C01 + C12, -C12,
 		 -C12,      C12
 	};
 	mfem::DenseMatrix CExpected(2, 2);
 	CExpected.UseExternalData(CExpectedData, 2, 2);
+
+	const double rTol{ 0.10 };
+
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) <<
+				"In C(" << i << ", " << j << ")";
+		}
+	}
+}
+
+TEST_F(DriverTest, nested_coax_by_domains)
+{
+	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getMTLPULByDomains() };
+
+	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
+	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
+
+	const double rTol{ 0.10 };
+
+	EXPECT_EQ(2, out.domainTree.verticesSize());
+	std::vector<std::pair<int, int>> domainConnections{ std::make_pair(0,1) };
+	EXPECT_EQ(domainConnections, out.domainTree.getEdgesAsPairs());
+
+	ASSERT_EQ(2, out.domainToPUL.size());
+
+	ASSERT_EQ(1, out.domainToPUL.at(0).C.NumRows());
+	EXPECT_LE(relError(C01, out.domainToPUL.at(0).C(0, 0)), rTol);
+
+	ASSERT_EQ(1, out.domainToPUL.at(1).C.NumRows());
+	EXPECT_LE(relError(C12, out.domainToPUL.at(1).C(0, 0)), rTol);
+}
+
+TEST_F(DriverTest, agrawal1981)
+{
+	// Agrawal, Ashok K. and Price, Harold J.
+	// Experimental Characterization of Partially Degenerate Three-Conductor
+	// Transmission Lines in the Time Domain. IEEE-TEMC. 1981.
+
+	const std::string CASE{ "agrawal1981" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	// P.U.L. Capacitances obtained from eigenvectors.
+	const int nConductors = 3;
+	double CExpectedData[nConductors * nConductors] = {
+		  74.54, -34.57, -34.2,
+		 -34.63,  73.87, -33.96,
+		 -34.29, -34.0,   73.41
+	};
+	mfem::DenseMatrix CExpected(nConductors, nConductors);
+	CExpected.UseExternalData(CExpectedData, nConductors, nConductors);
+	CExpected *= 1e-12;
 
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 

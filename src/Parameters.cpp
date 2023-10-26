@@ -41,7 +41,7 @@ DenseMatrix toDenseMatrix(const std::vector<std::vector<double>>& v)
     return r;
 }
 
-Parameters::Parameters(const json& j)
+PULParameters::PULParameters(const json& j)
 {
     if (!j.contains("C") || !j.contains("L")) {
         throw std::runtime_error("JSON does not contain C and/or L.");
@@ -50,15 +50,14 @@ Parameters::Parameters(const json& j)
     L = toDenseMatrix(j["L"]);
 }
 
-bool Parameters::operator==(const Parameters& rhs) const
-{
-    
+bool PULParameters::operator==(const PULParameters& rhs) const
+{ 
     return
         toVecVec(C) == toVecVec(rhs.C) &&
         toVecVec(L) == toVecVec(rhs.L);
 }
 
-DenseMatrix Parameters::getCapacitiveCouplingCoefficients() const
+DenseMatrix PULParameters::getCapacitiveCouplingCoefficients() const
 {
     DenseMatrix r(C.NumRows(), C.NumCols());
     for (auto i{ 0 }; i < C.NumRows(); ++i) {
@@ -70,7 +69,7 @@ DenseMatrix Parameters::getCapacitiveCouplingCoefficients() const
     return r;
 }
 
-json Parameters::toJSON() const
+json PULParameters::toJSON() const
 {
     json res;
     res["C"] = toVecVec(C);
@@ -78,7 +77,7 @@ json Parameters::toJSON() const
     return res;
 }
 
-void Parameters::saveToJSONFile(const std::string& filename) const
+void PULParameters::saveToJSONFile(const std::string& filename) const
 {
     std::ofstream ofs(filename);
     auto j{ toJSON() };

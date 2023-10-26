@@ -1,0 +1,3 @@
+[submodule "external/mfem-geg"]
+	path = external/mfem-geg
+	url = git@github.com:opensemba/mfem.git
