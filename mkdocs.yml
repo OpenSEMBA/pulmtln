@@ -1,0 +1,7 @@
+site_name: OpenSemba/pulmtln
+theme: readthedocs
+
+nav: 
+  - OpenSemba Documentation: 'Doc.md'
+
+
