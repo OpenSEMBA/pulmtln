@@ -7,10 +7,9 @@ on:
   push:
     branches:
       - master
-      - dev
   pull_request:
-      - master
-  
+  workflow_dispatch:
+
 env:
   PULMTLN_TOP_DIR: pulmtln
   MFEM_TOP_DIR: mfem
