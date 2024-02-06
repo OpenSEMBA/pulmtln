@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.21)
 
 set(LIBRARY_NAME "pulmtln")
 message(STATUS "Creating build system for ${LIBRARY_NAME}")
