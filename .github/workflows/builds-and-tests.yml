@@ -7,9 +7,10 @@ on:
   push:
     branches:
       - master
+      - dev
   pull_request:
-  workflow_dispatch:
-
+      - master
+  
 env:
   PULMTLN_TOP_DIR: pulmtln
   MFEM_TOP_DIR: mfem
@@ -41,7 +42,7 @@ jobs:
       uses: lukka/get-cmake@latest
 
     - name: Setup vcpkg (it does not install any package yet)
-      uses: lukka/run-vcpkg@latest
+      uses: lukka/run-vcpkg@v11
       with:
         vcpkgJsonGlob: 'pulmtln/vcpkg.json'
 
