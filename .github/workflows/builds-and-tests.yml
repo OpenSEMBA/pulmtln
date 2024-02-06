@@ -41,9 +41,8 @@ jobs:
       uses: lukka/get-cmake@latest
 
     - name: Setup vcpkg (it does not install any package yet)
-      uses: lukka/run-vcpkg@v11
+      uses: lukka/run-vcpkg@latest
       with:
-        vcpkgGitCommitId: '167a402bd4a678e05eb5989a3fe9107ad4f75522'
         vcpkgJsonGlob: 'pulmtln/vcpkg.json'
 
     - name: cache MFEM 
