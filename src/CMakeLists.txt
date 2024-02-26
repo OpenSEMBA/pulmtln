@@ -19,6 +19,6 @@ add_library(${LIBRARY_NAME} STATIC
 	"Model.cpp"
 	"Parameters.cpp" 
 	"DirectedGraph.cpp"
-	"Domain.cpp")
+	"Domain.cpp" "pulmtln.cpp")
 
 target_link_libraries(${LIBRARY_NAME} mfem nlohmann_json Boost::graph)

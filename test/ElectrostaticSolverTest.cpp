@@ -218,6 +218,41 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 
 }
 
+TEST_F(ElectrostaticSolverTest, floating_conductor)
+{
+	auto m{ Mesh::MakeCartesian2D(16, 16, Element::QUADRILATERAL, 1.0, 1.0) };
+	for (auto i{ 0 }; i < m.GetNE(); ++i) {
+		auto center{ getBaricenterOfElement(m, i) };
+		if (center[1] > 0.25 && center[1] < 0.75) {
+			m.SetAttribute(i, 2);
+		}
+	}
+	m.Finalize();
+	m.SetAttributes();
+
+	SolverParameters p;
+	p.dirichletBoundaries = { {
+		{1, 1.0}, // bottom boundary.
+		{3, 0.0}, // top boundary.
+	} };
+	p.domainPermittivities = { {{2, 4000.0}} };
+
+	ElectrostaticSolver s{ m, p };
+	s.Solve();
+
+	exportSolution(s, "floating_conductor");
+
+	//const double aTol{ 1e-4 };
+	//const double rTol{ 1e-5 };  // 0.001%
+
+	//EXPECT_NEAR(0.0, s.totalChargeFromRho(), aTol);
+	//EXPECT_NEAR(0.0, s.totalCharge(), aTol);
+
+	//EXPECT_LE(relError(1.6, s.chargeInBoundary(1)), rTol);
+	//EXPECT_LE(relError(-1.6, s.chargeInBoundary(3)), rTol);
+
+}
+
 TEST_F(ElectrostaticSolverTest, empty_coax)
 {
 	// Coaxial case.

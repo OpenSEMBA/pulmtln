@@ -18,7 +18,7 @@ struct DriverOptions {
 	bool makeMatricesSymmetric{ false };
 	bool exportMatrices{ true };
 
-	std::string exportFolder{ "" };
+	std::string exportFolder{ "./" };
 };
 
 }

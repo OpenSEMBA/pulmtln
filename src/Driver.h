@@ -15,6 +15,7 @@ public:
 
     static Driver loadFromFile(const std::string& filename);
 
+    void setExportFolder(const std::string folder) { opts_.exportFolder = folder; }
 private:
     Model model_;
     DriverOptions opts_;

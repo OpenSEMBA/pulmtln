@@ -3,6 +3,7 @@
     "dependencies": [
       "gtest",
       "nlohmann-json",
-      "boost-graph"
+      "boost-graph",
+      "boost-program-options"
     ]
   }
