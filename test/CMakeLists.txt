@@ -18,7 +18,7 @@ add_executable(${PROJECT_NAME}_tests
 include_directories(./)
  
 target_link_libraries(${PROJECT_NAME}_tests 
-	pulmtln
+	pulmtln-core
 	GTest::gtest
 	GTest::gtest_main
 )

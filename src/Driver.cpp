@@ -200,7 +200,7 @@ PULParameters Driver::getMTLPUL() const
 	auto res{ buildPULParametersForModel(model_, opts_) };
 
 	if (opts_.exportMatrices) {
-		res.saveToJSONFile(opts_.exportFolder + "/matrices.pulmtln.out.json");
+		res.saveToJSONFile(opts_.exportFolder + "matrices.pulmtln.out.json");
 	}
 
 	return res;
@@ -224,6 +224,5 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 
 	return res;
 }
-
 
 }
