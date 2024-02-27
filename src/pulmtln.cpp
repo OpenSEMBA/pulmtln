@@ -45,5 +45,5 @@ int main(int argc, char* argv[])
 	driver.setExportFolder(folder);
 	driver.getMTLPUL();
 
-	std::cout << "-- pulmtln finished succesfully --"
+	std::cout << "-- pulmtln finished succesfully --" << std::endl;
 }
