@@ -77,11 +77,11 @@ Model Parser::readModel() const
 {
 	const auto& j{ json_.at("model") };
 
-	auto directory{
-		std::filesystem::path{ filename_}.parent_path().string()
-	};
-	auto gmshFilename{ 
-		directory + "/" + j.at("gmshFile").get<std::string>() 
+	auto directory = 
+		"./" + std::filesystem::path{filename_}.parent_path().string() + "/";
+
+	std::string gmshFilename{ 
+		directory + j.at("gmshFile").get<std::string>() 
 	} ;
 
 	return Model{
