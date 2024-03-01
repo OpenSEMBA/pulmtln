@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 
 	// Launcher.
 	std::string folder{ 
-		std::filesystem::path{ inputFilename }.parent_path().string() + "/"
+		"./" + std::filesystem::path{inputFilename}.parent_path().string() + "/"
 	};
 
 	auto driver{ pulmtln::Driver::loadFromFile(inputFilename) };
