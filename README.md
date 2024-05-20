@@ -23,14 +23,14 @@ Additionally needs:
 Compile mfem in external/mfem-geg
 
 ```shell
-    cmake -S external/mfem-geg -B mfem-build/rls
-    cmake --build mfem-build/rls  --config Release
+    cmake -S external/mfem-geg -B mfem-build/rls -DCMAKE_PREFIX_INSTALL=<path-to-mfem-install-dir>
+    cmake --build mfem-build/rls --target install --config Release
 ```
 
 Launch cmake in root.
 
 ```shell
-    cmake -S . -B pulmtln-build/rls -Dmfem_DIR=mfem-build/rls
+    cmake -S . -B pulmtln-build/rls -DMFEM_DIR=<path-to-mfem-install-dir> -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg/scripts/buildsystems/vcpkg.cmake>
     cmake --build pulmtln-build/rls --config Release
 ```
 
@@ -127,4 +127,4 @@ Below there is an example of the electric fields for the `five_wires` case visua
 This project is funded by the following grants:
 
 - HECATE - Hybrid ElectriC regional Aircraft distribution TEchnologies. HE-HORIZON-JU-Clean-Aviation-2022-01. European Union.
-- ESAMA - Métodos numéricos avanzados para el análisis de materiales eléctricos y magnéticos en aplicaciones aerospaciales. PID2022-137495OB-C31. Spain.
+- ESAMA - Mï¿½todos numï¿½ricos avanzados para el anï¿½lisis de materiales elï¿½ctricos y magnï¿½ticos en aplicaciones aerospaciales. PID2022-137495OB-C31. Spain.
