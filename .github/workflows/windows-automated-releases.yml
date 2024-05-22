@@ -121,4 +121,4 @@ jobs:
         prerelease: false
         title: "${{ steps.date.outputs.date }} Windows Pulmtln"
         files: |
-          pulmtln-windows.tar.gz
+          pulmtln/pulmtln-windows.tar.gz
