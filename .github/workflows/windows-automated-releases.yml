@@ -116,7 +116,7 @@ jobs:
     - name: Generating release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        repo_token: "${{ secrets.PULMTLN_SSH_KEY_2024 }}"
         automatic_release_tag: "latest-windows-pulmtln"
         prerelease: false
         title: "${{ steps.date.outputs.date }} Windows Pulmtln"
