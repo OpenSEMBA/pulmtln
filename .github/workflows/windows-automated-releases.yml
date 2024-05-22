@@ -107,7 +107,7 @@ jobs:
     - name: Create dist folder
       shell: bash
       run: |
-        .github/workflows/create-dist.bat
+        ${{ env.PULMTLN_TOP_DIR }}/.github/workflows/create-dist.bat
 
     - name: Create .tar file
       run: |
