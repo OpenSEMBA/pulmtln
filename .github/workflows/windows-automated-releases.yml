@@ -30,6 +30,8 @@ jobs:
 
     - name: checkout PULMTLN
       uses: actions/checkout@v4
+      with:
+        path: ${{ env.PULMTLN_TOP_DIR }}
 
     - name: getcmake
       uses: lukka/get-cmake@latest
