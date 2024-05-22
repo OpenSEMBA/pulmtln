@@ -110,7 +110,7 @@ jobs:
 
     - name: Create .tar file
       run: |
-        tar -czvf pulmtln-windows.tar.gz dist/*
+        cd pulmtln && tar -czvf pulmtln-windows.tar.gz dist/*
 
 
     - name: Generating release
