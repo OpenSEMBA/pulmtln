@@ -1,5 +1,8 @@
 name: "Windows-automated-releases"
 
+permissions:
+  actions: write
+
 on:
   push:
     branches:
@@ -116,7 +119,7 @@ jobs:
     - name: Generating release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
-        repo_token: "${{ secrets.PULMTLN_SSH_KEY_2024 }}"
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest-windows-pulmtln"
         prerelease: false
         title: "${{ steps.date.outputs.date }} Windows Pulmtln"
