@@ -127,4 +127,4 @@ Below there is an example of the electric fields for the `five_wires` case visua
 This project is funded by the following grants:
 
 - HECATE - Hybrid ElectriC regional Aircraft distribution TEchnologies. HE-HORIZON-JU-Clean-Aviation-2022-01. European Union.
-- ESAMA - M�todos num�ricos avanzados para el an�lisis de materiales el�ctricos y magn�ticos en aplicaciones aerospaciales. PID2022-137495OB-C31. Spain.
+- ESAMA - Metodos numericos avanzados para el analisis de materiales electricos y magneticos en aplicaciones aerospaciales. PID2022-137495OB-C31. Spain.
