@@ -23,14 +23,14 @@ Additionally needs:
 Compile mfem in external/mfem-geg
 
 ```shell
-    cmake -S external/mfem-geg -B mfem-build/rls
-    cmake --build mfem-build/rls  --config Release
+    cmake -S external/mfem-geg -B mfem-build/rls -DCMAKE_PREFIX_INSTALL=<path-to-mfem-install-dir>
+    cmake --build mfem-build/rls --target install --config Release
 ```
 
 Launch cmake in root.
 
 ```shell
-    cmake -S . -B pulmtln-build/rls -Dmfem_DIR=mfem-build/rls
+    cmake -S . -B pulmtln-build/rls -DMFEM_DIR=<path-to-mfem-install-dir> -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg/scripts/buildsystems/vcpkg.cmake>
     cmake --build pulmtln-build/rls --config Release
 ```
 
