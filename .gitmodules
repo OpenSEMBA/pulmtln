@@ -4,4 +4,4 @@
 	ignore = dirty
 [submodule "external/step2gmsh"]
 	path = external/step2gmsh
-	url = https://github.com/OpenSEMBA/step2gmsh.git
+	url = git@github.com:OpenSEMBA/step2gmsh.git
