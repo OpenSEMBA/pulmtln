@@ -23,7 +23,7 @@ Additionally needs:
 Compile mfem in external/mfem-geg
 
 ```shell
-    cmake -S external/mfem-geg -B mfem-build/rls -DCMAKE_PREFIX_INSTALL=<path-to-mfem-install-dir>
+    cmake -S external/mfem-geg -B mfem-build/rls -DCMAKE_INSTALL_PREFIX=<path-to-mfem-install-dir>
     cmake --build mfem-build/rls --target install --config Release
 ```
 
