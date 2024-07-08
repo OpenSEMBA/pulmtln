@@ -19,7 +19,7 @@ Array<int> AttrToMarker(const Mesh& mesh, const Array<int>& attrs)
     marker = 0;
 
     
-    MFEM_ASSERT(attrs.Max() <= max_attr, "Invalid attribute number present.");
+    MFEM_ASSERT(attrs.Max() <= maxAttr, "Invalid attribute number present.");
 
     if (attrs.Size() == 1 && attrs[0] == -1)
     {
@@ -259,7 +259,7 @@ void ElectrostaticSolver::Solve()
             DivEpsGrad, Phi, RHS);
 
         GSSmoother M(DivEpsGrad);
-        PCG(DivEpsGrad, M, RHS, Phi, opts_.printIterations, 200, 1e-12, 0.0);
+        PCG(DivEpsGrad, M, RHS, Phi, opts_.printIterations, 500, 1e-12, 0.0);
 
         divEpsGrad_->RecoverFEMSolution(Phi, *rhod_, *phi_);
     }
