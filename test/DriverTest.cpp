@@ -4,6 +4,7 @@
 
 #include "constants.h"
 #include "Driver.h"
+#include "ElectrostaticSolver.h"
 
 using namespace pulmtln;
 
@@ -111,6 +112,40 @@ TEST_F(DriverTest, two_wires_coax)
 	}
 }
 
+TEST_F(DriverTest, two_wires_coax_floating_potentials)
+{
+	const std::string CASE{ "two_wires_coax" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+		
+	const double rTol{ 2.5e-2 };
+
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+
+	const int N{ 2 };
+	ASSERT_EQ(N, fp.NumCols());
+	ASSERT_EQ(N, fp.NumRows());
+
+	// Solves problem and checks that charge is zero in the floating conductor.
+	{
+		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+		auto m{ Mesh::LoadFromFile(fn.c_str()) };
+
+		SolverParameters p;
+		p.dirichletBoundaries = {
+			{
+				{1, 0.0},     // Conductor 0 bdr (GND).
+				{2, fp(0,0)}, // Conductor 1 prescribed potential.
+				{3, fp(0,1)}, // Conductor 2 floating potential.
+			}
+		};
+
+		ElectrostaticSolver s{ m, p };
+		s.Solve();
+
+		EXPECT_NEAR(0.0, s.chargeInBoundary(3), 1e-8);
+	}
+}
+
 TEST_F(DriverTest, five_wires)
 {
 	// Five wires in round shield. 
@@ -148,7 +183,7 @@ TEST_F(DriverTest, five_wires)
 TEST_F(DriverTest, three_wires_ribbon)
 {
 	// Three wires ribbon open problem. 
-	// Comparison with Paul's book: 
+	// Comparison with Clayton Paul's book:  
 	// Analysis of multiconductor transmision lines. 2007.
 	// Sec. 5.2.3, p. 187.
 
@@ -277,3 +312,4 @@ TEST_F(DriverTest, agrawal1981)
 		}
 	}
 }
+

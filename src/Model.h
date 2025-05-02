@@ -8,14 +8,14 @@ namespace pulmtln {
 class Model {
 public:
 	enum class OpennessType {
-		open,
-		semiopen,
-		closed
+		open,     // The most external boundary is open.
+		semiopen, // The most external boundaries are open and a conductor.
+		closed    // The most external boundary is a conductor.
 	};
 
 	Model() = default;
 	Model(
-		mfem::Mesh& mesh, // Model gets ownership of mesh.
+		mfem::Mesh& mesh,          // Model gets ownership of mesh.
 		const Materials& materials // Stores only materials present in mesh.
 	);
 

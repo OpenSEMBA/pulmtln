@@ -95,13 +95,17 @@ SolverParameters buildSolverParameters(
 	return parameters;
 }
 
-mfem::DenseMatrix solveCMatrix(
+mfem::DenseMatrix getCMatrix(
 	const Model& model,
 	const DriverOptions& opts,
 	bool ignoreDielectrics = false)
 {
-	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
+	// PUL capacitance matrix as defined in:
+	//   Clayton Paul's book: Analysis of Multiconductor Transmission Lines
+	// Contains N-1 x N-1 entries for a problem of N conductors.
 
+	// Preconditions. 
+	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
 	if (conductors.size() < 2) {
 		throw std::runtime_error(
 			"The number of conductors must be greater than 2."
@@ -147,12 +151,15 @@ mfem::DenseMatrix solveCMatrix(
 	return C;
 }
 
-DenseMatrix solveLMatrix(const Model& model, const DriverOptions& opts)
+DenseMatrix getLMatrix(const Model& model, const DriverOptions& opts)
 {
+	// PUL inductance matrix as defined in:
+	//   Clayton Paul's book: Analysis of Multiconductor Transmission Lines
+	// Contains N-1 x N-1 entries for a problem of N conductors.
 	// Inductance matrix can be computed from the 
 	// capacitance obtained ignoring dielectrics as
 	//          L = mu0 * eps0 * C^{-1}
-	auto res{ solveCMatrix(model, opts, true) };
+	auto res{ getCMatrix(model, opts, true) };
 	res.Invert();
 	res *= MU0_NATURAL * EPSILON0_NATURAL;
 	return res;
@@ -181,10 +188,10 @@ PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& op
 {
 	PULParameters res;
 
-	res.C = solveCMatrix(m, opts);
+	res.C = getCMatrix(m, opts);
 	res.C *= EPSILON0_SI;
 
-	res.L = solveLMatrix(m, opts);
+	res.L = getLMatrix(m, opts);
 	res.L *= MU0_SI;
 
 	if (opts.makeMatricesSymmetric) {
@@ -225,7 +232,7 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 	return res;
 }
 
-mfem::DenseMatrix Driver::getFloatingPotentialsMatrix() const
+mfem::DenseMatrix Driver::getFloatingPotentials() const
 {
 	// For a problem with N conductors, returns a NxN matrix which has: 
 	// - a main diagonal of 1s, representing a prescribed voltage of 1 in the n-th conductor.
