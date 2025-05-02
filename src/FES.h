@@ -1,5 +1,6 @@
 #pragma once
 
+#define MFEM_USE_DOUBLE
 #include "mfem.hpp"
 
 #include <cstddef>

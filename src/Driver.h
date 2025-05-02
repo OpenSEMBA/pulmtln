@@ -12,6 +12,7 @@ public:
     
     PULParameters getMTLPUL() const;
     PULParametersByDomain getMTLPULByDomains() const;
+    mfem::DenseMatrix getFloatingPotentialsMatrix() const;
 
     static Driver loadFromFile(const std::string& filename);
 

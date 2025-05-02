@@ -96,7 +96,7 @@ ElectrostaticSolver::ElectrostaticSolver(
         parameters.dirichletBoundaries.getAttributesAsArray()
     );
 
-    // Setup various coefficients
+    // Setup domain permittivity coefficients.
     if (parameters_.domainPermittivities.empty()) {
         epsCoef_ = new ConstantCoefficient(EPSILON0_NATURAL);
     } else {
@@ -114,7 +114,7 @@ ElectrostaticSolver::ElectrostaticSolver(
     divEpsGrad_ = new BilinearForm(H1FESpace_);
     divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
 
-
+    // Setup open regions.
     std::unique_ptr<Coefficient> openRegionCoeff;
     if (!parameters.openBoundaries.empty()) {
         open_bdr_ = AttrToMarker(*mesh_, toArray(parameters.openBoundaries));
@@ -225,15 +225,12 @@ void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
 
 void ElectrostaticSolver::Solve()
 {
-    // Initialize the surface charge density
-    if (sigma_src_)
-    {
-        *sigma_src_ = 0.0;
-        applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
-        h1SurfMass_->AddMult(*sigma_src_, *rhod_);
-    }
+    // Initialize the surface charge density (Neumann boundaries).
+    *sigma_src_ = 0.0;
+    applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
+    h1SurfMass_->AddMult(*sigma_src_, *rhod_);
     
-    // Computes phi.
+    // Solves phi (electrostatic potential).
     *phi_ = 0.0; 
     {
         auto dbcs{ parameters_.dirichletBoundaries.getAttributesAsArray() };

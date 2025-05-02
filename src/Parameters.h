@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mfem.hpp>
+#include <FES.h>
 #include <nlohmann/json.hpp>
 
 #include "Domain.h"

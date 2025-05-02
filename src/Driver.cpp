@@ -225,4 +225,17 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 	return res;
 }
 
+mfem::DenseMatrix Driver::getFloatingPotentialsMatrix() const
+{
+	// For a problem with N conductors, returns a NxN matrix which has: 
+	// - a main diagonal of 1s, representing a prescribed voltage of 1 in the n-th conductor.
+	// - the off-diagonal terms are the voltages at the other conductors when they are assumed to be floating.
+
+	mfem::DenseMatrix res;
+
+
+
+	return res;
+}
+
 }
