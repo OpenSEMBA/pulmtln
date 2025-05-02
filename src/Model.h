@@ -23,6 +23,7 @@ public:
 	const mfem::Mesh* getMesh() const { return mesh_.get(); }
 
 	const Materials& getMaterials() const { return materials_; }
+	std::size_t numberOfConductors() const;
 	
 	void setGroundConductorId(MaterialId id) { groundConductorId_ = id; }
 	MaterialId getGroundConductorId() const { return groundConductorId_; }

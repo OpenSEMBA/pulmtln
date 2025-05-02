@@ -142,6 +142,10 @@ TEST_F(DriverTest, two_wires_coax_floating_potentials)
 		ElectrostaticSolver s{ m, p };
 		s.Solve();
 
+		// For debugging.
+		ParaViewDataCollection pd{ "two_wires_coax_floating_potential", s.getMesh()};
+		s.writeParaViewFields(pd);
+
 		EXPECT_NEAR(0.0, s.chargeInBoundary(3), 1e-8);
 	}
 }

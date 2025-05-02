@@ -86,6 +86,11 @@ bool elementsFormOpenLoops(const std::vector<const Element*>& elems)
 	return determineClosedLoops(elems).size() != elems.size();
 }
 
+std::size_t Model::numberOfConductors() const
+{
+	return materials_.buildNameToAttrMapFor<PEC>().size();
+}
+
 Model::OpennessType Model::determineOpenness() const
 {
 	assert(materials_.openBoundaries.size() <= 1);

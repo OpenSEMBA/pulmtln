@@ -232,17 +232,65 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 	return res;
 }
 
-mfem::DenseMatrix Driver::getFloatingPotentials() const
+mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) const
 {
-	// For a problem with N conductors, returns a NxN matrix which has: 
+	// For an open-problem with N conductors, returns a NxN matrix which has: 
 	// - a main diagonal of 1s, representing a prescribed voltage of 1 in the n-th conductor.
 	// - the off-diagonal terms are the voltages at the other conductors when they are assumed to be floating.
 
-	mfem::DenseMatrix res;
+	// For closed and semi-open problems with N conductors, returns a N-1 x N-1 matrix and assumes that conductor 0 has 
+	// alway a prescribed potential of zero.
 
+	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	if (conductors.size() == 1) {
+		mfem::DenseMatrix res(1,1);
+		res = 1.0;
+		return res;
+	}
 
+	mfem::DenseMatrix C{ getCMatrix(model_, opts_, ignoreDielectrics) };
+	const auto N = conductors.size();
+	
+	switch (model_.determineOpenness()) {
+	case Model::OpennessType::closed:
+		{
+			mfem::DenseMatrix res(N - 1, N - 1);
 
-	return res;
+			for (int i{ 0 }; i < res.NumRows(); ++i) {
+				// Forms system of equations to determine floating potentials. 
+				// 
+				// For prescribed V_1 = 1.0 we have C V = Q
+				//    [ C ] [1.0, V_2, V_3, ...]^T = [Q_1, 0.0, 0.0, ...]
+				// 
+				// which converts can be converted to A x = b as:
+				//    [ -1.0, C_{1,2}, ... ] [] = [-C_{1,1}, 0.0, 0.0, ...] 
+
+				mfem::DenseMatrix A{ C };
+				A(i, i) = -1.0;
+				mfem::Vector b(N - 1), x(N - 1);
+				b = 0.0;
+				b(i) = -C(i, i);
+
+				mfem::DenseMatrixInverse Ainv(A);
+				Ainv.Mult(b, x);
+
+				for (int j{ 0 }; j < res.NumCols(); ++j) {
+					if (i == j) {
+						res(i, i) = 1.0;
+					}
+					else {
+						res(i, j) = x(j);
+					}
+				}
+			}
+
+			return res;
+		}
+	default:
+		{
+			throw std::runtime_error("Not implemented.");
+		}
+	}
 }
 
 }
