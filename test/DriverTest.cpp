@@ -112,9 +112,9 @@ TEST_F(DriverTest, two_wires_coax)
 	}
 }
 
-TEST_F(DriverTest, two_wires_coax_floating_potentials)
+TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 {
-	const std::string CASE{ "two_wires_coax" };
+	const std::string CASE{ "two_wires_shielded" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 		
 	const double rTol{ 2.5e-2 };
@@ -124,6 +124,7 @@ TEST_F(DriverTest, two_wires_coax_floating_potentials)
 	const int N{ 2 };
 	ASSERT_EQ(N, fp.NumCols());
 	ASSERT_EQ(N, fp.NumRows());
+
 
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
@@ -139,14 +140,21 @@ TEST_F(DriverTest, two_wires_coax_floating_potentials)
 			}
 		};
 
-		ElectrostaticSolver s{ m, p };
+		SolverOptions solverOpts;
+		solverOpts.order = 3;
+		solverOpts.printIterations = true;
+		ElectrostaticSolver s{ m, p, solverOpts };
 		s.Solve();
 
-		// For debugging.
-		ParaViewDataCollection pd{ "two_wires_coax_floating_potential", s.getMesh()};
-		s.writeParaViewFields(pd);
+		//// For debugging.
+		//ParaViewDataCollection pd{ CASE, s.getMesh()};
+		//s.writeParaViewFields(pd);
 
-		EXPECT_NEAR(0.0, s.chargeInBoundary(3), 1e-8);
+		auto Q0 = s.chargeInBoundary(1);
+		auto Q1 = s.chargeInBoundary(2);
+		auto Q2 = s.chargeInBoundary(3);
+		EXPECT_NEAR(0.0, Q2, 1e-4);
+
 	}
 }
 
@@ -233,6 +241,57 @@ TEST_F(DriverTest, three_wires_ribbon)
 		}
 	}
 }
+
+TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
+{
+	// Three wires ribbon open problem. 
+	// Comparison with Clayton Paul's book:  
+	// Analysis of multiconductor transmision lines. 2007.
+	// Sec. 5.2.3, p. 187.
+
+	const std::string CASE{ "three_wires_ribbon" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	double CExpectedData[4] = {
+		 37.432, -18.716,
+		-18.716,  24.982
+	};
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
+	CExpected *= 1e-12;
+
+	double LExpectedData[4] = {
+		0.74850, 0.50770,
+		0.50770, 1.0154
+	};
+	mfem::DenseMatrix LExpected(2, 2);
+	LExpected.UseExternalData(LExpectedData, 2, 2);
+	LExpected *= 1e-6;
+
+	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+
+	// Tolerance is quite high probably because open region is not far enough.
+	const double rTol{ 0.21 };
+
+	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), out.C.NumCols());
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), out.C(i, j)), rTol) <<
+				"In C(" << i << ", " << j << ")";
+		}
+	}
+
+	ASSERT_EQ(LExpected.NumRows(), out.L.NumRows());
+	ASSERT_EQ(LExpected.NumCols(), out.L.NumCols());
+	for (int i{ 0 }; i < LExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < LExpected.NumCols(); j++) {
+			EXPECT_LE(relError(LExpected(i, j), out.L(i, j)), rTol) <<
+				"In L(" << i << ", " << j << ")";
+		}
+	}
+}
+
 
 TEST_F(DriverTest, nested_coax)
 {

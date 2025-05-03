@@ -248,7 +248,11 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 		return res;
 	}
 
-	mfem::DenseMatrix C{ getCMatrix(model_, opts_, ignoreDielectrics) };
+	mfem::DenseMatrix C{ 
+		symmetrizeMatrix(
+			getCMatrix(model_, opts_, ignoreDielectrics)
+		)};
+
 	const auto N = conductors.size();
 	
 	switch (model_.determineOpenness()) {
@@ -258,19 +262,28 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 
 			for (int i{ 0 }; i < res.NumRows(); ++i) {
 				// Forms system of equations to determine floating potentials. 
+				// Q1 = C11*V1 + C21*V2 + ....
+				// For prescribed V_1 = 1.0 we have C^T V = Q
+				//    [ C ] [1.0, V_2, ...]^T = [Q_1, 0.0, ...]
 				// 
-				// For prescribed V_1 = 1.0 we have C V = Q
-				//    [ C ] [1.0, V_2, V_3, ...]^T = [Q_1, 0.0, 0.0, ...]
-				// 
-				// which converts can be converted to A x = b as:
-				//    [ -1.0, C_{1,2}, ... ] [] = [-C_{1,1}, 0.0, 0.0, ...] 
+				// which converts can be converted to A x = b 
 
 				mfem::DenseMatrix A{ C };
-				A(i, i) = -1.0;
-				mfem::Vector b(N - 1), x(N - 1);
-				b = 0.0;
-				b(i) = -C(i, i);
+				for (int k{ 0 }; k < N - 1; k++) {
+					if (i == k) {
+						A(k, i) = -1.0;
+					}
+					else {
+						A(k, i) = 0.0;
+					}
+				}
 
+				mfem::Vector b(N - 1);
+				for (int k{ 0 }; k < N - 1; k++) {
+					b(k) = -C(k,i);
+				}
+
+				mfem::Vector x(N - 1);
 				mfem::DenseMatrixInverse Ainv(A);
 				Ainv.Mult(b, x);
 

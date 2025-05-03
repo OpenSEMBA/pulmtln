@@ -276,7 +276,7 @@ void ElectrostaticSolver::Solve()
         hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
 
         GSSmoother M(MassHDiv);
-        PCG(MassHDiv, M, ED, D, opts_.printIterations, 200, 1e-12);
+        PCG(MassHDiv, M, ED, D, opts_.printIterations, 500, 1e-12);
         
         hDivMass_->RecoverFEMSolution(D, ed, *d_);
     }
