@@ -347,7 +347,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 	EXPECT_LE(relError(C12Expected, s.chargeInBoundary(3) / V), rTol);
 }
 
-TEST_F(ElectrostaticSolverTest, two_wires_open)
+TEST_F(ElectrostaticSolverTest, two_wires_open_capacitance)
 {
 	const std::string CASE{ "two_wires_open" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
@@ -385,6 +385,44 @@ TEST_F(ElectrostaticSolverTest, two_wires_open)
 
 	double CComputedEnergy{ 2.0 * s.totalEnergy() / (4.0*V*V) };
 	EXPECT_LE(relError(CExpected, CComputedEnergy), rTol);
+}
+
+TEST_F(ElectrostaticSolverTest, two_wires_open_charges)
+{
+	const std::string CASE{ "two_wires_open" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+	auto m{ Mesh::LoadFromFile(fn.c_str()) };
+
+	const double V{ 1.0 }; // Voltage
+	SolverParameters p;
+	p.dirichletBoundaries = { {
+		{1,  V}, // Conductor 1 bdr.
+		{2,  V}, // Conductor 2 bdr.
+	} };
+	p.openBoundaries = { 3 };
+
+	ElectrostaticSolver s{ m, p };
+	s.Solve();
+
+	exportSolution(s, getTestCaseName());
+
+
+	auto Q1{ s.chargeInBoundary(1) };
+	auto Q2{ s.chargeInBoundary(2) };
+	auto Qb{ s.chargeInBoundary(3) };
+
+	auto Vb{ s.averagePotentialInBoundary(3) };
+	auto Vd = V - Vb;
+
+	EXPECT_NEAR(0.0, Q1 + Q2 + Qb, 1e-3);
+	
+	auto CFromEnergy{ 2.0 * s.totalEnergy() / (Vd * Vd) };
+	
+	auto C1b = Q1 / Vd;
+	auto C2b = Q2 / Vd;
+	auto CFromCharge{ C1b + C2b };
+
+	EXPECT_LE(relError(CFromEnergy, CFromCharge), 1e-3);
 }
 
 TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
