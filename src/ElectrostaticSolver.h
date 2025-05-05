@@ -35,6 +35,7 @@ public:
     double totalChargeFromRho() const;
     double totalCharge() const;
     double chargeInBoundary(int bdrAttribute) const;
+    double averagePotentialInBoundary(int bdrAttribute) const;
     double totalEnergy() const;
 
     Mesh* getMesh() { return mesh_; }

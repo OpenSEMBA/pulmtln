@@ -303,15 +303,15 @@ double ElectrostaticSolver::totalCharge() const
     return rt_surf_int(*d_);
 }
 
-std::unique_ptr<LinearForm> buildSurfaceIntegratorForBoundary(RT_FESpace* fes, int bdrAttribute)
+std::unique_ptr<LinearForm> buildHDivBoundaryIntegrator(RT_FESpace* fes, int bdrAttribute)
 {
     mfem::Array<int> attr(1);
     attr[0] = bdrAttribute;
 
     Array<Coefficient*> coefs(attr.Size());
-    ConstantCoefficient one{ -1.0 };
+    ConstantCoefficient minusOne{ -1.0 };
     for (int i = 0; i < coefs.Size(); i++) {
-        coefs[i] = &one;
+        coefs[i] = &minusOne;
     }
     PWCoefficient pwcoeff{ attr, coefs };
 
@@ -322,10 +322,45 @@ std::unique_ptr<LinearForm> buildSurfaceIntegratorForBoundary(RT_FESpace* fes, i
     return surf_int;
 }
 
+std::unique_ptr<LinearForm> buildH1BoundaryIntegrator(H1_FESpace* fes, int bdrAttribute)
+{
+    mfem::Array<int> attr(1);
+    attr[0] = bdrAttribute;
+
+    Array<Coefficient*> coefs(attr.Size());
+    ConstantCoefficient one{ 1.0 };
+    for (int i = 0; i < coefs.Size(); i++) {
+        coefs[i] = &one;
+    }
+    PWCoefficient pwcoeff{ attr, coefs };
+
+    auto surf_int = std::make_unique<LinearForm>(fes);
+    surf_int->AddBoundaryIntegrator(new BoundaryLFIntegrator(pwcoeff));
+    surf_int->Assemble();
+
+    return surf_int;
+}
+
+
 double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
 {
-    auto surf_int{ buildSurfaceIntegratorForBoundary(HDivFESpace_, bdrAttribute) };
+    auto surf_int{ buildHDivBoundaryIntegrator(HDivFESpace_, bdrAttribute) };
     return (*surf_int)(*d_);
+}
+
+double ElectrostaticSolver::averagePotentialInBoundary(int bdrAttribute) const
+{
+    auto surf_int{ buildH1BoundaryIntegrator(H1FESpace_, bdrAttribute)};
+
+    GridFunction ones(H1FESpace_);
+    ones = 1.0;
+    
+    auto totalPotential = (*surf_int)(*phi_);
+    auto totalLength = (*surf_int)(ones);
+
+    auto avPotential = totalPotential / totalLength;
+
+    return avPotential;
 }
 
 double ElectrostaticSolver::totalEnergy() const

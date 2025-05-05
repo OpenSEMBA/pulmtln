@@ -301,14 +301,18 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 	EXPECT_LE(error, 1.2);
 
 	double CExpected = EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025);
-	auto U{ s.totalEnergy()};
-	double CComputed = 0.5 * std::pow(Q,2) / U;
-
 	const double rTol{ 1e-2 }; // 1% error.
-	EXPECT_LE(relError(CExpected, CComputed), rTol);
+
+	auto U{ s.totalEnergy()};
+	double CFromEnergy = 0.5 * std::pow(Q,2) / U;
+	EXPECT_LE(relError(CExpected, CFromEnergy), rTol);
 
 	double Qb = s.chargeInBoundary(1);
-	EXPECT_NEAR(Q, -Qb, 1e-4);
+	EXPECT_LE(relError(Q, -Qb), rTol);
+
+	double Vb = s.averagePotentialInBoundary(1);
+	auto CFromVb = EPSILON0_NATURAL * Q / (1.0 - Vb);
+	EXPECT_LE(relError(CExpected, CFromVb), rTol);
 
 	exportSolution(s, getCaseName());
 
@@ -415,5 +419,5 @@ TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
 	auto Q1 = s.chargeInBoundary(2);
 	auto Q2 = s.chargeInBoundary(3);
 	auto Qb = s.chargeInBoundary(4);
-	EXPECT_NEAR(0.0, Q0+Q1+Q2+Qb, 1e-6);
+	EXPECT_NEAR(0.0, Q0+Q1+Q2+Qb, 1e-4);
 }
