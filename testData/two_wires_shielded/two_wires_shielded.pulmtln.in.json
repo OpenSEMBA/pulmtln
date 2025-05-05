@@ -2,7 +2,8 @@
   "analysis": {
     "order": 3,
     "makeMatricesSymmetric": true,
-    "exportParaViewSolution": true
+    "exportParaViewSolution": true,
+    "exportFolder": "Results/two_wires_shielded/"
   },
   "model": {
     "materials": {

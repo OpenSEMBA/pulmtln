@@ -84,13 +84,7 @@ SolverParameters buildSolverParameters(
 	}
 	parameters.domainPermittivities = domainToEpsr;
 	parameters.openBoundaries = getAttributesInMap(mats.buildNameToAttrMapFor<OpenBoundary>());
-
-	if (model.determineOpenness() == Model::OpennessType::open) {
-		parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMapFor<PEC>(), -1.0);
-	}
-	else {
-		parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMapFor<PEC>(), 0.0);
-	}
+	parameters.dirichletBoundaries = buildAttrToValueMap(mats.buildNameToAttrMapFor<PEC>(), 0.0);
 
 	return parameters;
 }
@@ -98,26 +92,42 @@ SolverParameters buildSolverParameters(
 mfem::DenseMatrix getCMatrix(
 	const Model& model,
 	const DriverOptions& opts,
-	bool ignoreDielectrics = false)
+	bool ignoreDielectrics = false,
+	bool includeGround = false)
 {
 	// PUL capacitance matrix as defined in:
 	//   Clayton Paul's book: Analysis of Multiconductor Transmission Lines
-	// Contains N-1 x N-1 entries for a problem of N conductors.
+	// If ground is not included, contains N-1 x N-1 entries for a problem of N conductors.
+	// if ground is included, then N x N.
 
 	// Preconditions. 
 	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
-	if (conductors.size() < 2) {
+	if (conductors.size() == 0) {
 		throw std::runtime_error(
-			"The number of conductors must be greater than 2."
+			"At least one conductor needed."
+		);
+	}
+	if (conductors.size() == 1 && !includeGround) {
+		throw std::runtime_error(
+			"The number of conductors must be at least 2 if not including ground."
 		);
 	}
 
+	int CSize;
+	if (includeGround) {
+		CSize = (int)conductors.size();
+	}
+	else {
+		CSize = (int)conductors.size() - 1;
+	}
+	mfem::DenseMatrix C(CSize);
+
 	// Solves a electrostatic problem for each conductor besides the
-	// ground conductor
-	mfem::DenseMatrix C((int)conductors.size() - 1);
 	int row{ 0 };
 	for (const auto& [nameI, bdrAttI] : conductors) {
-		if (Materials::getNumberContainedInName(nameI) == model.getGroundConductorId()) {
+		auto condId = Materials::getNumberContainedInName(nameI);
+		if (condId == model.getGroundConductorId() 
+			&& !includeGround) {
 			continue;
 		}
 
@@ -132,16 +142,14 @@ mfem::DenseMatrix getCMatrix(
 		// Fills row
 		int col{ 0 };
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			if (Materials::getNumberContainedInName(nameJ) == model.getGroundConductorId()) {
+			if (Materials::getNumberContainedInName(nameJ) == model.getGroundConductorId() 
+				&& !includeGround) {
 				continue;
 			}
-			auto charge{ s.chargeInBoundary(conductors.at(nameJ)) };
-			if (model.determineOpenness() == Model::OpennessType::open) {
-				C(row, col) = charge / 2.0;
-			}
-			else {
-				C(row, col) = charge;
-			}
+			
+			// C_ij = Q_i / V_j, V_j is always 1.0
+			C(row, col) = s.chargeInBoundary(conductors.at(nameJ)); 
+			
 			col++;
 		}
 
@@ -232,6 +240,7 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 	return res;
 }
 
+
 mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) const
 {
 	// For an open-problem with N conductors, returns a NxN matrix which has: 
@@ -248,62 +257,60 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 		return res;
 	}
 
-	mfem::DenseMatrix C{ 
-		symmetrizeMatrix(
-			getCMatrix(model_, opts_, ignoreDielectrics)
-		)};
 
-	const auto N = conductors.size();
+	bool includeGround;
+	auto openness{ model_.determineOpenness() };
+	if (openness == Model::OpennessType::closed) {
+		includeGround = false;
+	}
+	else {
+		includeGround = true;
+	}
+
+	mfem::DenseMatrix C = symmetrizeMatrix(
+		getCMatrix(model_, opts_, ignoreDielectrics, includeGround));
+	const int N = C.NumRows();
 	
-	switch (model_.determineOpenness()) {
-	case Model::OpennessType::closed:
-		{
-			mfem::DenseMatrix res(N - 1, N - 1);
+	mfem::DenseMatrix res(N,N);
+	
+	for (int i{ 0 }; i < N; ++i) {
+		// Forms system of equations to determine floating potentials. 
+		// Q1 = C11*V1 + C21*V2 + ....
+		// For prescribed V_1 = 1.0 we have C V = Q
+		//    [ C ] [1.0, V_2, ...]^T = [Q_1, 0.0, ...]
+		// 
+		// which can be converted to A x = b with unknowns x = [Q_1, V_2, ...]^T
 
-			for (int i{ 0 }; i < res.NumRows(); ++i) {
-				// Forms system of equations to determine floating potentials. 
-				// Q1 = C11*V1 + C21*V2 + ....
-				// For prescribed V_1 = 1.0 we have C^T V = Q
-				//    [ C ] [1.0, V_2, ...]^T = [Q_1, 0.0, ...]
-				// 
-				// which converts can be converted to A x = b 
-
-				mfem::DenseMatrix A{ C };
-				for (int k{ 0 }; k < N - 1; k++) {
-					if (i == k) {
-						A(k, i) = -1.0;
-					}
-					else {
-						A(k, i) = 0.0;
-					}
-				}
-
-				mfem::Vector b(N - 1);
-				for (int k{ 0 }; k < N - 1; k++) {
-					b(k) = -C(k,i);
-				}
-
-				mfem::Vector x(N - 1);
-				mfem::DenseMatrixInverse Ainv(A);
-				Ainv.Mult(b, x);
-
-				for (int j{ 0 }; j < res.NumCols(); ++j) {
-					if (i == j) {
-						res(i, i) = 1.0;
-					}
-					else {
-						res(i, j) = x(j);
-					}
-				}
+		mfem::DenseMatrix A{ C };
+		for (int k{ 0 }; k < N; k++) {
+			if (i == k) {
+				A(k, i) = -1.0;
 			}
-
-			return res;
+			else {
+				A(k, i) = 0.0;
+			}
 		}
-	default:
-		{
-			throw std::runtime_error("Not implemented.");
+
+		mfem::Vector b(N);
+		for (int k{ 0 }; k < N; k++) {
+			b(k) = -C(k,i);
+		}
+
+		mfem::Vector x(N);
+		mfem::DenseMatrixInverse Ainv(A);
+		Ainv.Mult(b, x);
+
+		for (int j{ 0 }; j < res.NumCols(); ++j) {
+			if (i == j) {
+				res(i, i) = 1.0;
+			}
+			else {
+				res(i, j) = x(j);
+			}
 		}
 	}
+
+	return res;
 }
 
 }

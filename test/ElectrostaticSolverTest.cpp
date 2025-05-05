@@ -218,41 +218,6 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 
 }
 
-TEST_F(ElectrostaticSolverTest, floating_conductor)
-{
-	auto m{ Mesh::MakeCartesian2D(16, 16, Element::QUADRILATERAL, 1.0, 1.0) };
-	for (auto i{ 0 }; i < m.GetNE(); ++i) {
-		auto center{ getBaricenterOfElement(m, i) };
-		if (center[1] > 0.25 && center[1] < 0.75) {
-			m.SetAttribute(i, 2);
-		}
-	}
-	m.Finalize();
-	m.SetAttributes();
-
-	SolverParameters p;
-	p.dirichletBoundaries = { {
-		{1, 1.0}, // bottom boundary.
-		{3, 0.0}, // top boundary.
-	} };
-	p.domainPermittivities = { {{2, 4000.0}} };
-
-	ElectrostaticSolver s{ m, p };
-	s.Solve();
-
-	exportSolution(s, "floating_conductor");
-
-	//const double aTol{ 1e-4 };
-	//const double rTol{ 1e-5 };  // 0.001%
-
-	//EXPECT_NEAR(0.0, s.totalChargeFromRho(), aTol);
-	//EXPECT_NEAR(0.0, s.totalCharge(), aTol);
-
-	//EXPECT_LE(relError(1.6, s.chargeInBoundary(1)), rTol);
-	//EXPECT_LE(relError(-1.6, s.chargeInBoundary(3)), rTol);
-
-}
-
 TEST_F(ElectrostaticSolverTest, empty_coax)
 {
 	// Coaxial case.
@@ -342,6 +307,11 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 	const double rTol{ 1e-2 }; // 1% error.
 	EXPECT_LE(relError(CExpected, CComputed), rTol);
 
+	double Qb = s.chargeInBoundary(1);
+	EXPECT_NEAR(Q, -Qb, 1e-4);
+
+	exportSolution(s, getCaseName());
+
 }
 
 TEST_F(ElectrostaticSolverTest, two_wires_coax)
@@ -411,4 +381,39 @@ TEST_F(ElectrostaticSolverTest, two_wires_open)
 
 	double CComputedEnergy{ 2.0 * s.totalEnergy() / (4.0*V*V) };
 	EXPECT_LE(relError(CExpected, CComputedEnergy), rTol);
+}
+
+TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
+{
+	// Three wires ribbon open problem. 
+	// Comparison with Clayton Paul's book:  
+	// Analysis of multiconductor transmision lines. 2007.
+	// Sec. 5.2.3, p. 187.
+
+	const std::string CASE{ "three_wires_ribbon" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+	auto m{ Mesh::LoadFromFile(fn.c_str()) };
+
+	SolverParameters p;
+	p.dirichletBoundaries = {
+		{
+			{1, 1.0}, // Conductor 0
+			{2, 0.0}, // Conductor 1
+			{3, 1.0}, // Conductor 2
+		}
+	};
+
+	SolverOptions solverOpts;
+	ElectrostaticSolver s{ m, p, solverOpts };
+	s.Solve();
+
+	// For debugging.
+	ParaViewDataCollection pd{ outFolder() + CASE + "_zero_net_charge", s.getMesh() };
+	s.writeParaViewFields(pd);
+
+	auto Q0 = s.chargeInBoundary(1);
+	auto Q1 = s.chargeInBoundary(2);
+	auto Q2 = s.chargeInBoundary(3);
+	auto Qb = s.chargeInBoundary(4);
+	EXPECT_NEAR(0.0, Q0+Q1+Q2+Qb, 1e-6);
 }
