@@ -316,7 +316,7 @@ mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions
 
 mfem::DenseMatrix floatingPotentialsForOpenCases(const mfem::DenseMatrix& C, const mfem::Vector& Cib)
 {
-	auto N = C.NumRows() + 1; // N is the total number of conductors.
+	auto N = C.NumRows(); // N is the total number of conductors.
 	if (Cib.Size() != N) {
 		throw std::runtime_error("Cib should have the size of the number of conductors.");
 	}
@@ -329,7 +329,7 @@ mfem::DenseMatrix floatingPotentialsForOpenCases(const mfem::DenseMatrix& C, con
 				Cexp(r, c) = 0.0;
 			}
 			else {
-				Cexp(r, c) = C(r, c);
+				Cexp(r, c) = std::abs(C(r, c));
 			}
 		}
 		Cexp(r, N) = Cib(r);
@@ -339,48 +339,38 @@ mfem::DenseMatrix floatingPotentialsForOpenCases(const mfem::DenseMatrix& C, con
 	}
 	Cexp(N, N) = 0.0;
 
-	
 	//  We must solve a system with N+1 unknowns once for each of the N conductors.
 	mfem::DenseMatrix res(N, N);
 	for (int i{ 0 }; i < N; ++i) {
-		mfem::DenseMatrix E(N+1, N+1);
-		E.Diag(-1.0, N+1);
-		for (int r{ 0 }; r < N + 1; ++r) {	
-			E(r, i) += 1.0;
-		}
-
 		mfem::DenseMatrix D(N + 1, N + 1);
-		mfem::Mult(C, E, D);
+		{
+			mfem::DenseMatrix E(N + 1, N + 1);
+			E.Diag(-1.0, N + 1);
+			for (int r{ 0 }; r < N + 1; ++r) {
+				E(r, i) += 1.0;
+			}
 
+			mfem::Mult(Cexp, E, D);
+		}
 
 		mfem::DenseMatrix A(N+1, N+1);
-		mfem::Vector b(N + 1);
-		
-
+		A = D;
 		for (int r{ 0 }; r < N + 1; ++r) {
-			// i-th row corresponds to the prescribed conductor. 
 			if (r == i) {
-				for (int c{ 0 }; c < N + 1; ++c) {
-					if (c == i) {
-						A(r, c) = 1.0;
-					}
-					else if (c == N) {
-						A(r, N) = Cib[i]; // i-th row, last column. 
-					}
-					else {
-						A()
-					}
-				} 
-				
+				A(r, i) = -1.0;
 			}
-			else if (r==N) { // last row is for floating.
-				
+			else if (r == N) {
+				A(r, i) = 1.0;
 			}
 			else {
-
+				A(r, i) = 0.0;
 			}
 		}
 
+		mfem::Vector b(N + 1);
+		for (int r{ 0 }; r < N + 1; ++r) {
+			b(r) = -D(r, i);
+		}
 
 		// Solvex system and fills result
 		mfem::Vector x(N+1);
@@ -419,15 +409,16 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 	}
 
 	
-	auto C{ symmetrizeMatrix(getCMatrix(model_, opts_, ignoreDielectrics)) };
 	
 	switch (model_.determineOpenness()) {
 	case Model::OpennessType::closed:
 	{
+		auto C{ symmetrizeMatrix(getCMatrix(model_, opts_, ignoreDielectrics)) };
 		return floatingPotentialsForClosedCases(C);
 	}
 	case Model::OpennessType::open:
 	{
+		auto C{ symmetrizeMatrix(getCMatrix(model_, opts_, ignoreDielectrics, true)) };
 		auto Cib{ getCapacitancesWithOpenBoundary(model_, opts_, ignoreDielectrics) };
 		return floatingPotentialsForOpenCases(C, Cib);
 	}

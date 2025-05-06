@@ -271,14 +271,18 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 		s.Solve();
 
 		// For debugging.
-		ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh()};
+		ParaViewDataCollection pd{ getTestCaseName() };
 		s.writeParaViewFields(pd);
 
 		auto Q0 = s.chargeInBoundary(1);
 		auto Q1 = s.chargeInBoundary(2);
 		auto Q2 = s.chargeInBoundary(3);
-		EXPECT_NEAR(0.0, Q1, 1e-4);
-		EXPECT_NEAR(0.0, Q2, 1e-4);
+		auto Qb = s.chargeInBoundary(4);
+
+		const double aTol{ 1e-4 };
+		EXPECT_NEAR(0.0, Q1, aTol);
+		EXPECT_NEAR(0.0, Q2, aTol);
+		EXPECT_NEAR(0.0, Q0 + Q1 + Q2 + Qb, aTol);
 	}
 }
 
