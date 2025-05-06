@@ -225,19 +225,19 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 {
 	PULParametersByDomain res;
 
-	auto idToDomain{ Domain::buildDomains(model_) };
+auto idToDomain{ Domain::buildDomains(model_) };
 
-	for (const auto& [id, domain] : idToDomain) {
-		auto globalMesh{ *model_.getMesh() };
-		res.domainToPUL[id] = buildPULParametersForModel(
-			Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
-			opts_
-		);
-	}
+for (const auto& [id, domain] : idToDomain) {
+	auto globalMesh{ *model_.getMesh() };
+	res.domainToPUL[id] = buildPULParametersForModel(
+		Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
+		opts_
+	);
+}
 
-	res.domainTree = DomainTree{ idToDomain };
+res.domainTree = DomainTree{ idToDomain };
 
-	return res;
+return res;
 }
 
 mfem::DenseMatrix floatingPotentialsForClosedCases(const mfem::DenseMatrix& C)
@@ -303,7 +303,7 @@ mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions
 	auto Vd = VPrescribed - Vb;
 
 	auto conductors = m.getMaterials().buildNameToAttrMapFor<PEC>();
-	
+
 	mfem::Vector res(conductors.size());
 	for (const auto& [name, attr] : conductors) {
 		auto condId = Materials::getNumberContainedInName(name);
@@ -320,15 +320,43 @@ mfem::DenseMatrix floatingPotentialsForOpenCases(const mfem::DenseMatrix& C, con
 	if (Cib.Size() != N) {
 		throw std::runtime_error("Cib should have the size of the number of conductors.");
 	}
-	
-	mfem::DenseMatrix res(N, N);
 
-	//  We must solve a system with N+1 unknowns once for each conductor.
+	// Build expanded capacitance matrix including conductor 0 and capacitance with boundary. 
+	mfem::DenseMatrix Cexp(N+1, N+1);
+	for (int r{ 0 }; r < N; ++r) {
+		for (int c{ 0 }; c < N; ++c) {
+			if (r == c) {
+				Cexp(r, c) = 0.0;
+			}
+			else {
+				Cexp(r, c) = C(r, c);
+			}
+		}
+		Cexp(r, N) = Cib(r);
+	}
+	for (int c{ 0 }; c < Cexp.NumCols() - 1; ++c) {
+		Cexp(N, c) = Cib(c);
+	}
+	Cexp(N, N) = 0.0;
+
+	
+	//  We must solve a system with N+1 unknowns once for each of the N conductors.
+	mfem::DenseMatrix res(N, N);
 	for (int i{ 0 }; i < N; ++i) {
-		// Substitute V_i by Q_i, e.g
-		// For a fixed voltage at conductor 0: [ Q_0, V_1, ..., V_{N-1}, V_b ].
+		mfem::DenseMatrix E(N+1, N+1);
+		E.Diag(-1.0, N+1);
+		for (int r{ 0 }; r < N + 1; ++r) {	
+			E(r, i) += 1.0;
+		}
+
+		mfem::DenseMatrix D(N + 1, N + 1);
+		mfem::Mult(C, E, D);
+
+
 		mfem::DenseMatrix A(N+1, N+1);
 		mfem::Vector b(N + 1);
+		
+
 		for (int r{ 0 }; r < N + 1; ++r) {
 			// i-th row corresponds to the prescribed conductor. 
 			if (r == i) {
@@ -390,17 +418,17 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 		return res;
 	}
 
-	bool includeGround;
 	
-	mfem::DenseMatrix C = symmetrizeMatrix(
-		getCMatrix(model_, opts_, ignoreDielectrics));
+	auto C{ symmetrizeMatrix(getCMatrix(model_, opts_, ignoreDielectrics)) };
 	
 	switch (model_.determineOpenness()) {
 	case Model::OpennessType::closed:
+	{
 		return floatingPotentialsForClosedCases(C);
+	}
 	case Model::OpennessType::open:
 	{
-		auto Cib = getCapacitancesWithOpenBoundary(model_, opts_, ignoreDielectrics);
+		auto Cib{ getCapacitancesWithOpenBoundary(model_, opts_, ignoreDielectrics) };
 		return floatingPotentialsForOpenCases(C, Cib);
 	}
 	default:
