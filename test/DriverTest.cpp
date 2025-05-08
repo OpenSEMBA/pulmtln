@@ -156,6 +156,47 @@ TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 	}
 }
 
+TEST_F(DriverTest, two_wires_open_floating_potentials)
+{
+	const std::string CASE{ "two_wires_open" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+
+	const int N{ 2 };
+	ASSERT_EQ(N, fp.NumCols());
+	ASSERT_EQ(N, fp.NumRows());
+
+	// Solves problem and checks that charge is zero in the floating conductor.
+	{
+		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+		auto m{ Mesh::LoadFromFile(fn.c_str()) };
+
+		SolverParameters p;
+		p.dirichletBoundaries = {
+			{
+				{1, fp(0,0)}, // Conductor 0, prescribed.
+				{2, fp(0,1)}, // Conductor 1, floating.
+			}
+		};
+		p.openBoundaries = { 3 };
+
+		ElectrostaticSolver s{ m, p };
+		s.Solve();
+
+		// For debugging.
+		ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
+		s.writeParaViewFields(pd);
+
+		auto Q0 = s.chargeInBoundary(1);
+		auto Q1 = s.chargeInBoundary(2);
+		auto Qb = s.chargeInBoundary(3);
+
+		EXPECT_NEAR(0.0, Q1, 1e-4); // Floating conductor,should not have charge.
+
+	}
+}
+
 TEST_F(DriverTest, five_wires)
 {
 	// Five wires in round shield. 
@@ -200,15 +241,16 @@ TEST_F(DriverTest, three_wires_ribbon)
 	const std::string CASE{ "three_wires_ribbon" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
-	double CExpectedData[4] = {
-		 37.432, -18.716,
-		-18.716,  24.982
+	double CExpectedData[9] = {
+		 0.0,     37.432, -18.716,
+		 37.432,    0.0,  -18.716,
+		-18.716,  24.982,    0.0
 	};
-	mfem::DenseMatrix CExpected(2, 2);
-	CExpected.UseExternalData(CExpectedData, 2, 2);
+	mfem::DenseMatrix CExpected(3, 3);
+	CExpected.UseExternalData(CExpectedData, 3, 3);
 	CExpected *= 1e-12;
 
-	double LExpectedData[4] = {
+	double LExpectedData[4] = { 
 		0.74850, 0.50770,
 		0.50770, 1.0154
 	};
@@ -265,13 +307,14 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 				{3, fp(0,2)}, // Conductor 2 floating potential.
 			}
 		};
+		p.openBoundaries = { 4 };
 
 		SolverOptions solverOpts;
 		ElectrostaticSolver s{ m, p, solverOpts };
 		s.Solve();
 
 		// For debugging.
-		ParaViewDataCollection pd{ getTestCaseName() };
+		ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
 		s.writeParaViewFields(pd);
 
 		auto Q0 = s.chargeInBoundary(1);
