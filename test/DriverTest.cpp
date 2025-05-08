@@ -241,13 +241,12 @@ TEST_F(DriverTest, three_wires_ribbon)
 	const std::string CASE{ "three_wires_ribbon" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
-	double CExpectedData[9] = {
-		 0.0,     37.432, -18.716,
-		 37.432,    0.0,  -18.716,
-		-18.716,  24.982,    0.0
+	double CExpectedData[4] = {
+		 37.432, -18.716,
+		 -18.716, 24.982
 	};
-	mfem::DenseMatrix CExpected(3, 3);
-	CExpected.UseExternalData(CExpectedData, 3, 3);
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
 	CExpected *= 1e-12;
 
 	double LExpectedData[4] = { 

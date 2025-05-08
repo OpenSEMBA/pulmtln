@@ -120,6 +120,56 @@ mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions
 	return res;
 }
 
+mfem::DenseMatrix getGeneralizedCMatrix(
+	const Model& model,
+	const DriverOptions& opts,
+	bool ignoreDielectrics = false)
+{
+	// PUL generalized capacitance matrix as defined in:
+	// "Clayton Paul's book: Analysis of Multiconductor Transmission Lines"
+	// For a problem with N conductors.
+	// Only valid for open problems.
+	// Contains N x N entries.
+
+	// Preconditions. 
+	if (model.determineOpenness() == Model::OpennessType::closed) {
+		throw std::runtime_error("Generalized capacitance only implemented for open/semiopen problems");
+	}
+
+	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
+	int CSize = (int)conductors.size();
+	mfem::DenseMatrix C(CSize);
+
+	// Solves a electrostatic problem for each conductor.
+	int row{ 0 };
+	for (const auto& [nameI, bdrAttI] : conductors) {
+		auto parameters{ buildSolverParameters(model, ignoreDielectrics) };
+		parameters.dirichletBoundaries[bdrAttI] = 1.0;
+
+		Mesh mesh{ *model.getMesh() };
+		ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
+		s.Solve();
+
+		int openBoundaryTag = *parameters.openBoundaries.begin();
+		auto Vb = s.averagePotentialInBoundary(openBoundaryTag);
+		auto Vd = 1.0 - Vb;
+		
+		// Fills row
+		int col{ 0 };
+		for (const auto& [nameJ, bdrAttJ] : conductors) {
+			// C_ji = Q_j / (V_i-V_b)
+			double Qj = s.chargeInBoundary(conductors.at(nameJ));
+			C(col, row) = Qj/Vd;
+			col++;
+		}
+
+		exportFieldSolutions(opts, s, nameI, ignoreDielectrics);
+		row++;
+	}
+
+	return C;
+}
+
 mfem::DenseMatrix getCMatrix(
 	const Model& model,
 	const DriverOptions& opts,
@@ -127,17 +177,13 @@ mfem::DenseMatrix getCMatrix(
 {
 	// PUL capacitance matrix as defined in:
 	// "Clayton Paul's book: Analysis of Multiconductor Transmission Lines"
-	// Contains N-1 x N-1 entries for a closed problem of N conductors.
-	// Contains N x N entries for a open problem of N conductors.
+	// Contains N-1 x N-1 entries for a problem of N conductors.
 
 	// Preconditions. 
 	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
 	const auto openness{ model.determineOpenness() };
-	if (conductors.size() == 1 
-		&& openness == Model::OpennessType::open) {
-		throw std::runtime_error(
-			"The number of conductors must be at least 2."
-		);
+	if (conductors.size() == 1) {
+		throw std::runtime_error("The number of conductors must be at least 2.");
 	}
 
 	mfem::Vector Cib(0);
@@ -146,21 +192,14 @@ mfem::DenseMatrix getCMatrix(
 		Cib = getCapacitancesWithOpenBoundary(model, opts, ignoreDielectrics);
 	}
 
-	int CSize{ 0 };
-	if (openness == Model::OpennessType::closed 
-		|| openness == Model::OpennessType::semiopen) {
-		CSize = (int)conductors.size() - 1;
-	}
-	else {
-		CSize = (int) conductors.size();
-	}
+	int CSize = (int)conductors.size() - 1;
 	mfem::DenseMatrix C(CSize);
 
 	// Solves a electrostatic problem for each conductor besides the
 	int row{ 0 };
 	for (const auto& [nameI, bdrAttI] : conductors) {
-		if (Materials::getNumberContainedInName(nameI) == model.getGroundConductorId() &&
-			openness != Model::OpennessType::open) {
+		int condI = Materials::getNumberContainedInName(nameI);
+		if (condI == model.getGroundConductorId()) {
 			continue;
 		}
 
@@ -172,40 +211,17 @@ mfem::DenseMatrix getCMatrix(
 		ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
 		s.Solve();
 
-		double Vb = 0.0;
-		if (openness == Model::OpennessType::open) {
-			int openBoundaryTag = *parameters.openBoundaries.begin();
-			Vb = s.averagePotentialInBoundary(openBoundaryTag);
-		}
-
 		// Fills row
 		int col{ 0 };
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			if (Materials::getNumberContainedInName(nameJ) == model.getGroundConductorId()) {
+			int condJ = Materials::getNumberContainedInName(nameJ);
+			if (condJ == model.getGroundConductorId()) {
 				continue;
 			}
 			
-			double Qi = s.chargeInBoundary(conductors.at(nameJ));
-			switch (openness) {
-			case Model::OpennessType::closed:
-			case Model::OpennessType::semiopen:
-				// C_ij = Q_i / V_j. V_j is always 1.0
-				C(row, col) = Qi;
-				break;
-			case Model::OpennessType::open:
-				// C_ij = Q_i / V_j - Cib*(V_j -V_b).
-				if (row == col) {
-					C(row, col) = 0.0;
-				}
-				else {
-					C(row, col) = Qi - Cib(row) * (1.0 - Vb);
-				}
-				break;
-			default:
-				throw std::runtime_error(
-					"C matrix calculation not implemented for this kind of openness."
-				);
-			}
+			// C_ij = Q_j / V_i. V_i is always 1.0
+			double Qj = s.chargeInBoundary(conductors.at(nameJ));
+			C(row, col) = Qj;
 			col++;
 		}
 
@@ -263,23 +279,50 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 {
 	PULParametersByDomain res;
 
-auto idToDomain{ Domain::buildDomains(model_) };
+	auto idToDomain{ Domain::buildDomains(model_) };
 
-for (const auto& [id, domain] : idToDomain) {
-	auto globalMesh{ *model_.getMesh() };
-	res.domainToPUL[id] = buildPULParametersForModel(
-		Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
-		opts_
-	);
+	for (const auto& [id, domain] : idToDomain) {
+		auto globalMesh{ *model_.getMesh() };
+		res.domainToPUL[id] = buildPULParametersForModel(
+			Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
+			opts_);
+		}
+
+	res.domainTree = DomainTree{ idToDomain };
+
+	return res;
 }
 
-res.domainTree = DomainTree{ idToDomain };
-
-return res;
-}
-
-mfem::DenseMatrix floatingPotentialsForClosedCases(const mfem::DenseMatrix& C)
+mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) const
 {
+	// For an open-problem with N conductors, returns a NxN matrix which has: 
+	// - a main diagonal of 1s, representing a prescribed voltage of 1 in the n-th conductor.
+	// - the off-diagonal terms are the voltages at the other conductors when they are assumed to be floating.
+
+	// For closed and semi-open problems with N conductors, returns a N-1 x N-1 matrix and assumes that conductor 0 has 
+	// alway a prescribed potential of zero.
+
+	if (model_.getMaterials().buildNameToAttrMapFor<PEC>().size() == 1) {
+		mfem::DenseMatrix res(1,1);
+		res = 1.0;
+		return res;
+	}
+
+	// Determine C matrix.
+	mfem::DenseMatrix C;
+	switch (model_.determineOpenness()) {
+	case Model::OpennessType::closed:
+		C = getCMatrix(model_, opts_, ignoreDielectrics);
+		break;
+	case Model::OpennessType::open:
+		C = getGeneralizedCMatrix(model_, opts_, ignoreDielectrics);
+		break;
+	default:
+		throw std::runtime_error(
+			"Floating potentials not implemented for this kind of opennnes.");
+	}
+	C.Symmetrize();
+	
 	// Forms system of equations to determine floating potentials. 
 	// Q1 = C11*V1 + C21*V2 + ....
 	// For prescribed V_1 = 1.0 we have C V = Q
@@ -293,9 +336,9 @@ mfem::DenseMatrix floatingPotentialsForClosedCases(const mfem::DenseMatrix& C)
 		mfem::Vector negativeQ(N);
 		negativeQ = 0.0;
 		negativeQ(i) = -1.0;
-		
+
 		A.SetCol(i, negativeQ);
-		
+
 		mfem::Vector b(N);
 		b = C.GetColumn(i);
 		b *= -1.0;
@@ -315,121 +358,6 @@ mfem::DenseMatrix floatingPotentialsForClosedCases(const mfem::DenseMatrix& C)
 	}
 
 	return res;
-}
-
-mfem::DenseMatrix floatingPotentialsForOpenCases(const mfem::DenseMatrix& C, const mfem::Vector& Cib)
-{
-	auto N = C.NumRows()+1; // N is the total number of conductors.
-	if (Cib.Size() != N) {
-		throw std::runtime_error("Cib should have the size of the number of conductors.");
-	}
-
-	// Build expanded capacitance matrix including conductor 0 and capacitance with boundary. 
-	mfem::DenseMatrix Cexp(N+1, N+1);
-	// Fill upper triangular part.
-	{
-		mfem::DenseMatrix U(N + 1, N + 1);
-		for (int r{ 0 }; r < N; ++r) {
-			for (int c{ r }; c < N; ++c) {
-				if (r == c) {
-					U(r, c) = 0.0;
-				}
-				else {
-					U(r, c) = C(r, c-1);
-				}
-			}
-			U(r, N) = Cib(r);
-
-		}
-		Cexp = U;
-		U.Transpose();
-		Cexp += U;
-	}
-
-	//  We must solve a system with N+1 unknowns once for each of the N conductors.
-	mfem::DenseMatrix res(N, N);
-	for (int i{ 0 }; i < N; ++i) {
-		mfem::DenseMatrix D(N + 1, N + 1);
-		{
-			mfem::DenseMatrix E(N + 1, N + 1);
-			E.Diag(-1.0, N + 1);
-			for (int r{ 0 }; r < N + 1; ++r) {
-				E(r, i) += 1.0;
-			}
-
-			mfem::Mult(Cexp, E, D);
-		}
-
-		mfem::Vector minusQ(N + 1); // Q is the vector of charges.
-		minusQ = 0.0;
-		minusQ(i) =  1.0;
-		minusQ(N) =  1.0;
-		minusQ *= -1.0; 
-
-
- 		mfem::DenseMatrix A(N+1, N+1);
-		A = D;
-		A.SetCol(i, minusQ);
-
-		mfem::Vector b(N + 1);
-		b = D.GetColumn(i);
-		b *= -1.0;
-
-		// Solves system and fills result
-		mfem::Vector x(N+1);
-		mfem::DenseMatrixInverse Ainv(A);
-		Ainv.Mult(b, x);
-
-		for (int j{ 0 }; j < res.NumCols(); ++j) {
-			if (i == j) {
-				res(i, i) = 1.0;
-			}
-			else {
-				res(i, j) = x(j);
-			}
-		}
-	}
-
-	return res;
-}
-
-
-mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) const
-{
-	// For an open-problem with N conductors, returns a NxN matrix which has: 
-	// - a main diagonal of 1s, representing a prescribed voltage of 1 in the n-th conductor.
-	// - the off-diagonal terms are the voltages at the other conductors when they are assumed to be floating.
-
-	// For closed and semi-open problems with N conductors, returns a N-1 x N-1 matrix and assumes that conductor 0 has 
-	// alway a prescribed potential of zero.
-
-	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
-	const int N = conductors.size();
-	if (N == 1) {
-		mfem::DenseMatrix res(1,1);
-		res = 1.0;
-		return res;
-	}
-
-	
-	auto C{ getCMatrix(model_, opts_, ignoreDielectrics) };
-	C.Symmetrize();
-	
-	switch (model_.determineOpenness()) {
-	case Model::OpennessType::closed:
-	{
-		return floatingPotentialsForClosedCases(C);
-	}
-	case Model::OpennessType::open:
-	{
-		auto Cib{ getCapacitancesWithOpenBoundary(model_, opts_, ignoreDielectrics) };
-
-		return floatingPotentialsForOpenCases(C, Cib);
-	}
-	default:
-		throw std::runtime_error("Floating potentials not implemented for this kind of opennnes.");
-	}
-
 }
 
 }
