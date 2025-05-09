@@ -150,16 +150,16 @@ mfem::DenseMatrix getGeneralizedCMatrix(
 		ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
 		s.Solve();
 
-		int openBoundaryTag = *parameters.openBoundaries.begin();
-		auto Vb = s.averagePotentialInBoundary(openBoundaryTag);
-		auto Vd = 1.0 - Vb;
+		//int openBoundaryTag = *parameters.openBoundaries.begin();
+		//auto Vb = s.averagePotentialInBoundary(openBoundaryTag);
+		//auto Vd = 1.0 - Vb;
 		
 		// Fills row
 		int col{ 0 };
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			// C_ji = Q_j / (V_i-V_b)
+			// C_ji = Q_j / V_i
 			double Qj = s.chargeInBoundary(conductors.at(nameJ));
-			C(col, row) = Qj/Vd;
+			C(col, row) = Qj;
 			col++;
 		}
 

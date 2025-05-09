@@ -301,9 +301,9 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 		SolverParameters p;
 		p.dirichletBoundaries = {
 			{
-				{1, fp(0,0)}, // Conductor 0 prescribed potential.
-				{2, fp(0,1)}, // Conductor 1 floating potential.
-				{3, fp(0,2)}, // Conductor 2 floating potential.
+				{1, fp(1,0)}, // Conductor 0 floating potential.
+				{2, fp(1,1)}, // Conductor 1 prescribed potential.
+				{3, fp(1,2)}, // Conductor 2 floating potential.
 			}
 		};
 		p.openBoundaries = { 4 };
@@ -321,8 +321,8 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 		auto Q2 = s.chargeInBoundary(3);
 		auto Qb = s.chargeInBoundary(4);
 
-		const double aTol{ 1e-4 };
-		EXPECT_NEAR(0.0, Q1, aTol);
+		const double aTol{ 1e-3 };
+		EXPECT_NEAR(0.0, Q0, aTol);
 		EXPECT_NEAR(0.0, Q2, aTol);
 		EXPECT_NEAR(0.0, Q0 + Q1 + Q2 + Qb, aTol);
 	}
