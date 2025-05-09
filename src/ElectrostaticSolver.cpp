@@ -225,14 +225,15 @@ void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
 
 void ElectrostaticSolver::Solve()
 {
-    // Initialize the surface charge density (Neumann boundaries).
     *sigma_src_ = 0.0;
     *rhod_ = 0.0;
+    *phi_ = 0.0; 
+
+    // Initialize the surface charge density (Neumann boundaries).
     applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
     h1SurfMass_->AddMult(*sigma_src_, *rhod_);
     
     // Solves phi (electrostatic potential).
-    *phi_ = 0.0; 
     {
         auto dbcs{ parameters_.dirichletBoundaries.getAttributesAsArray() };
         applyBoundaryValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);

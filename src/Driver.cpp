@@ -120,87 +120,43 @@ mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions
 	return res;
 }
 
-mfem::DenseMatrix getGeneralizedCMatrix(
-	const Model& model,
-	const DriverOptions& opts,
-	bool ignoreDielectrics = false)
-{
-	// PUL generalized capacitance matrix as defined in:
-	// "Clayton Paul's book: Analysis of Multiconductor Transmission Lines"
-	// For a problem with N conductors.
-	// Only valid for open problems.
-	// Contains N x N entries.
-
-	// Preconditions. 
-	if (model.determineOpenness() == Model::OpennessType::closed) {
-		throw std::runtime_error("Generalized capacitance only implemented for open/semiopen problems");
-	}
-
-	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
-	int CSize = (int)conductors.size();
-	mfem::DenseMatrix C(CSize);
-
-	// Solves a electrostatic problem for each conductor.
-	int row{ 0 };
-	for (const auto& [nameI, bdrAttI] : conductors) {
-		auto parameters{ buildSolverParameters(model, ignoreDielectrics) };
-		parameters.dirichletBoundaries[bdrAttI] = 1.0;
-
-		Mesh mesh{ *model.getMesh() };
-		ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
-		s.Solve();
-
-		//int openBoundaryTag = *parameters.openBoundaries.begin();
-		//auto Vb = s.averagePotentialInBoundary(openBoundaryTag);
-		//auto Vd = 1.0 - Vb;
-		
-		// Fills row
-		int col{ 0 };
-		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			// C_ji = Q_j / V_i
-			double Qj = s.chargeInBoundary(conductors.at(nameJ));
-			C(col, row) = Qj;
-			col++;
-		}
-
-		exportFieldSolutions(opts, s, nameI, ignoreDielectrics);
-		row++;
-	}
-
-	return C;
-}
 
 mfem::DenseMatrix getCMatrix(
 	const Model& model,
 	const DriverOptions& opts,
-	bool ignoreDielectrics = false)
+	bool ignoreDielectrics = false,
+	bool generalized = false)
 {
 	// PUL capacitance matrix as defined in:
 	// "Clayton Paul's book: Analysis of Multiconductor Transmission Lines"
-	// Contains N-1 x N-1 entries for a problem of N conductors.
+	// Standard C contains N-1 x N-1 entries for a problem of N conductors.
 
 	// Preconditions. 
 	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
 	const auto openness{ model.determineOpenness() };
-	if (conductors.size() == 1) {
-		throw std::runtime_error("The number of conductors must be at least 2.");
+	if (conductors.size() == 1 && openness == Model::OpennessType::closed) {
+		throw std::runtime_error(
+			"The number of conductors must be at least 2 for closed problems.");
 	}
 
-	int CSize = (int)conductors.size() - 1;
+	int CSize;
+	if (generalized) {
+		CSize = (int) conductors.size();
+	}
+	else {
+		CSize = (int) conductors.size() - 1;
+	}
 	mfem::DenseMatrix C(CSize);
 
 	const auto baseParameters{ buildSolverParameters(model, ignoreDielectrics) };
 	Mesh mesh{ *model.getMesh() };
-
 	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
 	
-
-
 	// Solves a electrostatic problem for each conductor besides the
 	int row{ 0 };
 	for (const auto& [nameI, bdrAttI] : conductors) {
 		int condI = Materials::getNumberContainedInName(nameI);
-		if (condI == model.getGroundConductorId()) {
+		if (condI == model.getGroundConductorId() && !generalized) {
 			continue;
 		}
 		
@@ -213,7 +169,7 @@ mfem::DenseMatrix getCMatrix(
 		int col{ 0 };
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
 			int condJ = Materials::getNumberContainedInName(nameJ);
-			if (condJ == model.getGroundConductorId()) {
+			if (condJ == model.getGroundConductorId() && !generalized) {
 				continue;
 			}
 			
@@ -307,18 +263,19 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 	}
 
 	// Determine C matrix.
-	mfem::DenseMatrix C;
+	bool useGeneralizedCMatrix;
 	switch (model_.determineOpenness()) {
 	case Model::OpennessType::closed:
-		C = getCMatrix(model_, opts_, ignoreDielectrics);
+		useGeneralizedCMatrix = false;
 		break;
 	case Model::OpennessType::open:
-		C = getGeneralizedCMatrix(model_, opts_, ignoreDielectrics);
+		useGeneralizedCMatrix = true;
 		break;
 	default:
 		throw std::runtime_error(
-			"Floating potentials not implemented for this kind of opennnes.");
+			"Floating potentials not implemented for this kind of openness.");
 	}
+	mfem::DenseMatrix C{ getCMatrix(model_, opts_, ignoreDielectrics, useGeneralizedCMatrix) };
 	C.Symmetrize();
 	
 	// Forms system of equations to determine floating potentials. 
