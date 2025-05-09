@@ -259,7 +259,8 @@ TEST_F(DriverTest, three_wires_ribbon)
 
 	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
 
-	// Tolerance is quite high probably because open region is not far enough.
+	// Tolerance is quite for this test. 
+	// I guess that Paul's method is not very exact for this case.
 	const double rTol{ 0.22 };
 
 	ASSERT_EQ(CExpected.NumRows(), out.C.NumRows());
@@ -334,7 +335,6 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 		EXPECT_NEAR(0.0, Q0 + Q1 + Q2 + Qb, aTol);
 	}
 }
-
 
 TEST_F(DriverTest, nested_coax)
 {

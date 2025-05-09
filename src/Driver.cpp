@@ -186,14 +186,15 @@ mfem::DenseMatrix getCMatrix(
 		throw std::runtime_error("The number of conductors must be at least 2.");
 	}
 
-	mfem::Vector Cib(0);
-	if (openness == Model::OpennessType::open) {
-		Cib.SetSize(conductors.size());
-		Cib = getCapacitancesWithOpenBoundary(model, opts, ignoreDielectrics);
-	}
-
 	int CSize = (int)conductors.size() - 1;
 	mfem::DenseMatrix C(CSize);
+
+	const auto baseParameters{ buildSolverParameters(model, ignoreDielectrics) };
+	Mesh mesh{ *model.getMesh() };
+
+	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
+	
+
 
 	// Solves a electrostatic problem for each conductor besides the
 	int row{ 0 };
@@ -202,13 +203,10 @@ mfem::DenseMatrix getCMatrix(
 		if (condI == model.getGroundConductorId()) {
 			continue;
 		}
-
-		auto parameters{ buildSolverParameters(model, ignoreDielectrics) };
-		parameters.dirichletBoundaries[bdrAttI] = 1.0;
-
-		Mesh mesh{ *model.getMesh() };
-
-		ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
+		
+		auto dbcs = baseParameters.dirichletBoundaries;
+		dbcs[bdrAttI] = 1.0;
+		s.setDirichletBoundaries(dbcs);
 		s.Solve();
 
 		// Fills row

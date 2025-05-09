@@ -227,6 +227,7 @@ void ElectrostaticSolver::Solve()
 {
     // Initialize the surface charge density (Neumann boundaries).
     *sigma_src_ = 0.0;
+    *rhod_ = 0.0;
     applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
     h1SurfMass_->AddMult(*sigma_src_, *rhod_);
     
@@ -284,6 +285,11 @@ void ElectrostaticSolver::Solve()
     // Computes rho.
     div_->Mult(*d_, *rho_);
     
+}
+
+void ElectrostaticSolver::setDirichletBoundaries(const AttrToValueMap& dbcs)
+{
+    parameters_.dirichletBoundaries = dbcs;
 }
 
 double ElectrostaticSolver::totalChargeFromRho() const

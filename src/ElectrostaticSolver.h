@@ -25,12 +25,13 @@ public:
     ~ElectrostaticSolver();
 
     void Solve();
+    void setDirichletBoundaries(const AttrToValueMap& dbcs);
 
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
 
-    const GridFunction& GetPotential() { return *phi_; }
-    const GridFunction& GetElectricField() { return *e_; }
+    const GridFunction& GetPotential() const { return *phi_; }
+    const GridFunction& GetElectricField() const { return *e_; }
 
     double totalChargeFromRho() const;
     double totalCharge() const;
