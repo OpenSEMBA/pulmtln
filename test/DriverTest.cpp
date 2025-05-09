@@ -307,6 +307,13 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 			}
 		};
 		p.openBoundaries = { 4 };
+		p.domainPermittivities = {
+			{
+				{6, 3.5},
+				{7, 3.5},
+				{8, 3.5}
+			}
+		};
 
 		SolverOptions solverOpts;
 		ElectrostaticSolver s{ m, p, solverOpts };
