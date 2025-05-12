@@ -115,12 +115,12 @@ ElectrostaticSolver::ElectrostaticSolver(
     divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
 
     // Setup open regions.
-    std::unique_ptr<Coefficient> openRegionCoeff;
+    std::unique_ptr<Coefficient> openBoundaryCoeff;
     if (!parameters.openBoundaries.empty()) {
         open_bdr_ = AttrToMarker(*mesh_, toArray(parameters.openBoundaries));
-        openRegionCoeff.reset(new FunctionCoefficient(firstOrderABC));
+        openBoundaryCoeff.reset(new FunctionCoefficient(firstOrderABC));
         divEpsGrad_->AddBoundaryIntegrator(
-            new BoundaryMassIntegrator(*openRegionCoeff),
+            new BoundaryMassIntegrator(*openBoundaryCoeff),
             open_bdr_
         );
     }
@@ -296,7 +296,6 @@ void ElectrostaticSolver::setNeumannCondition(
     const int bdrAttribute, 
     Coefficient& chargeDensity)
 {
-    // Apply piecewise constant boundary condition
     Array<int> bdr_attr(mesh_->bdr_attributes.Max());
     bdr_attr = 0;
     bdr_attr[bdrAttribute - 1] = 1;

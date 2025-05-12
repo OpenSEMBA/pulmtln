@@ -16,6 +16,8 @@ CMakeSettings.json
 mesh.mesh
 *.mtx
 
+testData/*/*.vtk
+
 __pycache__/
 
 # Prerequisites

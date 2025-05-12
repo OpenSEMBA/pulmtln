@@ -129,7 +129,7 @@ TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
 		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
-		auto m{ Mesh::LoadFromFile(fn.c_str()) };
+		auto m{ Mesh::LoadFromFile(fn) };
 
 		SolverParameters p;
 		p.dirichletBoundaries = {
@@ -170,7 +170,7 @@ TEST_F(DriverTest, two_wires_open_floating_potentials)
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
 		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
-		auto m{ Mesh::LoadFromFile(fn.c_str()) };
+		auto m{ Mesh::LoadFromFile(fn) };
 
 		SolverParameters p;
 		p.dirichletBoundaries = {
@@ -297,7 +297,7 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
 		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
-		auto m{ Mesh::LoadFromFile(fn.c_str()) };
+		auto m{ Mesh::LoadFromFile(fn) };
 
 		SolverParameters p;
 		p.dirichletBoundaries = {
@@ -419,3 +419,71 @@ TEST_F(DriverTest, agrawal1981)
 	}
 }
 
+TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabling test until deciding on expected results
+{
+	const std::string CASE{ "lansink2024_inner" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+	
+	// To comput floating potentials we are using first order  ABC.
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+
+	SolverParameters p;
+	p.dirichletBoundaries = { {
+		{1,  fp(0,0)}, // Conductor 0 bdr.
+		{2,  fp(0,1)}, // Conductor 1 bdr.
+	} };
+
+	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
+
+	const int numberOfPoles = 3;
+	for (int n = 0; n < numberOfPoles; n++) {
+
+		ElectrostaticSolver s{ m, p };
+		
+		// Sets multipolar expansion over internal boundary.
+		{
+			std::vector<multipolarCoefficient> ab(n + 1);
+			std::fill(ab.begin(), ab.end(), std::make_pair(0.0,0.0));
+			ab.back() = { -1.0, 0.0 };
+			std::function<double(const Vector&)> f =
+				std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+			FunctionCoefficient fc(f);
+			s.setNeumannCondition(3, fc);
+			s.Solve();
+
+			std::stringstream ss;
+			ss << n;
+			ParaViewDataCollection pd(outFolder() + CASE + "_a"+ss.str(), s.getMesh());
+			s.writeParaViewFields(pd);
+
+			auto Q1{ s.chargeInBoundary(1) };
+			auto Q2{ s.chargeInBoundary(2) };
+			auto Qb{ s.chargeInBoundary(3) };
+
+			EXPECT_NEAR(0.0, Q1 + Q2 + Qb, 1e-3);
+		}
+
+		if (n > 0) {
+			std::vector<multipolarCoefficient> ab(n + 1);
+			std::fill(ab.begin(), ab.end(), std::make_pair(0.0, 0.0));
+			ab.back() = { 0.0, -1.0 };
+			std::function<double(const Vector&)> f =
+				std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+			FunctionCoefficient fc(f);
+			s.setNeumannCondition(3, fc);
+			s.Solve();
+
+			std::stringstream ss;
+			ss << n;
+			ParaViewDataCollection pd(outFolder() + CASE + "_b" + ss.str(), s.getMesh());
+			s.writeParaViewFields(pd);
+
+			auto Q1{ s.chargeInBoundary(1) };
+			auto Q2{ s.chargeInBoundary(2) };
+			auto Qb{ s.chargeInBoundary(3) };
+
+			EXPECT_NEAR(0.0, Q1 + Q2 + Qb, 1e-3);
+		}
+
+	}
+}

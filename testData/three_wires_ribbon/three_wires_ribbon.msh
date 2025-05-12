@@ -6,7 +6,7 @@ $PhysicalNames
 1 1 "Conductor_0"
 1 2 "Conductor_1"
 1 3 "Conductor_2"
-1 4 "OpenRegion_0"
+1 4 "OpenBoundary_0"
 2 5 "Vacuum"
 2 6 "Dielectric_0"
 2 7 "Dielectric_1"
