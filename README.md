@@ -1,11 +1,12 @@
-# pulmtln
+# tulip
 [![Tests](https://github.com/lmdiazangulo/pulmtln/actions/workflows/builds-and-tests.yml/badge.svg)](https://github.com/lmdiazangulo/pulmtln/actions/workflows/builds-and-tests.yml)
 
-The `pulmtln` (**P**er **U**nit **L**ength **M**ulticonductor **T**ransmission **L**ine **N**etwork) solver obtains p.u.l. $C$ and $L$ matrices of the cross-section of MTL using an electrostatic approximation. Some of its features are the following:
-- p.u.l $C$ and $L$ matrix extraction.
+**Tulip** is a solver to obtain the _per unit length_ (PUL) $C$ and $L$ matrices which characterize electromagnetic propagation within a multiconductor tranmission line (MTL). Tulip is based on finite element methods to solver an electroestatic problem for each conductor. Some of its features are:
+- Calculation of p.u.l $C$ and $L$ matrices.
 - Third order isoparametric elements. 
 - Support for dielectric materials.
 - Open boundary conditions.
+- Works on closed, open, or semiopen MTL.
 - Multilevel domain decomposition.
 - Uses a modified [MFEM](https://mfem.org/) solver engine available [here](https://github.com/OpenSEMBA/mfem).
 - Result visualization with [Paraview](https://www.paraview.org/) or [VisIt](https://visit-dav.github.io/visit-website/index.html).

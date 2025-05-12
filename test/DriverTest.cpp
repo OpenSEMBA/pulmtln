@@ -487,3 +487,44 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 
 	}
 }
+
+TEST_F(DriverTest, DISABLED_lansink2024)
+{
+	const std::string CASE{ "lansink2024" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+
+	//const int N{ 2 };
+	//ASSERT_EQ(N, fp.NumCols());
+	//ASSERT_EQ(N, fp.NumRows());
+
+	//// Solves problem and checks that charge is zero in the floating conductor.
+	//{
+	//	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+	//	auto m{ Mesh::LoadFromFile(fn) };
+
+	//	SolverParameters p;
+	//	p.dirichletBoundaries = {
+	//		{
+	//			{1, fp(0,0)}, // Conductor 0, prescribed.
+	//			{2, fp(0,1)}, // Conductor 1, floating.
+	//		}
+	//	};
+	//	p.openBoundaries = { 3 };
+
+	//	ElectrostaticSolver s{ m, p };
+	//	s.Solve();
+
+	//	// For debugging.
+	//	ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
+	//	s.writeParaViewFields(pd);
+
+	//	auto Q0 = s.chargeInBoundary(1);
+	//	auto Q1 = s.chargeInBoundary(2);
+	//	auto Qb = s.chargeInBoundary(3);
+
+	//	EXPECT_NEAR(0.0, Q1, 1e-4); // Floating conductor,should not have charge.
+
+	//}
+}
