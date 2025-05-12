@@ -3,6 +3,8 @@
 #include "ElectrostaticSolver.h"
 #include "TestUtils.h"
 
+#include <functional>
+
 using namespace mfem;
 using namespace pulmtln;
 
@@ -273,6 +275,51 @@ TEST_F(ElectrostaticSolverTest, empty_coax_neumann)
 	const double rTol{ 5e-3 }; // 0.5% error.
 	EXPECT_LE(relError( 1.0, s.chargeInBoundary(2)), rTol); // Boundary 2 is the internal.
 	EXPECT_LE(relError(-1.0, s.chargeInBoundary(1)), rTol); // Boundary 1 is the external.
+}
+
+TEST_F(ElectrostaticSolverTest, empty_coax_neumann_quadrupole)
+{
+	// Coaxial case.
+	const std::string CASE{ "empty_coax" };
+
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
+	auto m{ Mesh::LoadFromFile(fn.c_str()) };
+
+	SolverParameters p;
+	
+	std::vector<multipolarCoefficient> ab = {
+		{0.0, 0.0}, // a0
+		{0.0, 0.0}, // a1, b1
+		{1.0, 0.0}, // a2, b2
+	};
+	
+	ElectrostaticSolver s{ m, p };
+
+	// Sets multipolar expansion over internal boundary.
+	{
+		std::function<double(const Vector&)> f =
+			std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+		FunctionCoefficient fc(f);
+		s.setNeumannCondition(2, fc);
+	}
+
+	// Sets opposite multipolar expansion over external boundary.
+	{
+		ab[2] = { -1.0, 0.0 };
+		std::function<double(const Vector&)> f =
+			std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+		FunctionCoefficient fc(f);
+		s.setNeumannCondition(1, fc);
+	}
+
+			
+	s.Solve();
+
+	exportSolution(s, getTestCaseName());
+
+	const double aTol{ 5e-4 }; 
+	EXPECT_NEAR(0.0, s.chargeInBoundary(2), aTol); // Boundary 2 is the internal.
+	EXPECT_NEAR(0.0, s.chargeInBoundary(1), aTol); // Boundary 1 is the external.
 }
 
 TEST_F(ElectrostaticSolverTest, wire_in_open_region)

@@ -162,7 +162,7 @@ mfem::DenseMatrix getCMatrix(
 		
 		auto dbcs = baseParameters.dirichletBoundaries;
 		dbcs[bdrAttI] = 1.0;
-		s.setDirichletBoundaries(dbcs);
+		s.setDirichletConditions(dbcs);
 		s.Solve();
 
 		// Fills row

@@ -16,6 +16,34 @@ struct SolverParameters {
     AttrToValueMap domainPermittivities;
 };
 
+using multipolarCoefficient = std::pair<double, double>;
+
+static double multipolarExpansion(const Vector& rVec, const std::vector<multipolarCoefficient>& ab)
+{
+    // 2D multiplar exapnsion from:
+    // TSOGTGEREL GANTUMUR, MULTIPOLE EXPANSIONS IN THE PLANE. 
+    // Lecture notes. 
+    // rVec, position vector.
+    // ab is a list with coefficients.
+    double r{ rVec.Norml2() };
+    double phi{ std::atan(rVec(1) / rVec(0)) };
+
+    double res{ 0.0 };
+    for (int n{ 0 }; n < ab.size(); ++n) {
+        const auto& an = ab[n].first;
+        const auto& bn = ab[n].second;
+        if (n == 0) {
+            res -= an * std::log(r);
+            assert(bn == 0.0); // b0 should always be zero.
+        }
+        else {
+            res +=  (an * std::cos(n * phi) + bn * std::sin(n * phi)) / std::pow(r, n);
+        }
+    }
+
+    return res;
+}
+
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
@@ -25,7 +53,8 @@ public:
     ~ElectrostaticSolver();
 
     void Solve();
-    void setDirichletBoundaries(const AttrToValueMap& dbcs);
+    void setDirichletConditions(const AttrToValueMap& dbcs);
+    void setNeumannCondition(const int bdrAttribute, Coefficient& chargeDensity);
 
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
@@ -76,7 +105,7 @@ private:
     Array<int> ess_bdr_, ess_bdr_tdofs_, open_bdr_; // Essential Boundary Condition DoFs
 
     void Assemble();
-    void applyBoundaryValuesToGridFunction(
+    void applyBoundaryConstantValuesToGridFunction(
         const AttrToValueMap& bdrValues, 
         GridFunction& gf) const;
 };

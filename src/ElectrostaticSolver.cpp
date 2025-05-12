@@ -148,6 +148,10 @@ ElectrostaticSolver::ElectrostaticSolver(
     sigma_src_ = new GridFunction(H1FESpace_);
 
     Assemble();
+
+    // Apply Neumann conditions on sigma_src.
+    *sigma_src_ = 0.0;
+    applyBoundaryConstantValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
 }
 
 ElectrostaticSolver::~ElectrostaticSolver()
@@ -189,7 +193,6 @@ void ElectrostaticSolver::Assemble()
     h1SurfMass_->Assemble();
     h1SurfMass_->Finalize();
 
-    *rhod_ = 0.0;
     rhod_->Assemble();
 
     grad_->Assemble();
@@ -199,7 +202,7 @@ void ElectrostaticSolver::Assemble()
     div_->Finalize();
 }
 
-void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
+void ElectrostaticSolver::applyBoundaryConstantValuesToGridFunction(
     const AttrToValueMap& bdrValues,
     GridFunction& gf) const
 {
@@ -213,30 +216,26 @@ void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
     Array<int> bdr_attr(mesh_->bdr_attributes.Max());
     for (int i = 0; i < attributes.Size(); i++)
     {
-        ConstantCoefficient voltage(values[i]);
+        ConstantCoefficient val(values[i]);
         bdr_attr = 0;
         if (attributes[i] <= bdr_attr.Size())
         {
             bdr_attr[attributes[i] - 1] = 1;
         }
-        gf.ProjectBdrCoefficient(voltage, bdr_attr);
+        gf.ProjectBdrCoefficient(val, bdr_attr);
     }
 }
 
 void ElectrostaticSolver::Solve()
 {
-    *sigma_src_ = 0.0;
-    *rhod_ = 0.0;
-    *phi_ = 0.0; 
-
-    // Initialize the surface charge density (Neumann boundaries).
-    applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
-    h1SurfMass_->AddMult(*sigma_src_, *rhod_);
+    // Initialize the surface charge density (From Neumann boundaries).
+    h1SurfMass_->Mult(*sigma_src_, *rhod_);
     
     // Solves phi (electrostatic potential).
     {
+        *phi_ = 0.0;
         auto dbcs{ parameters_.dirichletBoundaries.getAttributesAsArray() };
-        applyBoundaryValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);
+        applyBoundaryConstantValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);
 
         // Determine the essential BC degrees of freedom
         if (dbcs.Size() > 0) {
@@ -288,9 +287,21 @@ void ElectrostaticSolver::Solve()
     
 }
 
-void ElectrostaticSolver::setDirichletBoundaries(const AttrToValueMap& dbcs)
+void ElectrostaticSolver::setDirichletConditions(const AttrToValueMap& dbcs)
 {
     parameters_.dirichletBoundaries = dbcs;
+}
+
+void ElectrostaticSolver::setNeumannCondition(
+    const int bdrAttribute, 
+    Coefficient& chargeDensity)
+{
+    // Apply piecewise constant boundary condition
+    Array<int> bdr_attr(mesh_->bdr_attributes.Max());
+    bdr_attr = 0;
+    bdr_attr[bdrAttribute - 1] = 1;
+    
+    sigma_src_->ProjectBdrCoefficient(chargeDensity, bdr_attr);
 }
 
 double ElectrostaticSolver::totalChargeFromRho() const
