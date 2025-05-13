@@ -98,7 +98,7 @@ DomainTree::DomainTree(const Domain::IdToDomain& domains)
 
 Domain::IdToDomain Domain::buildDomains(const Model& model)
 {
-	if (model.determineOpenness() != Model::OpennessType::closed) {
+	if (model.determineOpenness() != Model::Openness::closed) {
 		throw std::runtime_error("Domains can only be determined for closed problems.");
 	}
 

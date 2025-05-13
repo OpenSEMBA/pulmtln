@@ -23,9 +23,6 @@ struct Dielectric : public Material {
 };
 
 struct Materials { 
-	// TODO Convert to class to ensure no names are repeated.
-	// TODO This does not scale well... should be converted to a polymorphic container.
-
 	std::vector<PEC> pecs;
 	std::vector<OpenBoundary> openBoundaries;
 	std::vector<Dielectric> dielectrics;
@@ -51,6 +48,7 @@ struct Materials {
 		}
 		return res;
 	}
+
 	NameToAttrMap buildNameToAttrMap() const
 	{
 		NameToAttrMap res{ buildNameToAttrMapFor<PEC>() };

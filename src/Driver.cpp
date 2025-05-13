@@ -134,7 +134,7 @@ mfem::DenseMatrix getCMatrix(
 	// Preconditions. 
 	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
 	const auto openness{ model.determineOpenness() };
-	if (conductors.size() == 1 && openness == Model::OpennessType::closed) {
+	if (conductors.size() == 1 && openness == Model::Openness::closed) {
 		throw std::runtime_error(
 			"The number of conductors must be at least 2 for closed problems.");
 	}
@@ -247,7 +247,10 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 	return res;
 }
 
-mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) const
+mfem::DenseMatrix getFloatingPotentialsMatrix(
+	const Model& model,
+	const DriverOptions& opts,
+	const bool ignoreDielectrics)
 {
 	// For an open-problem with N conductors, returns a NxN matrix which has: 
 	// - a main diagonal of 1s, representing a prescribed voltage of 1 in the n-th conductor.
@@ -256,7 +259,7 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 	// For closed and semi-open problems with N conductors, returns a N-1 x N-1 matrix and assumes that conductor 0 has 
 	// alway a prescribed potential of zero.
 
-	if (model_.getMaterials().buildNameToAttrMapFor<PEC>().size() == 1) {
+	if (model.getMaterials().buildNameToAttrMapFor<PEC>().size() == 1) {
 		mfem::DenseMatrix res(1,1);
 		res = 1.0;
 		return res;
@@ -264,18 +267,18 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 
 	// Determine C matrix.
 	bool useGeneralizedCMatrix;
-	switch (model_.determineOpenness()) {
-	case Model::OpennessType::closed:
+	switch (model.determineOpenness()) {
+	case Model::Openness::closed:
 		useGeneralizedCMatrix = false;
 		break;
-	case Model::OpennessType::open:
+	case Model::Openness::open:
 		useGeneralizedCMatrix = true;
 		break;
 	default:
 		throw std::runtime_error(
 			"Floating potentials not implemented for this kind of openness.");
 	}
-	mfem::DenseMatrix C{ getCMatrix(model_, opts_, ignoreDielectrics, useGeneralizedCMatrix) };
+	mfem::DenseMatrix C{ getCMatrix(model, opts, ignoreDielectrics, useGeneralizedCMatrix) };
 	C.Symmetrize();
 	
 	// Forms system of equations to determine floating potentials. 
@@ -311,6 +314,92 @@ mfem::DenseMatrix Driver::getFloatingPotentials(const bool ignoreDielectrics) co
 			}
 		}
 	}
+
+	return res;
+}
+
+FloatingPotentials Driver::getFloatingPotentials() const
+{
+	FloatingPotentials res;
+
+	res.electric = getFloatingPotentialsMatrix(model_, opts_, false);
+	res.magnetic = getFloatingPotentialsMatrix(model_, opts_, true);
+
+	return res;
+}
+
+std::list<std::string> listMaterialsInInnerRegion(const Model& m)
+{
+	std::list<std::string> res;
+	res.push_back("Vacuum_0");
+	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
+		res.push_back(name);
+	}
+	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
+		res.push_back(name);
+	}
+	return res
+}
+
+double getInnerRegionArea(const Model& m)
+{
+	double res = 0.0;
+	for (auto name : listMaterialsInInnerRegion(m)) {
+		res += m.getAreaOfMaterial(name);
+	}
+	return res;
+}
+
+double getInnerRegionAveragePotential(const Model& m, const ElectrostaticSolver& s)
+{
+	// TODO
+}
+
+std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(
+	const Model& model,
+	const DriverOptions& opts,
+	bool ignoreDielectrics)
+{
+	std::map<std::string, InCellParameters::FieldParameters> res;
+
+	auto fp = getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
+	const auto baseParameters{ buildSolverParameters(model, ignoreDielectrics) };
+	Mesh mesh{ *model.getMesh() };
+	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
+
+	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
+	for (const auto& [nameI, bdrAttI] : conductors) {
+		auto condI = Materials::getNumberContainedInName(nameI);
+
+		auto dbcs = baseParameters.dirichletBoundaries;
+		for (const auto& [nameJ, bdrAttJ] : conductors) {
+			auto condJ = Materials::getNumberContainedInName(nameJ);
+			dbcs[bdrAttJ] = fp(condI, condJ);
+		}
+		s.setDirichletConditions(dbcs);
+		s.Solve();
+
+		res[nameI].innerRegionAveragePotential = getInnerRegionAveragePotential(model, s);
+		res[nameI].expansionCenter = s.getCenterOfCharge();
+		res[nameI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
+	}
+
+	return res;
+}
+
+InCellParameters Driver::getInCellParameters() const
+{
+	InCellParameters res;
+
+	if (model_.determineOpenness() != Model::Openness::open) {
+		throw std::runtime_error("In cell paramters can only be computed for open problems.");
+	}
+
+	const double innerRegionArea{ getInnerRegionArea(model_) };
+	res.innerRegionRadius = std::sqrt(innerRegionArea / M_PI);
+
+	res.electric = getFieldParameters(model_, opts_, false);
+	res.magnetic = getFieldParameters(model_, opts_, true);
 
 	return res;
 }

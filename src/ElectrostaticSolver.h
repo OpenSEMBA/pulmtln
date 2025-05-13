@@ -17,14 +17,18 @@ struct SolverParameters {
 };
 
 using multipolarCoefficient = std::pair<double, double>;
+using multipolarCoefficients = std::vector<multipolarCoefficient>;
 
-static double multipolarExpansion(const Vector& rVec, const std::vector<multipolarCoefficient>& ab)
+static double multipolarExpansion(
+    const Vector& position, 
+    const multipolarCoefficients& ab,
+    const mfem::Vector expansionCenter)
 {
     // 2D multiplar exapnsion from:
     // TSOGTGEREL GANTUMUR, MULTIPOLE EXPANSIONS IN THE PLANE. 
     // Lecture notes. 
-    // rVec, position vector.
-    // ab is a list with coefficients.
+    
+    mfem::Vector rVec{ position - expansionCenter };
     double r{ rVec.Norml2() };
     double phi{ std::atan(rVec(1) / rVec(0)) };
 
@@ -64,7 +68,12 @@ public:
 
     double totalChargeFromRho() const;
     double totalCharge() const;
+    
+    double getCenterOfCharge() const;
+    multipolarCoefficients getMultipolarCoefficients(std::size_t order) const;
+
     double chargeInBoundary(int bdrAttribute) const;
+    double averagePotentialInDomain(int attr) const;
     double averagePotentialInBoundary(int bdrAttribute) const;
     double totalEnergy() const;
 

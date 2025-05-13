@@ -27,4 +27,20 @@ struct PULParametersByDomain {
     std::map<Domain::Id, PULParameters> domainToPUL;
 };
 
+struct FloatingPotentials {
+    mfem::DenseMatrix electric, magnetic;
+};
+
+struct InCellParameters {
+    struct FieldParameters {
+        double innerRegionAveragePotential;
+        mfem::Vector expansionCenter;
+        multipolarCoefficients ab;
+    };
+    double innerRegionRadius;
+
+    // Electric and magnetic potentials multipolar expansions for each conductor.
+    std::map<std::string, FieldParameters> electric, magnetic;
+};
+
 }

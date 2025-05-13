@@ -91,20 +91,39 @@ std::size_t Model::numberOfConductors() const
 	return materials_.buildNameToAttrMapFor<PEC>().size();
 }
 
-Model::OpennessType Model::determineOpenness() const
+Model::Openness Model::determineOpenness() const
 {
 	assert(materials_.openBoundaries.size() <= 1);
 
 	if (materials_.openBoundaries.size() == 0) {
-		return OpennessType::closed;
+		return Openness::closed;
 	}
 
 	for (const auto& m : materials_.openBoundaries) {
 		if (!elementsFormOpenLoops(getElementsWithAttribute(*mesh_, m.attribute))) {
-			return OpennessType::open;
+			return Openness::open;
 		}
 	}
-	return OpennessType::semiopen;
+	return Openness::semiopen;
+}
+
+double Model::getAreaOfMaterial(const std::string& materialName) const
+{
+	auto materials{ getMaterials().buildNameToAttrMap() };
+	if (!materials.count(materialName)) {
+		throw std::runtime_error("Unable to determine inner region.");
+	}
+	int innerRegionTag{ materials.at(materialName) };
+
+	Mesh m{ *getMesh() };
+	double area = 0.0;
+	for (int i = 0; i < m.GetNE(); ++i) {
+		if (innerRegionTag == m.GetAttribute(i)) {
+			area += m.GetElementVolume(i);
+		}
+	}
+
+	return area;
 }
 
 

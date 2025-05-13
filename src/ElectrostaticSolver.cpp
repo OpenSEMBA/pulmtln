@@ -320,6 +320,13 @@ double ElectrostaticSolver::totalCharge() const
     return rt_surf_int(*d_);
 }
 
+double ElectrostaticSolver::getCenterOfCharge() const
+{
+
+    // TODO
+    return 0.0;
+}
+
 std::unique_ptr<LinearForm> buildHDivBoundaryIntegrator(RT_FESpace* fes, int bdrAttribute)
 {
     mfem::Array<int> attr(1);
@@ -363,6 +370,13 @@ double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
 {
     auto surf_int{ buildHDivBoundaryIntegrator(HDivFESpace_, bdrAttribute) };
     return (*surf_int)(*d_);
+}
+
+double ElectrostaticSolver::averagePotentialInDomain(int attr) const
+{
+    // TODO
+    
+    return 0.0;
 }
 
 double ElectrostaticSolver::averagePotentialInBoundary(int bdrAttribute) const

@@ -12,7 +12,7 @@ TEST_F(ModelTest, empty_coax_is_closed)
 {
 	EXPECT_EQ(
 		Parser{ inputCase("empty_coax") }.readModel().determineOpenness(),
-		Model::OpennessType::closed
+		Model::Openness::closed
 	);
 }
 
@@ -20,7 +20,7 @@ TEST_F(ModelTest, agrawal1981_is_semiopen)
 {
 	EXPECT_EQ(
 		Parser{ inputCase("agrawal1981") }.readModel().determineOpenness(),
-		Model::OpennessType::semiopen
+		Model::Openness::semiopen
 	);
 }
 
@@ -28,7 +28,7 @@ TEST_F(ModelTest, three_wires_ribbon_is_open)
 {
 	EXPECT_EQ(
 		Parser{ inputCase("three_wires_ribbon") }.readModel().determineOpenness(),
-		Model::OpennessType::open
+		Model::Openness::open
 	);
 }
 
