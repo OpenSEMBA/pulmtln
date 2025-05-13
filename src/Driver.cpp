@@ -338,7 +338,7 @@ std::list<std::string> listMaterialsInInnerRegion(const Model& m)
 	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
 		res.push_back(name);
 	}
-	return res
+	return res;
 }
 
 double getInnerRegionArea(const Model& m)
@@ -352,7 +352,11 @@ double getInnerRegionArea(const Model& m)
 
 double getInnerRegionAveragePotential(const Model& m, const ElectrostaticSolver& s)
 {
+	double res = 0.0;
+
 	// TODO
+
+	return res;
 }
 
 std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(

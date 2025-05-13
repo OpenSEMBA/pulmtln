@@ -327,6 +327,13 @@ double ElectrostaticSolver::getCenterOfCharge() const
     return 0.0;
 }
 
+multipolarCoefficients ElectrostaticSolver::getMultipolarCoefficients(
+    std::size_t order) const
+{
+    // TODO
+    return multipolarCoefficients();
+}
+
 std::unique_ptr<LinearForm> buildHDivBoundaryIntegrator(RT_FESpace* fes, int bdrAttribute)
 {
     mfem::Array<int> attr(1);

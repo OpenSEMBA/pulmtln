@@ -1,9 +1,10 @@
 #pragma once
 
-#include <FES.h>
 #include <nlohmann/json.hpp>
 
+#include "FES.h"
 #include "Domain.h"
+#include "multipolarExpansion.h"
 
 namespace pulmtln {
 

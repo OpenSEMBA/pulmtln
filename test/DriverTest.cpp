@@ -119,12 +119,11 @@ TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 		
 	const double rTol{ 2.5e-2 };
 
-	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials().electric };
 
 	const int N{ 2 };
 	ASSERT_EQ(N, fp.NumCols());
 	ASSERT_EQ(N, fp.NumRows());
-
 
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
@@ -161,7 +160,7 @@ TEST_F(DriverTest, two_wires_open_floating_potentials)
 	const std::string CASE{ "two_wires_open" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 
-	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials().electric };
 
 	const int N{ 2 };
 	ASSERT_EQ(N, fp.NumCols());
@@ -292,7 +291,7 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 	const std::string CASE{ "three_wires_ribbon" };
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 	
-	auto fp = Driver::loadFromFile(fn).getFloatingPotentials();
+	auto fp = Driver::loadFromFile(fn).getFloatingPotentials().electric;
 
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
@@ -425,7 +424,7 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 	
 	// To comput floating potentials we are using first order  ABC.
-	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials() };
+	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials().electric };
 
 	SolverParameters p;
 	p.dirichletBoundaries = { {
@@ -441,12 +440,13 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 		ElectrostaticSolver s{ m, p };
 		
 		// Sets multipolar expansion over internal boundary.
+		mfem::Vector origin({ 0.0, 0.0 });
 		{
 			std::vector<multipolarCoefficient> ab(n + 1);
 			std::fill(ab.begin(), ab.end(), std::make_pair(0.0,0.0));
 			ab.back() = { -1.0, 0.0 };
 			std::function<double(const Vector&)> f =
-				std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+				std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
 			FunctionCoefficient fc(f);
 			s.setNeumannCondition(3, fc);
 			s.Solve();
@@ -468,7 +468,7 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 			std::fill(ab.begin(), ab.end(), std::make_pair(0.0, 0.0));
 			ab.back() = { 0.0, -1.0 };
 			std::function<double(const Vector&)> f =
-				std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+				std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
 			FunctionCoefficient fc(f);
 			s.setNeumannCondition(3, fc);
 			s.Solve();
@@ -501,7 +501,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	auto fp{ 
 		Driver::loadFromFile(
 			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
-		).getFloatingPotentials() 
+		).getFloatingPotentials().electric
 	}; 
 
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
@@ -531,7 +531,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
 }
 
-TEST_F(DriverTest, lansink2024_in_cell_parameters)
+TEST_F(DriverTest, DISABLED_lansink2024_in_cell_parameters)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).
@@ -541,35 +541,11 @@ TEST_F(DriverTest, lansink2024_in_cell_parameters)
 
 	const std::string CASE{ "lansink2024" };
 
-	auto fp{
+	auto inCell{
 		Driver::loadFromFile(
 			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
-		).getFloatingPotentials()
+		).getInCellParameters()
 	};
 
-	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
-
-	SolverParameters p;
-	p.dirichletBoundaries = {
-		{
-			{1, fp(0,0)}, // Conductor 0 floating potential.
-			{2, fp(0,1)}, // Conductor 1 prescribed potential.
-		}
-	};
-	p.openBoundaries = { 3 };
-
-	ElectrostaticSolver s{ m, p };
-	s.Solve();
-
-	// For debugging.
-	ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
-	s.writeParaViewFields(pd);
-
-	auto Q0 = s.chargeInBoundary(1);
-	auto Q1 = s.chargeInBoundary(2);
-	auto Qb = s.chargeInBoundary(3);
-
-	const double aTol{ 1e-3 };
-	EXPECT_NEAR(0.0, Q1, aTol);
-	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
+	EXPECT_TRUE(false); // TODO.
 }

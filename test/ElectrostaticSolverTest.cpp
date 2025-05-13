@@ -292,13 +292,14 @@ TEST_F(ElectrostaticSolverTest, empty_coax_neumann_quadrupole)
 		{0.0, 0.0}, // a1, b1
 		{1.0, 0.0}, // a2, b2
 	};
+	Vector origin({ 0.0, 0.0 });
 	
 	ElectrostaticSolver s{ m, p };
 
 	// Sets multipolar expansion over internal boundary.
 	{
 		std::function<double(const Vector&)> f =
-			std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+			std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
 		FunctionCoefficient fc(f);
 		s.setNeumannCondition(2, fc);
 	}
@@ -307,7 +308,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax_neumann_quadrupole)
 	{
 		ab[2] = { -1.0, 0.0 };
 		std::function<double(const Vector&)> f =
-			std::bind(&multipolarExpansion, std::placeholders::_1, ab);
+			std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
 		FunctionCoefficient fc(f);
 		s.setNeumannCondition(1, fc);
 	}
