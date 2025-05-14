@@ -32,16 +32,17 @@ public:
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
 
-    const GridFunction& GetPotential() const { return *phi_; }
-    const GridFunction& GetElectricField() const { return *e_; }
+    const GridFunction& getPotential() const { return *phi_; }
+    const GridFunction& getElectricField() const { return *e_; }
 
-    double totalChargeFromRho() const;
-    double totalCharge() const;
+    double getTotalChargeFromRho() const;
+    double getTotalCharge() const;
     
-    double getCenterOfCharge() const;
+    Vector getCenterOfCharge() const;
+    double getChargeMomentComponent(int order, int component, const Vector& center) const;
     multipolarCoefficients getMultipolarCoefficients(std::size_t order) const;
 
-    double chargeInBoundary(int bdrAttribute) const;
+    double getChargeInBoundary(int bdrAttribute) const;
     double averagePotentialInDomain(int attr) const;
     double averagePotentialInBoundary(int bdrAttribute) const;
     double totalEnergy() const;

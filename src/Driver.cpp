@@ -113,7 +113,7 @@ mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions
 	mfem::Vector res(conductors.size());
 	for (const auto& [name, attr] : conductors) {
 		auto condId = Materials::getNumberContainedInName(name);
-		auto Q = s.chargeInBoundary(attr);
+		auto Q = s.getChargeInBoundary(attr);
 		res[condId] = Q / Vd;
 	}
 
@@ -174,7 +174,7 @@ mfem::DenseMatrix getCMatrix(
 			}
 			
 			// C_ij = Q_j / V_i. V_i is always 1.0
-			double Qj = s.chargeInBoundary(conductors.at(nameJ));
+			double Qj = s.getChargeInBoundary(conductors.at(nameJ));
 			C(row, col) = Qj;
 			col++;
 		}

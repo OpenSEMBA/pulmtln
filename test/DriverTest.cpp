@@ -127,8 +127,7 @@ TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 
 	// Solves problem and checks that charge is zero in the floating conductor.
 	{
-		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
-		auto m{ Mesh::LoadFromFile(fn) };
+		auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
 		SolverParameters p;
 		p.dirichletBoundaries = {
@@ -147,9 +146,9 @@ TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 		ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh()};
 		s.writeParaViewFields(pd);
 
-		auto Q0 = s.chargeInBoundary(1);
-		auto Q1 = s.chargeInBoundary(2);
-		auto Q2 = s.chargeInBoundary(3);
+		auto Q0 = s.getChargeInBoundary(1);
+		auto Q1 = s.getChargeInBoundary(2);
+		auto Q2 = s.getChargeInBoundary(3);
 		EXPECT_NEAR(0.0, Q2, 1e-4);
 
 	}
@@ -187,9 +186,9 @@ TEST_F(DriverTest, two_wires_open_floating_potentials)
 		ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
 		s.writeParaViewFields(pd);
 
-		auto Q0 = s.chargeInBoundary(1);
-		auto Q1 = s.chargeInBoundary(2);
-		auto Qb = s.chargeInBoundary(3);
+		auto Q0 = s.getChargeInBoundary(1);
+		auto Q1 = s.getChargeInBoundary(2);
+		auto Qb = s.getChargeInBoundary(3);
 
 		EXPECT_NEAR(0.0, Q1, 1e-4); // Floating conductor,should not have charge.
 
@@ -323,10 +322,10 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 		ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
 		s.writeParaViewFields(pd);
 
-		auto Q0 = s.chargeInBoundary(1);
-		auto Q1 = s.chargeInBoundary(2);
-		auto Q2 = s.chargeInBoundary(3);
-		auto Qb = s.chargeInBoundary(4);
+		auto Q0 = s.getChargeInBoundary(1);
+		auto Q1 = s.getChargeInBoundary(2);
+		auto Q2 = s.getChargeInBoundary(3);
+		auto Qb = s.getChargeInBoundary(4);
 
 		const double aTol{ 1e-3 };
 		EXPECT_NEAR(0.0, Q0, aTol);
@@ -456,9 +455,9 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 			ParaViewDataCollection pd(outFolder() + CASE + "_a"+ss.str(), s.getMesh());
 			s.writeParaViewFields(pd);
 
-			auto Q1{ s.chargeInBoundary(1) };
-			auto Q2{ s.chargeInBoundary(2) };
-			auto Qb{ s.chargeInBoundary(3) };
+			auto Q1{ s.getChargeInBoundary(1) };
+			auto Q2{ s.getChargeInBoundary(2) };
+			auto Qb{ s.getChargeInBoundary(3) };
 
 			EXPECT_NEAR(0.0, Q1 + Q2 + Qb, 1e-3);
 		}
@@ -478,9 +477,9 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 			ParaViewDataCollection pd(outFolder() + CASE + "_b" + ss.str(), s.getMesh());
 			s.writeParaViewFields(pd);
 
-			auto Q1{ s.chargeInBoundary(1) };
-			auto Q2{ s.chargeInBoundary(2) };
-			auto Qb{ s.chargeInBoundary(3) };
+			auto Q1{ s.getChargeInBoundary(1) };
+			auto Q2{ s.getChargeInBoundary(2) };
+			auto Qb{ s.getChargeInBoundary(3) };
 
 			EXPECT_NEAR(0.0, Q1 + Q2 + Qb, 1e-3);
 		}
@@ -522,9 +521,9 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
 	s.writeParaViewFields(pd);
 
-	auto Q0 = s.chargeInBoundary(1);
-	auto Q1 = s.chargeInBoundary(2);
-	auto Qb = s.chargeInBoundary(3);
+	auto Q0 = s.getChargeInBoundary(1);
+	auto Q1 = s.getChargeInBoundary(2);
+	auto Qb = s.getChargeInBoundary(3);
 
 	const double aTol{ 1e-3 };
 	EXPECT_NEAR(0.0, Q1, aTol);

@@ -85,7 +85,7 @@ Model Parser::readModel() const
 	} ;
 
 	return Model{
-		mfem::Mesh::LoadFromFile(gmshFilename.c_str()),
+		mfem::Mesh::LoadFromFile(gmshFilename),
 		readMaterials(j.at("materials"))
 	};
 }

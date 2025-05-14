@@ -14,7 +14,7 @@ static double multipolarExpansion(
 {
     // 2D multipolar expansion from:
     // TSOGTGEREL GANTUMUR, MULTIPOLE EXPANSIONS IN THE PLANE. 
-    // Lecture notes. 
+    // 2016-04-16 lecture notes. 
 
     mfem::Vector rVec{ position };
     rVec -= expansionCenter;
