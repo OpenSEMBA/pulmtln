@@ -464,14 +464,14 @@ double ElectrostaticSolver::getChargeInBoundary(int bdrAttribute) const
     return (*surf_int)(*d_);
 }
 
-double ElectrostaticSolver::averagePotentialInDomain(int attr) const
+double ElectrostaticSolver::getAveragePotentialInDomain(int attr) const
 {
     // TODO
     
     return 0.0;
 }
 
-double ElectrostaticSolver::averagePotentialInBoundary(int bdrAttribute) const
+double ElectrostaticSolver::getAveragePotentialInBoundary(int bdrAttribute) const
 {
     ConstantCoefficient one{ 1.0 };
     auto surf_int{ buildH1BoundaryIntegrator(H1FESpace_, bdrAttribute, one) };
@@ -487,8 +487,11 @@ double ElectrostaticSolver::averagePotentialInBoundary(int bdrAttribute) const
     return avPotential;
 }
 
-double ElectrostaticSolver::totalEnergy() const
+double ElectrostaticSolver::getTotalEnergy() const
 {
+    // TODO 
+    throw std::runtime_error("Implement for different permittivities");
+    
     BilinearForm mass{ HCurlFESpace_ };
     ConstantCoefficient eps{ EPSILON0_NATURAL };
     mass.AddDomainIntegrator(new VectorFEMassIntegrator(eps));

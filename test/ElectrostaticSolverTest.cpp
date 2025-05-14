@@ -80,7 +80,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	// Area A = 1.0 * 1.0
 	// Electric field is constant = 1.0 V/m.
 	double expectedEnergy{ 0.5 * EPSILON0_NATURAL };
-	EXPECT_LE(relError(expectedEnergy, s.totalEnergy()), rTol);
+	EXPECT_LE(relError(expectedEnergy, s.getTotalEnergy()), rTol);
 
 }
 
@@ -111,7 +111,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_energy)
 	// Electric field is constant = 1.0 V/m.
 	const double rTol{ 1e-5 }; // Error percentage of 0.001%
 	double expectedEnergy{ 0.5 * EPSILON0_NATURAL };
-	EXPECT_LE(relError(expectedEnergy, s.totalEnergy()), rTol);
+	EXPECT_LE(relError(expectedEnergy, s.getTotalEnergy()), rTol);
 
 }
 
@@ -343,14 +343,14 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 	double CExpected = EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025);
 	const double rTol{ 1e-2 }; // 1% error.
 
-	auto U{ s.totalEnergy()};
+	auto U{ s.getTotalEnergy()};
 	double CFromEnergy = 0.5 * std::pow(Q,2) / U;
 	EXPECT_LE(relError(CExpected, CFromEnergy), rTol);
 
 	double Qb = s.getChargeInBoundary(1);
 	EXPECT_LE(relError(Q, -Qb), rTol);
 
-	double Vb = s.averagePotentialInBoundary(1);
+	double Vb = s.getAveragePotentialInBoundary(1);
 	auto CFromVb = EPSILON0_NATURAL * Q / (1.0 - Vb);
 	EXPECT_LE(relError(CExpected, CFromVb), rTol);
 
@@ -420,7 +420,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_capacitance)
 	double CComputed{ s.getChargeInBoundary(1) / (2*V) };
 	EXPECT_LE(relError(CExpected, CComputed), rTol);
 
-	double CComputedEnergy{ 2.0 * s.totalEnergy() / (4.0*V*V) };
+	double CComputedEnergy{ 2.0 * s.getTotalEnergy() / (4.0*V*V) };
 	EXPECT_LE(relError(CExpected, CComputedEnergy), rTol);
 }
 
@@ -447,12 +447,12 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_charges)
 	auto Q2{ s.getChargeInBoundary(2) };
 	auto Qb{ s.getChargeInBoundary(3) };
 
-	auto Vb{ s.averagePotentialInBoundary(3) };
+	auto Vb{ s.getAveragePotentialInBoundary(3) };
 	auto Vd = V - Vb;
 
 	EXPECT_NEAR(0.0, Q1 + Q2 + Qb, 1e-3);
 	
-	auto CFromEnergy{ 2.0 * s.totalEnergy() / (Vd * Vd) };
+	auto CFromEnergy{ 2.0 * s.getTotalEnergy() / (Vd * Vd) };
 	
 	auto C1b = Q1 / Vd;
 	auto C2b = Q2 / Vd;

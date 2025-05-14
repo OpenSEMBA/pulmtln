@@ -105,7 +105,7 @@ mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions
 	if (openBdrs.size() != 1) {
 		throw std::runtime_error("Only one open boundary is allowed.");
 	}
-	auto Vb = s.averagePotentialInBoundary(openBdrs.begin()->second);
+	auto Vb = s.getAveragePotentialInBoundary(openBdrs.begin()->second);
 	auto Vd = VPrescribed - Vb;
 
 	auto conductors = m.getMaterials().buildNameToAttrMapFor<PEC>();

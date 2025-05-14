@@ -43,9 +43,9 @@ public:
     multipolarCoefficients getMultipolarCoefficients(std::size_t order) const;
 
     double getChargeInBoundary(int bdrAttribute) const;
-    double averagePotentialInDomain(int attr) const;
-    double averagePotentialInBoundary(int bdrAttribute) const;
-    double totalEnergy() const;
+    double getAveragePotentialInDomain(int attr) const;
+    double getAveragePotentialInBoundary(int bdrAttribute) const;
+    double getTotalEnergy() const;
 
     Mesh* getMesh() { return mesh_; }
 
