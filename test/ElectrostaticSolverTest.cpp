@@ -513,7 +513,8 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_center_of_charge_with_same_potent
 	ElectrostaticSolver s{ m, p };
 	s.Solve();
 	auto centerOfCharge{ s.getCenterOfCharge() };
-	EXPECT_NEAR(0.0, centerOfCharge.Norml2(), 5e-6);
+	EXPECT_NEAR(0.0, centerOfCharge[0], 5e-6);
+	EXPECT_NEAR(0.0, centerOfCharge[1], 5e-6);
 
 	exportSolution(s, getCaseName());
 }

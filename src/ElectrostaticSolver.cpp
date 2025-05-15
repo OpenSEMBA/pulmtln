@@ -19,7 +19,7 @@ double momentComponent(
     pos -= translation;
 
     double r{ pos.Norml2() };
-    double phi{ std::atan(pos(1) / pos(0)) };
+    double phi{ std::atan2(pos(1), pos(0)) };
 
     if (component == 0) {
         return std::pow(r, n) * std::cos(n * phi) / n;
@@ -378,7 +378,7 @@ double ElectrostaticSolver::getChargeMomentComponent(
 Vector ElectrostaticSolver::getCenterOfCharge() const
 {
     // "Center of Charge" is the place where the dipole moment is zero.
-    // It can only be defined for non-neutral systems.
+    // It can only be defined for open and non-neutral systems.
 
     if (parameters_.openBoundaries.size() !=  1) {
         throw std::runtime_error("Not implemented for closed problems.");
@@ -489,12 +489,18 @@ double ElectrostaticSolver::getAveragePotentialInBoundary(int bdrAttribute) cons
 
 double ElectrostaticSolver::getTotalEnergy() const
 {
-    // TODO 
-    throw std::runtime_error("Implement for different permittivities");
+    Array<int> domainAttributes = mesh_->attributes;
+    int maxAttr = domainAttributes.Max();
+
+    Vector domainPermittivities(maxAttr);
+    domainPermittivities = EPSILON0_NATURAL;
+    for (const auto& [domainAttr, relPerm] : parameters_.domainPermittivities) {
+        domainPermittivities[domainAttr - 1] *= relPerm;
+    }
+    PWConstCoefficient permittivities(domainPermittivities);
     
     BilinearForm mass{ HCurlFESpace_ };
-    ConstantCoefficient eps{ EPSILON0_NATURAL };
-    mass.AddDomainIntegrator(new VectorFEMassIntegrator(eps));
+    mass.AddDomainIntegrator(new VectorFEMassIntegrator(permittivities));
     mass.Assemble();
     
     GridFunction aux(e_->FESpace());

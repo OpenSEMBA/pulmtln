@@ -20,7 +20,7 @@ static double multipolarExpansion(
     rVec -= expansionCenter;
 
     double r{ rVec.Norml2() };
-    double phi{ std::atan(rVec(1) / rVec(0)) };
+    double phi{ std::atan2(rVec(1), rVec(0)) };
 
     double res{ 0.0 };
     for (int n{ 0 }; n < ab.size(); ++n) {
