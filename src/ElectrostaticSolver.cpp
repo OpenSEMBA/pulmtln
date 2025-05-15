@@ -345,10 +345,12 @@ double ElectrostaticSolver::getTotalCharge() const
 }
 
 double ElectrostaticSolver::getChargeMomentComponent(
-    int order, 
-    int component, 
-    const Vector& center) const
+    int n, int d, const Vector& center) const
 {
+    // Computes the 2^n-polar term component for direction d around an expansion center.
+    // d == 0, corresponds with $a_n$
+    // d == 1, corresponds with $b_n$
+    
     Array<int> chargedBoundaries;
     for (const auto& [attr, val] : parameters_.dirichletBoundaries) {
         chargedBoundaries.Append(attr);
@@ -357,8 +359,21 @@ double ElectrostaticSolver::getChargeMomentComponent(
         chargedBoundaries.Append(attr);
     }
 
+    if (n == 0) {
+        if (d == 0) {
+            double Qt = 0.0;
+            for (auto b : chargedBoundaries) {
+                Qt += getChargeInBoundary(b);
+            }
+            return Qt; // a_0
+        }
+        else {
+            return 0.0;  // b_0
+        }
+    }
+
     std::function<double(Vector)> xComponent =
-        std::bind(momentComponent, std::placeholders::_1, 1, component, center);
+        std::bind(momentComponent, std::placeholders::_1, n, d, center);
     FunctionCoefficient xComponentFunctionCoeff(xComponent);
     ProductCoefficient weight{ -1.0, xComponentFunctionCoeff };
 
@@ -407,7 +422,7 @@ multipolarCoefficients ElectrostaticSolver::getMultipolarCoefficients(
     for (int n = 0; n < order + 1; n++) {
         ab[n] = {
             getChargeMomentComponent(n, 0, centerOfCharge),
-            getChargeMomentComponent(n, 1, centerOfCharge),
+            getChargeMomentComponent(n, 1, centerOfCharge)
         };
     }
     

@@ -236,7 +236,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 	ElectrostaticSolver s{m, p};
 	s.Solve();
 
-	exportSolution(s, CASE);
+	exportSolution(s, getCaseName());
 
 	// Expected capacitance C = eps0 * 2 * pi / log(ro/ri)
 	// Expected charge      QExpected = V0 * C 
@@ -424,7 +424,35 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_capacitance)
 	EXPECT_LE(relError(CExpected, CComputedEnergy), rTol);
 }
 
-TEST_F(ElectrostaticSolverTest, two_wires_open_charges)
+TEST_F(ElectrostaticSolverTest, two_wires_open_monopolar_moment)
+{
+	const std::string CASE{ "two_wires_open" };
+	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
+
+	SolverParameters p;
+	p.openBoundaries = { 3 };
+	p.dirichletBoundaries = { {
+		{1,  1.0}, // Conductor 1 bdr.
+		{2,  1.0}, // Conductor 2 bdr.
+	} };
+
+	ElectrostaticSolver s{ m, p };
+	s.Solve();
+
+	auto Q1{ s.getChargeInBoundary(1) };
+	auto Q2{ s.getChargeInBoundary(2) };
+	auto Qt{ Q1 + Q2 };
+
+	auto a0 = s.getChargeMomentComponent(0, 0, Vector({ 0.0, 0.0 }));
+	EXPECT_NEAR(Qt, a0, 5e-6);
+
+	auto b0 = s.getChargeMomentComponent(0, 1, Vector({ 0.0, 0.0 }));
+	EXPECT_NEAR(0.0, b0, 5e-6);
+
+	exportSolution(s, getCaseName());
+}
+
+TEST_F(ElectrostaticSolverTest, two_wires_open_boundary_charges)
 {
 	const std::string CASE{ "two_wires_open" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
@@ -493,7 +521,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_multipolarCoefficients_with_same_
 	EXPECT_NEAR(0.0, ab[1].second, aTol);
 
 	const double a = 0.025;
-	const double quadrupoleTerm = std::pow(a, 2) * Qt / 4.0;
+	const double quadrupoleTerm = std::pow(a, 2) * Q1;
 	EXPECT_NEAR(quadrupoleTerm, ab[2].first, aTol);
 	EXPECT_NEAR(0.0, ab[2].second, aTol);
 }
