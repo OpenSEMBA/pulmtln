@@ -7,6 +7,8 @@ using namespace mfem;
 
 namespace pulmtln {
 
+const std::string INNER_VACUUM_DEFAULT_NAME = "Vacuum_0";
+
 Driver Driver::loadFromFile(const std::string& fn)
 {
 	Parser p{ fn };
@@ -331,7 +333,7 @@ FloatingPotentials Driver::getFloatingPotentials() const
 std::list<std::string> listMaterialsInInnerRegion(const Model& m)
 {
 	std::list<std::string> res;
-	res.push_back("Vacuum_0");
+	res.push_back(INNER_VACUUM_DEFAULT_NAME);
 	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
 		res.push_back(name);
 	}
@@ -352,11 +354,24 @@ double getInnerRegionArea(const Model& m)
 
 double getInnerRegionAveragePotential(const Model& m, const ElectrostaticSolver& s)
 {
-	double res = 0.0;
+	auto materials = m.getMaterials().buildNameToAttrMap();
 
-	// TODO
+	double totalPotential = 0.0;
+	
+	totalPotential += 
+		s.getAveragePotentialInDomain(materials.at(INNER_VACUUM_DEFAULT_NAME)) * 
+		m.getAreaOfMaterial(INNER_VACUUM_DEFAULT_NAME);
 
-	return res;
+	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
+		totalPotential +=
+			s.getAveragePotentialInDomain(tag) * m.getAreaOfMaterial(name);
+	}
+	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
+		totalPotential +=
+			s.getAveragePotentialInBoundary(tag) * m.getAreaOfMaterial(name);
+	}
+
+	return totalPotential / getInnerRegionArea(m);
 }
 
 std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(

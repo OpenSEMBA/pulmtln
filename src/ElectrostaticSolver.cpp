@@ -479,11 +479,29 @@ double ElectrostaticSolver::getChargeInBoundary(int bdrAttribute) const
     return (*surf_int)(*d_);
 }
 
-double ElectrostaticSolver::getAveragePotentialInDomain(int attr) const
+double ElectrostaticSolver::getAveragePotentialInDomain(int domainAttribute) const
 {
-    // TODO
+    mfem::Array<int> attr(1);
+    attr[0] = domainAttribute;
+
+    Array<Coefficient*> coeffsArray(attr.Size());
+    ConstantCoefficient one;
+    for (int i = 0; i < coeffsArray.Size(); i++) {
+        coeffsArray[i] = &one;
+    }
+    PWCoefficient pwcoeff{ attr, coeffsArray };
+
+    LinearForm domain_int(H1FESpace_);
+    domain_int.AddDomainIntegrator(new DomainLFIntegrator(pwcoeff));
+    domain_int.Assemble();
+
+    GridFunction ones(H1FESpace_);
+    ones = 1.0;
     
-    return 0.0;
+    double totalPotential = domain_int(*phi_);
+    double area = domain_int(ones);
+
+    return totalPotential / area;
 }
 
 double ElectrostaticSolver::getAveragePotentialInBoundary(int bdrAttribute) const
@@ -497,9 +515,7 @@ double ElectrostaticSolver::getAveragePotentialInBoundary(int bdrAttribute) cons
     auto totalPotential = (*surf_int)(*phi_);
     auto totalLength = (*surf_int)(ones);
 
-    auto avPotential = totalPotential / totalLength;
-
-    return avPotential;
+    return totalPotential / totalLength;
 }
 
 double ElectrostaticSolver::getTotalEnergy() const
