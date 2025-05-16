@@ -352,26 +352,39 @@ double getInnerRegionArea(const Model& m)
 	return res;
 }
 
-double getInnerRegionAveragePotential(const Model& m, const ElectrostaticSolver& s)
+double getInnerRegionAveragePotential(
+	const Model& m, 
+	const ElectrostaticSolver& s,
+	bool includeConductors)
 {
-	auto materials = m.getMaterials().buildNameToAttrMap();
 
 	double totalPotential = 0.0;
+	double totalArea = 0.0;
 	
-	totalPotential += 
-		s.getAveragePotentialInDomain(materials.at(INNER_VACUUM_DEFAULT_NAME)) * 
-		m.getAreaOfMaterial(INNER_VACUUM_DEFAULT_NAME);
+	{
+		auto materials = m.getMaterials().buildNameToAttrMap();
+		double area = m.getAreaOfMaterial(INNER_VACUUM_DEFAULT_NAME);
+		totalPotential +=
+			s.getAveragePotentialInDomain(materials.at(INNER_VACUUM_DEFAULT_NAME)) *
+			area;
+		totalArea += area;
+	}
 
 	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
-		totalPotential +=
-			s.getAveragePotentialInDomain(tag) * m.getAreaOfMaterial(name);
-	}
-	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
-		totalPotential +=
-			s.getAveragePotentialInBoundary(tag) * m.getAreaOfMaterial(name);
+		double area = m.getAreaOfMaterial(name);
+		totalPotential += s.getAveragePotentialInDomain(tag) * area;
+		totalArea += area;
 	}
 
-	return totalPotential / getInnerRegionArea(m);
+	if (includeConductors) {
+		for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
+			double area = m.getAreaOfMaterial(name);
+			totalPotential += s.getAveragePotentialInBoundary(tag) * area;
+			totalArea += area;
+		}
+	}
+
+	return totalPotential / totalArea;
 }
 
 std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(

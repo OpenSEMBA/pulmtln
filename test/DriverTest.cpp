@@ -530,7 +530,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
 }
 
-TEST_F(DriverTest, DISABLED_lansink2024_in_cell_parameters)
+TEST_F(DriverTest, DISABLED_lansink2024_fdtd_cell)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).
