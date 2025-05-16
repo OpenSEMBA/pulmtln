@@ -6,8 +6,8 @@ $PhysicalNames
 1 1 "Conductor_0"
 1 2 "Conductor_1"
 1 3 "OpenBoundary_0"
-2 4 "Vacuum_0"
-2 5 "Dielectric_0"
+2 4 "Vacuum_1"
+2 5 "Vacuum_0"
 $EndPhysicalNames
 $Nodes
 6029

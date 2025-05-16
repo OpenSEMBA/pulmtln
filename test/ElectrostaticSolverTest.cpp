@@ -51,7 +51,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	//    1 V
 	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
 
-	SolverParameters params;
+	SolverInputs params;
 	params.dirichletBoundaries = {
 		{
 			{1,    1.0}, // bottom boundary.
@@ -95,7 +95,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_energy)
 	//    1 V
 	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
 
-	SolverParameters params;
+	SolverInputs params;
 	params.dirichletBoundaries = {
 		{
 			{1,    1.0}, // bottom boundary.
@@ -126,7 +126,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_neumann)
 	//    Q = 1 
 	auto m{ Mesh::MakeCartesian2D(5, 5, Element::QUADRILATERAL, 1.0, 1.0) };
 
-	SolverParameters params;
+	SolverInputs params;
 	params.neumannBoundaries = {
 		{
 			{1,  1.0}, 
@@ -162,7 +162,7 @@ TEST_F(ElectrostaticSolverTest, parallel_plates_epsr2)
 	//    1 V
 	auto m{ Mesh::MakeCartesian2D(1, 5, Element::QUADRILATERAL, 1.0, 1.0) };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{1,    1.0}, // bottom boundary.
 		{3,    0.0}, // top boundary.
@@ -197,7 +197,7 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	m.Finalize();
 	m.SetAttributes();
 
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{1, 1.0}, // bottom boundary.
 		{3, 0.0}, // top boundary.
@@ -227,7 +227,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
 	const double V{ 1.0 };
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = {{
 		{1, 0.0}, // outer boundary
 		{2, V},   // inner boundary
@@ -255,7 +255,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax_neumann)
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
 	const double V{ 1.0 };
-	SolverParameters p;
+	SolverInputs p;
 	p.neumannBoundaries = { {
 		{2, 1.0 / (2 * M_PI * 25e-3)},   // Inner boundary, 1 unit of charge in total.
 	} };
@@ -279,7 +279,7 @@ TEST_F(ElectrostaticSolverTest, empty_coax_neumann_quadrupole)
 	const std::string CASE{ "empty_coax" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	
 	std::vector<multipolarCoefficient> ab = {
 		{0.0, 0.0}, // a0
@@ -323,7 +323,7 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 	const std::string CASE{ "empty_coax" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 	
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{2, 1.0}
 	} };
@@ -364,7 +364,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_coax)
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
 	const double V{ 1.0 }; // Voltage
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{1, 0.0}, // Conductor 0 bdr (GND).
 		{2, V},   // Conductor 1 bdr.
@@ -391,7 +391,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_capacitance)
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
 	const double V{ 1.0 }; // Voltage
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{1,  V}, // Conductor 1 bdr.
 		{2, -V}, // Conductor 2 bdr.
@@ -429,7 +429,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_monopolar_moment)
 	const std::string CASE{ "two_wires_open" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.openBoundaries = { 3 };
 	p.dirichletBoundaries = { {
 		{1,  1.0}, // Conductor 1 bdr.
@@ -458,7 +458,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_boundary_charges)
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
 	const double V{ 1.0 }; // Voltage
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{1,  V}, // Conductor 1 bdr.
 		{2,  V}, // Conductor 2 bdr.
@@ -494,7 +494,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_multipolarCoefficients_with_same_
 	const std::string CASE{ "two_wires_open" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.openBoundaries = { 3 };
 	
 	p.dirichletBoundaries = { {
@@ -531,7 +531,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_center_of_charge_with_same_potent
 	const std::string CASE{ "two_wires_open" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.openBoundaries = { 3 };
 	p.dirichletBoundaries = { {
 		{1,  1.0}, // Conductor 1 bdr.
@@ -552,7 +552,7 @@ TEST_F(ElectrostaticSolverTest, two_wires_open_center_of_charge_with_floating_po
 	const std::string CASE{ "two_wires_open" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.openBoundaries = { 3 };
 
 	p.dirichletBoundaries = { {
@@ -582,7 +582,7 @@ TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
 	const std::string CASE{ "three_wires_ribbon" };
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = {
 		{
 			{1, 1.0}, // Conductor 0

@@ -38,8 +38,8 @@ static double multipolarExpansion(
     return res;
 }
 
-double momentComponent(
-    const Vector& position, int n, int component, const Vector& translation)
+static double momentComponent(
+    const mfem::Vector& position, int n, int component, const mfem::Vector& translation)
 {
     assert(n > 0);
     assert(component == 0 || component == 1);
@@ -48,7 +48,7 @@ double momentComponent(
         return 1.0;
     }
 
-    Vector pos{ position };
+    mfem::Vector pos{ position };
     pos -= translation;
 
     double r{ pos.Norml2() };

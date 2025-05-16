@@ -10,7 +10,7 @@ namespace pulmtln {
 
 using namespace mfem;
 
-struct SolverParameters {
+struct SolverInputs {
     AttrToValueMap dirichletBoundaries; 
     AttrToValueMap neumannBoundaries;
     std::vector<int> openBoundaries;
@@ -21,7 +21,7 @@ class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
         Mesh& mesh,
-        const SolverParameters&,
+        const SolverInputs&,
         const SolverOptions = SolverOptions{});
     ~ElectrostaticSolver();
 
@@ -54,7 +54,7 @@ private:
     
     Mesh* mesh_;
 
-    SolverParameters parameters_;
+    SolverInputs parameters_;
 
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E

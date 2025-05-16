@@ -68,13 +68,13 @@ void exportFieldSolutions(
 	}
 }
 
-SolverParameters Driver::buildSolverParametersFromModel(
+SolverInputs Driver::buildSolverInputsFromModel(
 	const Model& model,
 	bool ignoreDielectrics)
 {
 	const Materials& mats = model.getMaterials();
 
-	SolverParameters parameters;
+	SolverInputs parameters;
 
 	auto domainToEpsr{
 		buildAttrToValueMap(mats.buildNameToAttrMapFor<Dielectric>(), 1.0)
@@ -94,8 +94,8 @@ SolverParameters Driver::buildSolverParametersFromModel(
 DenseMatrix Driver::getCMatrix(
 	const Model& model,
 	const DriverOptions& opts,
-	bool ignoreDielectrics = false,
-	bool generalized = false)
+	bool ignoreDielectrics,
+	bool generalized)
 {
 	// PUL capacitance matrix for a N conductors system as defined in:
 	// "Clayton Paul's book: Analysis of Multiconductor Transmission Lines"
@@ -119,7 +119,7 @@ DenseMatrix Driver::getCMatrix(
 	}
 	mfem::DenseMatrix C(CSize);
 
-	const auto baseParameters{ buildSolverParametersFromModel(model, ignoreDielectrics) };
+	const auto baseParameters{ buildSolverInputsFromModel(model, ignoreDielectrics) };
 	Mesh mesh{ *model.getMesh() };
 	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
 	
@@ -356,15 +356,15 @@ double getInnerRegionAveragePotential(
 	return totalPotential / totalArea;
 }
 
-std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(
+std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 	const Model& model,
 	const DriverOptions& opts,
 	bool ignoreDielectrics)
 {
-	std::map<std::string, InCellParameters::FieldParameters> res;
+	std::map<std::string, InCellParameters::FieldReconstruction> res;
 
 	auto fp = Driver::getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
-	const auto baseParameters{ Driver::buildSolverParametersFromModel(model, ignoreDielectrics) };
+	const auto baseParameters{ Driver::buildSolverInputsFromModel(model, ignoreDielectrics) };
 	Mesh mesh{ *model.getMesh() };
 	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
 
@@ -401,7 +401,9 @@ InCellParameters Driver::getInCellParameters() const
 	res.innerRegionRadius = std::sqrt(innerRegionArea / M_PI);
 
 	res.electric = getFieldParameters(model_, opts_, false);
+
 	res.magnetic = getFieldParameters(model_, opts_, true);
+
 
 	return res;
 }

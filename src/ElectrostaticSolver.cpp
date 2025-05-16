@@ -58,7 +58,7 @@ double firstOrderABC(const Vector& rVec)
 
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
-    const SolverParameters& parameters,
+    const SolverInputs& parameters,
     const SolverOptions opts) : 
     opts_(opts),
     mesh_(&mesh),

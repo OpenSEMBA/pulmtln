@@ -129,7 +129,7 @@ TEST_F(DriverTest, two_wires_shielded_floating_potentials)
 	{
 		auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-		SolverParameters p;
+		SolverInputs p;
 		p.dirichletBoundaries = {
 			{
 				{1, 0.0},     // Conductor 0 bdr (GND).
@@ -170,7 +170,7 @@ TEST_F(DriverTest, two_wires_open_floating_potentials)
 		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
 		auto m{ Mesh::LoadFromFile(fn) };
 
-		SolverParameters p;
+		SolverInputs p;
 		p.dirichletBoundaries = {
 			{
 				{1, fp(0,0)}, // Conductor 0, prescribed.
@@ -297,7 +297,7 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 		auto fn{ casesFolder() + CASE + "/" + CASE + ".msh" };
 		auto m{ Mesh::LoadFromFile(fn) };
 
-		SolverParameters p;
+		SolverInputs p;
 		p.dirichletBoundaries = {
 			{
 				{1, fp(1,0)}, // Conductor 0 floating potential.
@@ -425,7 +425,7 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 	// To comput floating potentials we are using first order  ABC.
 	auto fp{ Driver::loadFromFile(fn).getFloatingPotentials().electric };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = { {
 		{1,  fp(0,0)}, // Conductor 0 bdr.
 		{2,  fp(0,1)}, // Conductor 1 bdr.
@@ -505,7 +505,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
-	SolverParameters p;
+	SolverInputs p;
 	p.dirichletBoundaries = {
 		{
 			{1, fp(0,0)}, // Conductor 0 floating potential.
@@ -530,7 +530,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
 }
 
-TEST_F(DriverTest, DISABLED_lansink2024_fdtd_cell)
+TEST_F(DriverTest, lansink2024_fdtd_cell_parameters_around_conductor_1)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).
@@ -538,7 +538,7 @@ TEST_F(DriverTest, DISABLED_lansink2024_fdtd_cell)
 	// In 2024 International Symposium on Electromagnetic Compatibility
 	// EMC Europe(pp. 334 - 339). IEEE.
 
-	const std::string CASE{ "lansink2024" };
+	const std::string CASE{ "lansink2024_fdtd_cell" };
 
 	auto inCell{
 		Driver::loadFromFile(
@@ -546,5 +546,26 @@ TEST_F(DriverTest, DISABLED_lansink2024_fdtd_cell)
 		).getInCellParameters()
 	};
 
-	EXPECT_TRUE(false); // TODO.
+	// Computed results.
+	auto computedC11 = inCell.electric.at("Conductor_1").innerRegionAveragePotential;
+	auto computedC12 = inCell.electric.at("Conductor_2").innerRegionAveragePotential;
+
+	auto computedL11 = inCell.magnetic.at("Conductor_1").innerRegionAveragePotential;
+	auto computedL12 = inCell.magnetic.at("Conductor_2").innerRegionAveragePotential;
+
+	// from Table 1, floating conductor case.
+	auto expectedC11 = 14.08e-12;
+	auto expectedC12 = 43.99e-12;
+
+	auto expectedL11 = 791e-9; 
+	auto expectedL12 = 253e-9; 
+
+	// 
+	double rTol = 1e-6;
+	
+	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
+	EXPECT_NEAR(0.0, relError(expectedC12, computedC12), rTol);
+
+	EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
+	EXPECT_NEAR(0.0, relError(expectedL12, computedL12), rTol);
 }

@@ -3,6 +3,7 @@
 #include "SolverOptions.h"
 #include "Model.h"
 #include "Parameters.h"
+#include "ElectrostaticSolver.h"
 
 namespace pulmtln {
 
@@ -13,14 +14,15 @@ public:
     PULParameters getMTLPUL() const;
     PULParametersByDomain getMTLPULByDomains() const;
     InCellParameters getInCellParameters() const;
-
     FloatingPotentials getFloatingPotentials() const;
 
-    static Driver loadFromFile(const std::string& filename);
-    static SolverParameters buildSolverParametersFromModel(
+    void setExportFolder(const std::string folder) { opts_.exportFolder = folder; }
+
+    static SolverInputs buildSolverInputsFromModel(
         const Model& model,
         bool ignoreDielectrics);
 
+    static Driver loadFromFile(const std::string& filename);
     static DenseMatrix getCMatrix(
         const Model& model, const DriverOptions& opts,
         bool ignoreDielectrics = false, bool generalized = false);
@@ -30,7 +32,6 @@ public:
         const Model& model, const DriverOptions& opts,
         const bool ignoreDielectrics);
 
-    void setExportFolder(const std::string folder) { opts_.exportFolder = folder; }
 private:
     Model model_;
     DriverOptions opts_;
