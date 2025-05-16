@@ -2,6 +2,7 @@
 
 #include "ElectrostaticSolver.h"
 #include "Parser.h"
+#include "multipolarExpansion.h"
 
 using namespace mfem;
 
@@ -67,8 +68,7 @@ void exportFieldSolutions(
 	}
 }
 
-
-SolverParameters buildSolverParameters(
+SolverParameters Driver::buildSolverParametersFromModel(
 	const Model& model,
 	bool ignoreDielectrics)
 {
@@ -91,47 +91,16 @@ SolverParameters buildSolverParameters(
 	return parameters;
 }
 
-mfem::Vector getCapacitancesWithOpenBoundary(const Model& m, const DriverOptions& opts, bool ignoreDielectrics)
-{
-	auto parameters{ buildSolverParameters(m, ignoreDielectrics) };
-	const double VPrescribed{ 1.0 };
-	for (auto& [k, v] : parameters.dirichletBoundaries) {
-		v = VPrescribed;
-	}
-
-	auto mesh{ *m.getMesh() };
-	ElectrostaticSolver s(mesh, parameters, opts.solverOptions);
-	s.Solve();
-
-	auto openBdrs = m.getMaterials().buildNameToAttrMapFor<OpenBoundary>();
-	if (openBdrs.size() != 1) {
-		throw std::runtime_error("Only one open boundary is allowed.");
-	}
-	auto Vb = s.getAveragePotentialInBoundary(openBdrs.begin()->second);
-	auto Vd = VPrescribed - Vb;
-
-	auto conductors = m.getMaterials().buildNameToAttrMapFor<PEC>();
-
-	mfem::Vector res(conductors.size());
-	for (const auto& [name, attr] : conductors) {
-		auto condId = Materials::getNumberContainedInName(name);
-		auto Q = s.getChargeInBoundary(attr);
-		res[condId] = Q / Vd;
-	}
-
-	return res;
-}
-
-
-mfem::DenseMatrix getCMatrix(
+DenseMatrix Driver::getCMatrix(
 	const Model& model,
 	const DriverOptions& opts,
 	bool ignoreDielectrics = false,
 	bool generalized = false)
 {
-	// PUL capacitance matrix as defined in:
+	// PUL capacitance matrix for a N conductors system as defined in:
 	// "Clayton Paul's book: Analysis of Multiconductor Transmission Lines"
-	// Standard C contains N-1 x N-1 entries for a problem of N conductors.
+	// - Standard C contains N-1 x N-1 entries
+	// - Generalized C contains N x N entries.
 
 	// Preconditions. 
 	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
@@ -150,7 +119,7 @@ mfem::DenseMatrix getCMatrix(
 	}
 	mfem::DenseMatrix C(CSize);
 
-	const auto baseParameters{ buildSolverParameters(model, ignoreDielectrics) };
+	const auto baseParameters{ buildSolverParametersFromModel(model, ignoreDielectrics) };
 	Mesh mesh{ *model.getMesh() };
 	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
 	
@@ -188,7 +157,7 @@ mfem::DenseMatrix getCMatrix(
 	return C;
 }
 
-DenseMatrix getLMatrix(const Model& model, const DriverOptions& opts)
+DenseMatrix Driver::getLMatrix(const Model& model, const DriverOptions& opts)
 {
 	// PUL inductance matrix as defined in:
 	//   Clayton Paul's book: Analysis of Multiconductor Transmission Lines
@@ -196,7 +165,7 @@ DenseMatrix getLMatrix(const Model& model, const DriverOptions& opts)
 	// Inductance matrix can be computed from the 
 	// capacitance obtained ignoring dielectrics as
 	//          L = mu0 * eps0 * C^{-1}
-	auto res{ getCMatrix(model, opts, true) };
+	auto res{ Driver::getCMatrix(model, opts, true) };
 	res.Invert();
 	res *= MU0_NATURAL * EPSILON0_NATURAL;
 	return res;
@@ -206,10 +175,10 @@ PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& op
 {
 	PULParameters res;
 
-	res.C = getCMatrix(m, opts);
+	res.C = Driver::getCMatrix(m, opts);
 	res.C *= EPSILON0_SI;
 
-	res.L = getLMatrix(m, opts);
+	res.L = Driver::getLMatrix(m, opts);
 	res.L *= MU0_SI;
 
 	if (opts.makeMatricesSymmetric) {
@@ -249,7 +218,7 @@ PULParametersByDomain Driver::getMTLPULByDomains() const
 	return res;
 }
 
-mfem::DenseMatrix getFloatingPotentialsMatrix(
+DenseMatrix Driver::getFloatingPotentialsMatrix(
 	const Model& model,
 	const DriverOptions& opts,
 	const bool ignoreDielectrics)
@@ -394,8 +363,8 @@ std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(
 {
 	std::map<std::string, InCellParameters::FieldParameters> res;
 
-	auto fp = getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
-	const auto baseParameters{ buildSolverParameters(model, ignoreDielectrics) };
+	auto fp = Driver::getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
+	const auto baseParameters{ Driver::buildSolverParametersFromModel(model, ignoreDielectrics) };
 	Mesh mesh{ *model.getMesh() };
 	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
 
@@ -411,7 +380,8 @@ std::map<std::string, InCellParameters::FieldParameters> getFieldParameters(
 		s.setDirichletConditions(dbcs);
 		s.Solve();
 
-		res[nameI].innerRegionAveragePotential = getInnerRegionAveragePotential(model, s);
+		res[nameI].innerRegionAveragePotential = 
+			getInnerRegionAveragePotential(model, s, false);
 		res[nameI].expansionCenter = s.getCenterOfCharge();
 		res[nameI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
 	}

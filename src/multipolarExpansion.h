@@ -38,4 +38,28 @@ static double multipolarExpansion(
     return res;
 }
 
+double momentComponent(
+    const Vector& position, int n, int component, const Vector& translation)
+{
+    assert(n > 0);
+    assert(component == 0 || component == 1);
+
+    if (n == 0) {
+        return 1.0;
+    }
+
+    Vector pos{ position };
+    pos -= translation;
+
+    double r{ pos.Norml2() };
+    double phi{ std::atan2(pos(1), pos(0)) };
+
+    if (component == 0) {
+        return std::pow(r, n) * std::cos(n * phi) / n;
+    }
+    else {
+        return std::pow(r, n) * std::sin(n * phi) / n;
+    }
+}
+
 }

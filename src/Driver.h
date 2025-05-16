@@ -17,6 +17,18 @@ public:
     FloatingPotentials getFloatingPotentials() const;
 
     static Driver loadFromFile(const std::string& filename);
+    static SolverParameters buildSolverParametersFromModel(
+        const Model& model,
+        bool ignoreDielectrics);
+
+    static DenseMatrix getCMatrix(
+        const Model& model, const DriverOptions& opts,
+        bool ignoreDielectrics = false, bool generalized = false);
+    static DenseMatrix getLMatrix(
+        const Model& model, const DriverOptions& opts);
+    static DenseMatrix getFloatingPotentialsMatrix(
+        const Model& model, const DriverOptions& opts,
+        const bool ignoreDielectrics);
 
     void setExportFolder(const std::string folder) { opts_.exportFolder = folder; }
 private:
