@@ -115,15 +115,20 @@ double Model::getAreaOfMaterial(const std::string& materialName) const
 	}
 	int innerRegionTag{ materials.at(materialName) };
 
-	Mesh m{ *getMesh() };
-	double area = 0.0;
-	for (int i = 0; i < m.GetNE(); ++i) {
-		if (innerRegionTag == m.GetAttribute(i)) {
-			area += m.GetElementVolume(i);
+	if (getMaterials().isDomainMaterial(materialName)) {
+		Mesh m{ *getMesh() };
+		double area = 0.0;
+		for (int i = 0; i < m.GetNE(); ++i) {
+			if (innerRegionTag == m.GetAttribute(i)) {
+				area += m.GetElementVolume(i);
+			}
 		}
+		return area;
+	}
+	else {
+		return getMaterials().get<PEC>(materialName).area;
 	}
 
-	return area;
 }
 
 

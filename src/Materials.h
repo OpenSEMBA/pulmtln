@@ -13,13 +13,14 @@ struct Material {
 };
 
 struct PEC : public Material {
+	double area{ 0.0 };
 };
 
 struct OpenBoundary : public Material {
 };
 
 struct Dielectric : public Material {
-	double relativePermittivity;
+	double relativePermittivity{ 1.0 };
 };
 
 struct Materials { 
@@ -49,52 +50,37 @@ struct Materials {
 		return res;
 	}
 
-	NameToAttrMap buildNameToAttrMap() const
+	template <class T>
+	const T& get(const std::string name) const
 	{
-		NameToAttrMap res{ buildNameToAttrMapFor<PEC>() };
-		{
-			auto aux{ buildNameToAttrMapFor<OpenBoundary>() };
-			res.insert(aux.begin(), aux.end());
+		if constexpr (std::is_same<T, PEC>()) {
+			for (const auto& m : pecs) {
+				if (m.name == name) {
+					return m;
+				}
+			}
 		}
-		{
-			auto aux{ buildNameToAttrMapFor<Dielectric>() };
-			res.insert(aux.begin(), aux.end());
+		if constexpr (std::is_same<T, OpenBoundary>()) {
+			for (const auto& m : openBoundaries) {
+				if (m.name == name) {
+					return m;
+				}
+			}
 		}
-		return res;
+		else if constexpr (std::is_same<T, Dielectric>()) {
+			for (const auto& m : dielectrics) {
+				if (m.name == name) {
+					return m;
+				}
+			}
+		}
 	}
 
-	void removeMaterialsNotInList(const NameToAttrMap allowedMaterials)
-	{
-
-		auto condition = [&allowedMaterials](const Material& mat) {
-			return allowedMaterials.count(mat.name) > 0;
-			};
-
-		{
-			std::vector<PEC> vs;
-			std::copy_if(pecs.begin(), pecs.end(), std::back_inserter(vs), condition);
-			pecs = vs;
-		}
-		{
-			std::vector<Dielectric> vs;
-			std::copy_if(dielectrics.begin(), dielectrics.end(), std::back_inserter(vs), condition);
-			dielectrics = vs;
-		}
-		{
-			std::vector<OpenBoundary> vs;
-			std::copy_if(openBoundaries.begin(), openBoundaries.end(), std::back_inserter(vs), condition);
-			openBoundaries = vs;
-		}
-	}
-	static int getNumberContainedInName(const std::string& name)
-	{
-		std::stringstream ss{ name.substr(name.find("_") + 1) };
-		int res;
-		ss >> res;
-		return res;
-	}
-
-
+	NameToAttrMap buildNameToAttrMap() const;
+	void removeMaterialsNotInList(const NameToAttrMap allowedMaterials);
+	bool isDomainMaterial(const std::string& name) const;
+	
+	static int getNumberContainedInName(const std::string& name);	
 };
 
 }

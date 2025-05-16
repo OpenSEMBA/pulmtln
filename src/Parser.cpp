@@ -42,18 +42,22 @@ Parser::Parser(const std::string& filename) :
 Materials readMaterials(const json& j)
 {
 	Materials res;
-	for (const auto& mat : j.items()) {
-		auto name{ mat.key() };
+	for (const auto& jMat : j.items()) {
+		auto name{ jMat.key() };
+		auto mat{ jMat.value() };
 		auto type{ 
 			LABEL_TO_MATERIAL_TYPE.at(
-				mat.value().at("type").get<std::string>()
+				mat.at("type").get<std::string>()
 			)
 		};
-		auto attribute{ mat.value().at("tag").get<int>() };
+		auto attribute{ mat.at("tag").get<int>() };
 		switch (type) {
 		case MaterialType::PEC:
-			res.pecs.push_back({ name, attribute });
+		{
+			double area = mat.value("area", 0.0)*1e-6;
+			res.pecs.push_back({ name, attribute, area });
 			break;
+		}
 		case MaterialType::OpenBoundary:
 			res.openBoundaries.push_back({ name, attribute });
 			break;
@@ -62,7 +66,7 @@ Materials readMaterials(const json& j)
 			break;
 		case MaterialType::Dielectric:
 		{
-			double epsR{ mat.value().at("eps_r").get<double>() };
+			double epsR{ mat.at("eps_r").get<double>() };
 			res.dielectrics.push_back({ name, attribute, epsR });
 			break;
 		}

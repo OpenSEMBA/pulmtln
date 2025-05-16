@@ -38,3 +38,14 @@ TEST_F(ModelTest, agrawal1981_conductors_in_mesh)
 	
 	ASSERT_EQ(4, m.getMaterials().pecs.size());
 }
+
+TEST_F(ModelTest, lansink2024_fdtd_cell_areas)
+{
+	auto m{ Parser{ inputCase("lansink2024_fdtd_cell") }.readModel() };
+
+	auto c0 = m.getAreaOfMaterial("Conductor_0");
+	auto c1 = m.getAreaOfMaterial("Conductor_1");
+	auto v0 = m.getAreaOfMaterial("Vacuum_0");
+
+	EXPECT_NEAR(0.04, c0 + c1 + v0, 1e-8);
+}

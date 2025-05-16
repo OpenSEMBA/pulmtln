@@ -304,6 +304,9 @@ std::list<std::string> listMaterialsInInnerRegion(const Model& m)
 	std::list<std::string> res;
 	res.push_back(INNER_VACUUM_DEFAULT_NAME);
 	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
+		if (name.find("Vacuum_") != std::string::npos) {
+			continue;
+		}
 		res.push_back(name);
 	}
 	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
@@ -330,27 +333,18 @@ double getInnerRegionAveragePotential(
 	double totalPotential = 0.0;
 	double totalArea = 0.0;
 	
-	{
-		auto materials = m.getMaterials().buildNameToAttrMap();
-		double area = m.getAreaOfMaterial(INNER_VACUUM_DEFAULT_NAME);
-		totalPotential +=
-			s.getAveragePotentialInDomain(materials.at(INNER_VACUUM_DEFAULT_NAME)) *
-			area;
-		totalArea += area;
-	}
-
-	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
+	auto innerRegionMaterials = listMaterialsInInnerRegion(m);
+	auto materials = m.getMaterials().buildNameToAttrMap();
+	
+	for (const auto& name: innerRegionMaterials ) {
+		auto tag = materials.at(name);
 		double area = m.getAreaOfMaterial(name);
-		totalPotential += s.getAveragePotentialInDomain(tag) * area;
-		totalArea += area;
-	}
-
-	if (includeConductors) {
-		for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
-			double area = m.getAreaOfMaterial(name);
+		if (m.getMaterials().isDomainMaterial(name)) {
+			totalPotential += s.getAveragePotentialInDomain(tag) * area;
+		} else {
 			totalPotential += s.getAveragePotentialInBoundary(tag) * area;
-			totalArea += area;
 		}
+		totalArea += area;
 	}
 
 	return totalPotential / totalArea;
@@ -380,6 +374,8 @@ std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 		s.setDirichletConditions(dbcs);
 		s.Solve();
 
+		exportFieldSolutions(opts, s, nameI + "_prescribed_and_rest_floating", ignoreDielectrics);
+
 		res[nameI].innerRegionAveragePotential = 
 			getInnerRegionAveragePotential(model, s, false);
 		res[nameI].expansionCenter = s.getCenterOfCharge();
@@ -394,7 +390,7 @@ InCellParameters Driver::getInCellParameters() const
 	InCellParameters res;
 
 	if (model_.determineOpenness() != Model::Openness::open) {
-		throw std::runtime_error("In cell paramters can only be computed for open problems.");
+		throw std::runtime_error("In cell parameters can only be computed for open problems.");
 	}
 
 	const double innerRegionArea{ getInnerRegionArea(model_) };
