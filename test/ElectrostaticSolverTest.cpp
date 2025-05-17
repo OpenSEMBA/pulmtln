@@ -220,7 +220,7 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 
 }
 
-TEST_F(ElectrostaticSolverTest, empty_coax)
+TEST_F(ElectrostaticSolverTest, empty_coax_charge_in_boundaries)
 {
 	// Coaxial case.
 	const std::string CASE{ "empty_coax" };
@@ -247,6 +247,39 @@ TEST_F(ElectrostaticSolverTest, empty_coax)
 	EXPECT_LE(relError( QExpected, s.getChargeInBoundary(2)), rTol); // Boundary 2 is the internal.
 	EXPECT_LE(relError(-QExpected, s.getChargeInBoundary(1)), rTol); // Boundary 1 is the external.
 }
+
+TEST_F(ElectrostaticSolverTest, empty_coax_average_potential)
+{
+	// Coaxial case.
+	const std::string CASE{ "empty_coax" };
+	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
+
+	SolverInputs p;
+	p.dirichletBoundaries = { {
+		{2, 1.0},   // inner boundary
+	} };
+	p.openBoundaries = { 1 };
+
+	ElectrostaticSolver s{ m, p };
+	s.Solve();
+
+	exportSolution(s, getCaseName());
+
+	double avPotential = s.getAveragePotentialInDomain(3);
+
+	const double a = 0.05;  // external boundary radius
+	const double b = 0.025; // inner boundary radius
+	double Qi = s.getChargeInBoundary(2);
+	double area = M_PI * (a * a - b * b);
+	double totalVoltage =
+		( 1.0 + Qi/2.0/M_PI/EPSILON0_NATURAL*std::log(b) ) * area
+		- (Qi / 2.0 / EPSILON0_NATURAL) * (a * a * (std::log(a)-0.5) - b * b * (std::log(b)-0.5));
+		
+	double expected = totalVoltage / area;
+
+	EXPECT_NEAR(0.0, relError(expected, avPotential), 5e-4);
+}
+
 
 TEST_F(ElectrostaticSolverTest, empty_coax_neumann)
 {
