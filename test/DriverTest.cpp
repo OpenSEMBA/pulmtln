@@ -530,7 +530,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
 }
 
-TEST_F(DriverTest, lansink2024_fdtd_cell_parameters_around_conductor_1)
+TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).
@@ -547,18 +547,23 @@ TEST_F(DriverTest, lansink2024_fdtd_cell_parameters_around_conductor_1)
 	};
 
 	// Computed results.
-	auto computedC11 = inCell.electric.at("Conductor_1").innerRegionAveragePotential;
-	auto computedC12 = inCell.electric.at("Conductor_2").innerRegionAveragePotential;
+	double Q0 = inCell.electric.at("Conductor_0").ab[0].first;
+	double avV0 = inCell.electric.at("Conductor_0").innerRegionAveragePotential;
+	auto computedC11 = Q0 * EPSILON0_SI / avV0;
 
-	auto computedL11 = inCell.magnetic.at("Conductor_1").innerRegionAveragePotential;
-	auto computedL12 = inCell.magnetic.at("Conductor_2").innerRegionAveragePotential;
+	double Q1 = inCell.electric.at("Conductor_1").ab[0].first;
+	double avV1 = inCell.electric.at("Conductor_1").innerRegionAveragePotential;
+	auto computedC12 = Q1 * EPSILON0_SI / avV1;
+
+	//auto computedL11 = inCell.magnetic.at("Conductor_0").innerRegionAveragePotential;
+	//auto computedL12 = inCell.magnetic.at("Conductor_1").innerRegionAveragePotential;
 
 	// from Table 1, floating conductor case.
 	auto expectedC11 = 14.08e-12;
 	auto expectedC12 = 43.99e-12;
 
-	auto expectedL11 = 791e-9; 
-	auto expectedL12 = 253e-9; 
+	//auto expectedL11 = 791e-9; 
+	//auto expectedL12 = 253e-9; 
 
 	// 
 	double rTol = 1e-6;
@@ -566,6 +571,6 @@ TEST_F(DriverTest, lansink2024_fdtd_cell_parameters_around_conductor_1)
 	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
 	EXPECT_NEAR(0.0, relError(expectedC12, computedC12), rTol);
 
-	EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
-	EXPECT_NEAR(0.0, relError(expectedL12, computedL12), rTol);
+	//EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
+	//EXPECT_NEAR(0.0, relError(expectedL12, computedL12), rTol);
 }

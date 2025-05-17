@@ -299,7 +299,9 @@ FloatingPotentials Driver::getFloatingPotentials() const
 	return res;
 }
 
-std::list<std::string> listMaterialsInInnerRegion(const Model& m)
+std::list<std::string> listMaterialsInInnerRegion(
+	const Model& m,
+	bool includeConductors = true)
 {
 	std::list<std::string> res;
 	res.push_back(INNER_VACUUM_DEFAULT_NAME);
@@ -309,8 +311,10 @@ std::list<std::string> listMaterialsInInnerRegion(const Model& m)
 		}
 		res.push_back(name);
 	}
-	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
-		res.push_back(name);
+	if (includeConductors) {
+		for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<PEC>()) {
+			res.push_back(name);
+		}
 	}
 	return res;
 }
@@ -333,7 +337,7 @@ double getInnerRegionAveragePotential(
 	double totalPotential = 0.0;
 	double totalArea = 0.0;
 	
-	auto innerRegionMaterials = listMaterialsInInnerRegion(m);
+	auto innerRegionMaterials = listMaterialsInInnerRegion(m, includeConductors);
 	auto materials = m.getMaterials().buildNameToAttrMap();
 	
 	for (const auto& name: innerRegionMaterials ) {
@@ -374,7 +378,8 @@ std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 		s.setDirichletConditions(dbcs);
 		s.Solve();
 
-		exportFieldSolutions(opts, s, nameI + "_prescribed_and_rest_floating", ignoreDielectrics);
+		exportFieldSolutions(opts, s, 
+			nameI + "_prescribed_and_rest_floating", ignoreDielectrics);
 
 		res[nameI].innerRegionAveragePotential = 
 			getInnerRegionAveragePotential(model, s, false);
