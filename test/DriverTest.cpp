@@ -497,11 +497,10 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	
 	const std::string CASE{ "lansink2024" };
 	
-	auto fp{ 
-		Driver::loadFromFile(
-			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
-		).getFloatingPotentials().electric
-	}; 
+	auto dr{ Driver::loadFromFile(casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json") };
+
+	auto fp{ dr.getFloatingPotentials().electric }; 
+	auto inCell{ dr.getInCellParameters() };
 
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
@@ -517,17 +516,21 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	ElectrostaticSolver s{ m, p };
 	s.Solve();
 
-	// For debugging.
-	ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
-	s.writeParaViewFields(pd);
-
 	auto Q0 = s.getChargeInBoundary(1);
 	auto Q1 = s.getChargeInBoundary(2);
 	auto Qb = s.getChargeInBoundary(3);
 
+	// For debugging.
+	ParaViewDataCollection pd{ outFolder() + CASE + "_floating", s.getMesh() };
+	s.writeParaViewFields(pd);
+
+	// Expectations.
 	const double aTol{ 1e-3 };
 	EXPECT_NEAR(0.0, Q1, aTol);
 	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
+
+	const double a0 = inCell.electric.at("Conductor_0").ab[0].first;
+	EXPECT_NEAR(Q0, a0, 1e-4);
 }
 
 TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
