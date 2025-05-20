@@ -382,7 +382,7 @@ std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 			nameI + "_prescribed_and_rest_floating", ignoreDielectrics);
 
 		res[nameI].innerRegionAveragePotential = 
-			getInnerRegionAveragePotential(model, s, false);
+			getInnerRegionAveragePotential(model, s, true);
 		res[nameI].expansionCenter = s.getCenterOfCharge();
 		res[nameI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
 	}

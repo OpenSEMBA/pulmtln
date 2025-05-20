@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "ElectrostaticSolver.h"
-#include "TestUtils.h"
-
 #include <functional>
+
+#include "TestUtils.h"
+#include "ElectrostaticSolver.h"
+#include "Parser.h"
 
 using namespace mfem;
 using namespace pulmtln;
@@ -628,13 +629,66 @@ TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
 	ElectrostaticSolver s{ m, p, solverOpts };
 	s.Solve();
 
-	// For debugging.
-	ParaViewDataCollection pd{ outFolder() + CASE + "_zero_net_charge", s.getMesh() };
-	s.writeParaViewFields(pd);
+	exportSolution(s, getCaseName());
 
 	auto Q0 = s.getChargeInBoundary(1);
 	auto Q1 = s.getChargeInBoundary(2);
 	auto Q2 = s.getChargeInBoundary(3);
 	auto Qb = s.getChargeInBoundary(4);
 	EXPECT_NEAR(0.0, Q0+Q1+Q2+Qb, 1e-4);
+}
+
+
+TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_neumann)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	const std::string CASE{ "lansink2024_fdtd_cell" };
+	auto model{ Parser{casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"}.readModel() };
+	
+	SolverInputs p;
+	p.dirichletBoundaries = {
+		{
+			{1, 1.0}, // Conductor 0
+		}
+	};
+	p.neumannBoundaries = {
+		{
+			{2, 0.0}  // Conductor 1
+		}
+	};
+	p.openBoundaries = { 3 };
+
+	ElectrostaticSolver s{ *model.getMesh(), p };
+	s.Solve();
+
+	auto avVVacuum = s.getAveragePotentialInDomain(5);
+	auto avV0 = s.getAveragePotentialInBoundary(1);
+	auto avV1 = s.getAveragePotentialInBoundary(2);
+
+	auto Q0 = s.getChargeInBoundary(1);
+	auto Q1 = s.getChargeInBoundary(2);
+
+	auto areaVacuum = model.getAreaOfMaterial("Vacuum_0");
+	auto areaCond0 = model.getAreaOfMaterial("Conductor_0");
+	auto areaCond1 = model.getAreaOfMaterial("Conductor_1");
+	auto totalArea = areaVacuum + areaCond0 + areaCond1;
+
+	auto avV = (avVVacuum * areaVacuum + avV0 * areaCond0 + avV1 * areaCond1) / (totalArea);
+
+	auto computedC11 = Q0 / avV * EPSILON0_SI;
+
+	exportSolution(s, getTestCaseName());
+
+	// from Table 1, floating conductor case.
+	auto expectedC11 =12.39e-12;
+
+	// 
+	double rTol = 1e-6;
+	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
+	EXPECT_NEAR(0.0, Q1, 1e-8);
 }
