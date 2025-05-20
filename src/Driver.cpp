@@ -379,7 +379,7 @@ std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 		s.Solve();
 
 		exportFieldSolutions(opts, s, 
-			nameI + "_prescribed_and_rest_floating", ignoreDielectrics);
+			nameI + "_prescribed_and_others_floating", ignoreDielectrics);
 
 		res[nameI].innerRegionAveragePotential = 
 			getInnerRegionAveragePotential(model, s, true);

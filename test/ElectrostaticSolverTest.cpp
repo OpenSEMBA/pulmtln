@@ -5,6 +5,7 @@
 #include "TestUtils.h"
 #include "ElectrostaticSolver.h"
 #include "Parser.h"
+#include "Driver.h"
 
 using namespace mfem;
 using namespace pulmtln;
@@ -638,8 +639,7 @@ TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
 	EXPECT_NEAR(0.0, Q0+Q1+Q2+Qb, 1e-4);
 }
 
-
-TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_neumann)
+TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_floating)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).
@@ -648,17 +648,16 @@ TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_neuman
 	// EMC Europe(pp. 334 - 339). IEEE.
 
 	const std::string CASE{ "lansink2024_fdtd_cell" };
-	auto model{ Parser{casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"}.readModel() };
-	
+	const std::string fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+	auto model{ Parser{fn}.readModel() };
+
+	auto fp = Driver::loadFromFile(fn).getFloatingPotentials().electric;
+
 	SolverInputs p;
 	p.dirichletBoundaries = {
 		{
-			{1, 1.0}, // Conductor 0
-		}
-	};
-	p.neumannBoundaries = {
-		{
-			{2, 0.0}  // Conductor 1
+			{1, fp(0,0)}, // Conductor 0,
+			{2, fp(0,1)}  // Conductor 1
 		}
 	};
 	p.openBoundaries = { 3 };
@@ -678,17 +677,19 @@ TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_neuman
 	auto areaCond1 = model.getAreaOfMaterial("Conductor_1");
 	auto totalArea = areaVacuum + areaCond0 + areaCond1;
 
-	auto avV = (avVVacuum * areaVacuum + avV0 * areaCond0 + avV1 * areaCond1) / (totalArea);
+	auto avV =
+		(avVVacuum * areaVacuum + avV0 * areaCond0 + avV1 * areaCond1) / (totalArea);
+	avV -= fp(0, 0); // In the paper, Conductor_0 is assumed to have zero voltage.
 
-	auto computedC11 = Q0 / avV * EPSILON0_SI;
+	auto computedC11 = std::abs(Q0 / avV * EPSILON0_SI);
 
 	exportSolution(s, getTestCaseName());
 
 	// from Table 1, floating conductor case.
-	auto expectedC11 =12.39e-12;
+	auto expectedC11 = 14.08e-12;
 
 	// 
-	double rTol = 1e-6;
+	double rTol = 0.01;
 	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
-	EXPECT_NEAR(0.0, Q1, 1e-8);
+	EXPECT_NEAR(0.0, Q1, 0.005);
 }

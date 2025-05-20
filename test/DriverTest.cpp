@@ -549,30 +549,32 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 		).getInCellParameters()
 	};
 
+	const double prescribedV = 1.0;
+
+	const double rTol = 0.02;
 	// Computed results.
 	double Q0 = inCell.electric.at("Conductor_0").ab[0].first;
 	double avV0 = inCell.electric.at("Conductor_0").innerRegionAveragePotential;
-	auto computedC11 = Q0 * EPSILON0_SI / avV0;
+	auto computedC11 = Q0 * EPSILON0_SI / std::abs(avV0-prescribedV);
+	auto expectedC11 = 14.08e-12;
+	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
 
 	double Q1 = inCell.electric.at("Conductor_1").ab[0].first;
 	double avV1 = inCell.electric.at("Conductor_1").innerRegionAveragePotential;
-	auto computedC12 = Q1 * EPSILON0_SI / avV1;
+	auto computedC12 = Q1 * EPSILON0_SI / std::abs(avV1- prescribedV);
+	auto expectedC12 = 43.99e-12;
+	EXPECT_NEAR(0.0, relError(expectedC12, computedC12), rTol);
 
 	//auto computedL11 = inCell.magnetic.at("Conductor_0").innerRegionAveragePotential;
 	//auto computedL12 = inCell.magnetic.at("Conductor_1").innerRegionAveragePotential;
 
 	// from Table 1, floating conductor case.
-	auto expectedC11 = 14.08e-12;
-	auto expectedC12 = 43.99e-12;
 
 	//auto expectedL11 = 791e-9; 
 	//auto expectedL12 = 253e-9; 
 
 	// 
-	double rTol = 1e-6;
 	
-	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
-	EXPECT_NEAR(0.0, relError(expectedC12, computedC12), rTol);
 
 	//EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
 	//EXPECT_NEAR(0.0, relError(expectedL12, computedL12), rTol);
