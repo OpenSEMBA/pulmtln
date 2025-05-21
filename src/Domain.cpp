@@ -127,7 +127,7 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 		for (const auto& pec : model.getMaterials().pecs) {
 			auto bdrElems = getBdrElemsInDomain(&pec, vsInDomain, mesh);
 			if (!bdrElems.empty()) {
-				domain.conductorIds.insert(Materials::getNumberContainedInName(pec.name));
+				domain.conductorIds.insert(Materials::getMaterialIdFromName(pec.name));
 				domain.bdrElems.insert(bdrElems.begin(), bdrElems.end());
 			}
 		}

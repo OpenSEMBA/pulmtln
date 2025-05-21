@@ -126,7 +126,7 @@ DenseMatrix Driver::getCMatrix(
 	// Solves a electrostatic problem for each conductor besides the
 	int row{ 0 };
 	for (const auto& [nameI, bdrAttI] : conductors) {
-		int condI = Materials::getNumberContainedInName(nameI);
+		int condI = Materials::getMaterialIdFromName(nameI);
 		if (condI == model.getGroundConductorId() && !generalized) {
 			continue;
 		}
@@ -139,7 +139,7 @@ DenseMatrix Driver::getCMatrix(
 		// Fills row
 		int col{ 0 };
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			int condJ = Materials::getNumberContainedInName(nameJ);
+			int condJ = Materials::getMaterialIdFromName(nameJ);
 			if (condJ == model.getGroundConductorId() && !generalized) {
 				continue;
 			}
@@ -354,12 +354,12 @@ double getInnerRegionAveragePotential(
 	return totalPotential / totalArea;
 }
 
-std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
+std::map<MaterialId, InCellPotentials::FieldReconstruction> getFieldParameters(
 	const Model& model,
 	const DriverOptions& opts,
 	bool ignoreDielectrics)
 {
-	std::map<std::string, InCellParameters::FieldReconstruction> res;
+	std::map<MaterialId, InCellPotentials::FieldReconstruction> res;
 
 	auto fp = Driver::getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
 	const auto baseParameters{ Driver::buildSolverInputsFromModel(model, ignoreDielectrics) };
@@ -368,11 +368,11 @@ std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 
 	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
 	for (const auto& [nameI, bdrAttI] : conductors) {
-		auto condI = Materials::getNumberContainedInName(nameI);
+		auto condI = Materials::getMaterialIdFromName(nameI);
 
 		auto dbcs = baseParameters.dirichletBoundaries;
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			auto condJ = Materials::getNumberContainedInName(nameJ);
+			auto condJ = Materials::getMaterialIdFromName(nameJ);
 			dbcs[bdrAttJ] = fp(condI, condJ);
 		}
 		s.setDirichletConditions(dbcs);
@@ -381,18 +381,18 @@ std::map<std::string, InCellParameters::FieldReconstruction> getFieldParameters(
 		exportFieldSolutions(opts, s, 
 			nameI + "_prescribed_and_others_floating", ignoreDielectrics);
 
-		res[nameI].innerRegionAveragePotential = 
+		res[condI].innerRegionAveragePotential = 
 			getInnerRegionAveragePotential(model, s, true);
-		res[nameI].expansionCenter = s.getCenterOfCharge();
-		res[nameI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
+		res[condI].expansionCenter = s.getCenterOfCharge();
+		res[condI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
 	}
 
 	return res;
 }
 
-InCellParameters Driver::getInCellParameters() const
+InCellPotentials Driver::getInCellPotentials() const
 {
-	InCellParameters res;
+	InCellPotentials res;
 
 	if (model_.determineOpenness() != Model::Openness::open) {
 		throw std::runtime_error("In cell parameters can only be computed for open problems.");

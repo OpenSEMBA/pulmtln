@@ -80,7 +80,7 @@ struct Materials {
 	void removeMaterialsNotInList(const NameToAttrMap allowedMaterials);
 	bool isDomainMaterial(const std::string& name) const;
 	
-	static int getNumberContainedInName(const std::string& name);	
+	static MaterialId getMaterialIdFromName(const std::string& name);	
 };
 
 }

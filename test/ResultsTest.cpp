@@ -2,7 +2,7 @@
 
 #include "TestUtils.h"
 
-#include "Parameters.h"
+#include "Results.h"
 
 using namespace pulmtln;
 

@@ -500,7 +500,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	auto dr{ Driver::loadFromFile(casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json") };
 
 	auto fp{ dr.getFloatingPotentials().electric }; 
-	auto inCell{ dr.getInCellParameters() };
+	auto inCell{ dr.getInCellPotentials() };
 
 	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
 
@@ -529,7 +529,7 @@ TEST_F(DriverTest, lansink2024_floating_potentials)
 	EXPECT_NEAR(0.0, Q1, aTol);
 	EXPECT_NEAR(0.0, Q0 + Q1 + Qb, aTol);
 
-	const double a0 = inCell.electric.at("Conductor_0").ab[0].first;
+	const double a0 = inCell.electric.at(0).ab[0].first;
 	EXPECT_NEAR(Q0, a0, 1e-4);
 }
 
@@ -546,22 +546,22 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 	auto inCell{
 		Driver::loadFromFile(
 			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
-		).getInCellParameters()
+		).getInCellPotentials()
 	};
 
 	const double prescribedV = 1.0;
 
 	const double rTol = 0.02;
 	// Computed results.
-	double Q0 = inCell.electric.at("Conductor_0").ab[0].first;
-	double avV0 = inCell.electric.at("Conductor_0").innerRegionAveragePotential;
-	auto computedC11 = Q0 * EPSILON0_SI / std::abs(avV0-prescribedV);
+	double Q0 = inCell.electric.at(0).ab[0].first;
+	double avV0 = inCell.electric.at(0).innerRegionAveragePotential;
+	auto computedC11 = Q0 * EPSILON0_SI / std::abs(avV0 - prescribedV);
 	auto expectedC11 = 14.08e-12;
 	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
 
-	double Q1 = inCell.electric.at("Conductor_1").ab[0].first;
-	double avV1 = inCell.electric.at("Conductor_1").innerRegionAveragePotential;
-	auto computedC12 = Q1 * EPSILON0_SI / std::abs(avV1- prescribedV);
+	double Q1 = inCell.electric.at(1).ab[0].first;
+	double avV1 = inCell.electric.at(1).innerRegionAveragePotential;
+	auto computedC12 = Q1 * EPSILON0_SI / std::abs(avV1 - prescribedV);
 	auto expectedC12 = 43.99e-12;
 	EXPECT_NEAR(0.0, relError(expectedC12, computedC12), rTol);
 

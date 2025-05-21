@@ -32,7 +32,7 @@ struct FloatingPotentials {
     mfem::DenseMatrix electric, magnetic;
 };
 
-struct InCellParameters {
+struct InCellPotentials {
     struct FieldReconstruction {
         double innerRegionAveragePotential;
         mfem::Vector expansionCenter;
@@ -41,7 +41,7 @@ struct InCellParameters {
     double innerRegionRadius;
 
     // Electric and magnetic potentials multipolar expansions for each conductor.
-    std::map<std::string, FieldReconstruction> electric, magnetic;
+    std::map<MaterialId, FieldReconstruction> electric, magnetic;
 };
 
 }

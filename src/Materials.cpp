@@ -41,7 +41,7 @@ void Materials::removeMaterialsNotInList(const NameToAttrMap allowedMaterials)
 	}
 }
 
-int Materials::getNumberContainedInName(const std::string& name)
+MaterialId Materials::getMaterialIdFromName(const std::string& name)
 {
 	std::stringstream ss{ name.substr(name.find("_") + 1) };
 	int res;

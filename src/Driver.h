@@ -2,7 +2,7 @@
 
 #include "SolverOptions.h"
 #include "Model.h"
-#include "Parameters.h"
+#include "Results.h"
 #include "ElectrostaticSolver.h"
 
 namespace pulmtln {
@@ -13,7 +13,7 @@ public:
     
     PULParameters getMTLPUL() const;
     PULParametersByDomain getMTLPULByDomains() const;
-    InCellParameters getInCellParameters() const;
+    InCellPotentials getInCellPotentials() const;
     FloatingPotentials getFloatingPotentials() const;
 
     void setExportFolder(const std::string folder) { opts_.exportFolder = folder; }

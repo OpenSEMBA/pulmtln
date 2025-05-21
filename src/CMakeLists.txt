@@ -19,7 +19,7 @@ add_library(${LIBRARY_NAME} STATIC
 	"Parser.cpp"
 	"Model.cpp"
 	"Materials.cpp"
-	"Parameters.cpp" 
+	"Results.cpp" 
 	"DirectedGraph.cpp"
 	"Domain.cpp")
 
