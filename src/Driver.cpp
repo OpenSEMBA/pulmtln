@@ -354,12 +354,12 @@ double getInnerRegionAveragePotential(
 	return totalPotential / totalArea;
 }
 
-std::map<MaterialId, InCellPotentials::FieldReconstruction> getFieldParameters(
+std::map<MaterialId, FieldReconstruction> getFieldParameters(
 	const Model& model,
 	const DriverOptions& opts,
 	bool ignoreDielectrics)
 {
-	std::map<MaterialId, InCellPotentials::FieldReconstruction> res;
+	std::map<MaterialId, FieldReconstruction> res;
 
 	auto fp = Driver::getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
 	const auto baseParameters{ Driver::buildSolverInputsFromModel(model, ignoreDielectrics) };
@@ -385,6 +385,10 @@ std::map<MaterialId, InCellPotentials::FieldReconstruction> getFieldParameters(
 			getInnerRegionAveragePotential(model, s, true);
 		res[condI].expansionCenter = s.getCenterOfCharge();
 		res[condI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
+		for (const auto& [nameJ, bdrAttJ] : conductors) {
+			auto condJ = Materials::getMaterialIdFromName(nameJ);
+			res[condI].conductorPotentials[condJ] = fp(condI, condJ);
+		}
 	}
 
 	return res;
@@ -402,7 +406,6 @@ InCellPotentials Driver::getInCellPotentials() const
 	res.innerRegionRadius = std::sqrt(innerRegionArea / M_PI);
 
 	res.electric = getFieldParameters(model_, opts_, false);
-
 	res.magnetic = getFieldParameters(model_, opts_, true);
 
 

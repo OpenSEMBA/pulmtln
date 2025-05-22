@@ -549,33 +549,44 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 		).getInCellPotentials()
 	};
 
-	const double prescribedV = 1.0;
+	const double rTol = 0.03;
 
-	const double rTol = 0.02;
-	// Computed results.
-	double Q0 = inCell.electric.at(0).ab[0].first;
-	double avV0 = inCell.electric.at(0).innerRegionAveragePotential;
-	auto computedC11 = Q0 * EPSILON0_SI / std::abs(avV0 - prescribedV);
-	auto expectedC11 = 14.08e-12;
-	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
+	// In this test case inner region coincides with fdtd-cell.
+	// In-cell capacitances.
+	{
+		double Q0 = inCell.electric.at(0).ab[0].first;
+		double avV0 = inCell.electric.at(0).innerRegionAveragePotential;
+		double V0WhenPrescribedV0 = inCell.electric.at(0).conductorPotentials.at(0);
+		auto computedC00 = Q0 * EPSILON0_SI / std::abs(avV0 - V0WhenPrescribedV0);
+		auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
+	}
 
-	double Q1 = inCell.electric.at(1).ab[0].first;
-	double avV1 = inCell.electric.at(1).innerRegionAveragePotential;
-	auto computedC12 = Q1 * EPSILON0_SI / std::abs(avV1 - prescribedV);
-	auto expectedC12 = 43.99e-12;
-	EXPECT_NEAR(0.0, relError(expectedC12, computedC12), rTol);
+	{
+		double Q1 = inCell.electric.at(1).ab[0].first;
+		double avV1 = inCell.electric.at(1).innerRegionAveragePotential;
+		double V0WhenPrescribedV1 = inCell.electric.at(1).conductorPotentials.at(0);
+		auto computedC01 = Q1 * EPSILON0_SI / std::abs(avV1 - V0WhenPrescribedV1);
+		auto expectedC01 = 43.99e-12; // C12 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
+	}
 
-	//auto computedL11 = inCell.magnetic.at("Conductor_0").innerRegionAveragePotential;
-	//auto computedL12 = inCell.magnetic.at("Conductor_1").innerRegionAveragePotential;
+	// In-cell inductances
+	{
+		double I0 = inCell.magnetic.at(0).ab[0].first;
+		double avA0 = inCell.magnetic.at(0).innerRegionAveragePotential;
+		double A0WhenPrescribedA0 = inCell.magnetic.at(0).conductorPotentials.at(0);
+		auto computedL00 = std::abs(avA0 - A0WhenPrescribedA0) / I0 * MU0_SI;
+		auto expectedL00 = 791e-9; // L11 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+	}
 
-	// from Table 1, floating conductor case.
-
-	//auto expectedL11 = 791e-9; 
-	//auto expectedL12 = 253e-9; 
-
-	// 
-	
-
-	//EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
-	//EXPECT_NEAR(0.0, relError(expectedL12, computedL12), rTol);
+	{
+		double I1 = inCell.magnetic.at(1).ab[0].first;
+		double avA1 = inCell.magnetic.at(1).innerRegionAveragePotential;
+		double A0WhenPrescribedA1 = inCell.magnetic.at(1).conductorPotentials.at(0);
+		auto computedL01 = std::abs(avA1 - A0WhenPrescribedA1) / I1 * MU0_SI;
+		auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
+	}
 }

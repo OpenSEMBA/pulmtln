@@ -639,7 +639,7 @@ TEST_F(ElectrostaticSolverTest, three_wires_ribbon_zero_net_charge)
 	EXPECT_NEAR(0.0, Q0+Q1+Q2+Qb, 1e-4);
 }
 
-TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_floating)
+TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_C00_with_floating)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).
@@ -681,15 +681,70 @@ TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_capacitance_with_floati
 		(avVVacuum * areaVacuum + avV0 * areaCond0 + avV1 * areaCond1) / (totalArea);
 	avV -= fp(0, 0); // In the paper, Conductor_0 is assumed to have zero voltage.
 
-	auto computedC11 = std::abs(Q0 / avV * EPSILON0_SI);
+	auto computedC00 = std::abs(Q0 / avV * EPSILON0_SI); // C11 in paper.
 
 	exportSolution(s, getTestCaseName());
 
-	// from Table 1, floating conductor case.
-	auto expectedC11 = 14.08e-12;
+	// from Table 1, floating conductor case. C11
+	auto expectedC00 = 14.08e-12;
 
 	// 
 	double rTol = 0.01;
-	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
+	EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
 	EXPECT_NEAR(0.0, Q1, 0.005);
+}
+
+TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_C01_with_floating)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	const std::string CASE{ "lansink2024_fdtd_cell" };
+	const std::string fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+	auto model{ Parser{fn}.readModel() };
+
+	auto fp = Driver::loadFromFile(fn).getFloatingPotentials().electric;
+
+	SolverInputs p;
+	p.dirichletBoundaries = {
+		{
+			{1, fp(1,0)}, // Conductor 0,
+			{2, fp(1,1)}  // Conductor 1
+		}
+	};
+	p.openBoundaries = { 3 };
+
+	ElectrostaticSolver s{ *model.getMesh(), p };
+	s.Solve();
+
+	auto avVVacuum = s.getAveragePotentialInDomain(5);
+	auto avV0 = s.getAveragePotentialInBoundary(1);
+	auto avV1 = s.getAveragePotentialInBoundary(2);
+
+	auto Q0 = s.getChargeInBoundary(1);
+	auto Q1 = s.getChargeInBoundary(2);
+
+	auto areaVacuum = model.getAreaOfMaterial("Vacuum_0");
+	auto areaCond0 = model.getAreaOfMaterial("Conductor_0");
+	auto areaCond1 = model.getAreaOfMaterial("Conductor_1");
+	auto totalArea = areaVacuum + areaCond0;
+
+	auto avV =
+		(avVVacuum * areaVacuum + avV0 * areaCond0) / (totalArea);
+	avV -= fp(1, 0); // In the paper, Conductor_0 is assumed to have zero voltage.
+
+	auto computedC01 = std::abs(Q1 / avV * EPSILON0_SI);
+
+	exportSolution(s, getTestCaseName());
+
+	// from Table 1, floating conductor case. C12 in paper
+	auto expectedC01 = 43.99e-12; 
+
+	// 
+	double rTol = 0.025;
+	EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
+	EXPECT_NEAR(0.0, Q0, 0.005);
 }
