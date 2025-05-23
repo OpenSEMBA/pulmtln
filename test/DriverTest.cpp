@@ -554,38 +554,26 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 	// In this test case inner region coincides with fdtd-cell.
 	// In-cell capacitances.
 	{
-		double Q0 = inCell.electric.at(0).ab[0].first;
-		double avV0 = inCell.electric.at(0).innerRegionAveragePotential;
-		double V0WhenPrescribedV0 = inCell.electric.at(0).conductorPotentials.at(0);
-		auto computedC00 = Q0 * EPSILON0_SI / std::abs(avV0 - V0WhenPrescribedV0);
+		auto computedC00 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 0);
 		auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
 	}
 
 	{
-		double Q1 = inCell.electric.at(1).ab[0].first;
-		double avV1 = inCell.electric.at(1).innerRegionAveragePotential;
-		double V0WhenPrescribedV1 = inCell.electric.at(1).conductorPotentials.at(0);
-		auto computedC01 = Q1 * EPSILON0_SI / std::abs(avV1 - V0WhenPrescribedV1);
+		auto computedC01 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 1);
 		auto expectedC01 = 43.99e-12; // C12 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
 	}
 
 	// In-cell inductances
 	{
-		double I0 = inCell.magnetic.at(0).ab[0].first;
-		double avA0 = inCell.magnetic.at(0).innerRegionAveragePotential;
-		double A0WhenPrescribedA0 = inCell.magnetic.at(0).conductorPotentials.at(0);
-		auto computedL00 = std::abs(avA0 - A0WhenPrescribedA0) / I0 * MU0_SI;
+		auto computedL00 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 0);
 		auto expectedL00 = 791e-9; // L11 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
 	}
 
 	{
-		double I1 = inCell.magnetic.at(1).ab[0].first;
-		double avA1 = inCell.magnetic.at(1).innerRegionAveragePotential;
-		double A0WhenPrescribedA1 = inCell.magnetic.at(1).conductorPotentials.at(0);
-		auto computedL01 = std::abs(avA1 - A0WhenPrescribedA1) / I1 * MU0_SI;
+		auto computedL01 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 1);
 		auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
 	}

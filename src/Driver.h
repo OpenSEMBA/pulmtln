@@ -32,6 +32,11 @@ public:
         const Model& model, const DriverOptions& opts,
         const bool ignoreDielectrics);
 
+    static double getInCellCapacitanceUsingInnerRegion(
+        const InCellPotentials& potential, int i, int j);
+    static double getInCellInductanceUsingInnerRegion(
+        const InCellPotentials& potential, int i, int j);
+
 private:
     Model model_;
     DriverOptions opts_;

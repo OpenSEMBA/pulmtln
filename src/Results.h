@@ -42,12 +42,8 @@ struct FieldReconstruction {
 struct InCellPotentials {
     double innerRegionRadius;
 
-    // Electric and magnetic potentials multipolar expansions for each conductor.
+    // Electric and magnetic potentials multipolar expansions for each active conductor.
     std::map<MaterialId, FieldReconstruction> electric, magnetic;
-
-
-    double getInCellCapacitance(int i, int j) const;
-    double getInCellInductance(int i, int j) const;
 };
 
 }
