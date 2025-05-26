@@ -578,3 +578,38 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 		EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
 	}
 }
+
+TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	const std::string CASE{ "lansink2024_single_wire" };
+
+	auto inCell{
+		Driver::loadFromFile(
+			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
+		).getInCellPotentials()
+	};
+
+	const double rTol = 0.03;
+
+	// In this test case inner region coincides with fdtd-cell.
+	// In-cell capacitances.
+	//{
+	//	auto computedC00 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 0);
+	//	auto expectedC00 = 26.39e-12; // C11 with insulation. Table 3.
+	//	EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
+	//}
+
+	// In-cell inductances
+	{
+		auto computedL00 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 0);
+		auto expectedL00 = 422e-9; // L11 with insulation. Table 3.
+		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+	}
+
+}
