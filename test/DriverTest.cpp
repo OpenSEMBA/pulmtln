@@ -599,11 +599,11 @@ TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 
 	// In this test case inner region coincides with fdtd-cell.
 	// In-cell capacitances.
-	//{
-	//	auto computedC00 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 0);
-	//	auto expectedC00 = 26.39e-12; // C11 with insulation. Table 3.
-	//	EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
-	//}
+	{
+		auto computedC00 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 0);
+		auto expectedC00 = 26.39e-12; // C11 with insulation. Table 3.
+		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
+	}
 
 	// In-cell inductances
 	{

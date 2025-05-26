@@ -748,3 +748,54 @@ TEST_F(ElectrostaticSolverTest, lansink2024_fdtd_in_cell_C01_with_floating)
 	EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
 	EXPECT_NEAR(0.0, Q0, 0.005);
 }
+
+TEST_F(ElectrostaticSolverTest, lansink2024_single_wire_L00_with_floating)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	const std::string CASE{ "lansink2024_single_wire" };
+	const std::string fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+	auto model{ Parser{fn}.readModel() };
+
+	auto fp = Driver::loadFromFile(fn).getFloatingPotentials().electric;
+
+	SolverInputs p;
+	p.dirichletBoundaries = {
+		{
+			{1, 1.0}, // Conductor 0,
+		}
+	};
+	p.openBoundaries = { 2 };
+
+	ElectrostaticSolver s{ *model.getMesh(), p };
+	s.Solve();
+
+	auto avVVacuum = s.getAveragePotentialInDomain(4);
+	auto avVDielectric = s.getAveragePotentialInDomain(5);
+	auto avV0 = s.getAveragePotentialInBoundary(1);
+
+	auto Q0 = s.getChargeInBoundary(1);
+
+	auto areaVacuum = model.getAreaOfMaterial("Vacuum_0");
+	auto areaDielectric = model.getAreaOfMaterial("Dielectric_0");
+	auto areaCond0 = model.getAreaOfMaterial("Conductor_0");
+	auto totalArea = areaVacuum + areaDielectric + areaCond0;
+
+	auto avV =
+		(avVVacuum * areaVacuum + avV0 * areaCond0 + avVDielectric * areaDielectric) / (totalArea);
+	avV = -avV + 1.0;
+	
+	auto computedL00 = std::abs(avV / Q0 * MU0_SI); // L11 in paper 
+
+	exportSolution(s, getTestCaseName());
+
+	auto expectedL00 = 422e-9; // From table 3.
+
+	// 
+	double rTol = 0.01;
+	EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+}
