@@ -601,7 +601,7 @@ TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 	// In this test case inner region coincides with fdtd-cell.
 	// In-cell capacitances.
 	{
-		auto computedC00 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 0);
+		auto computedC00 = inCell.getCapacitanceUsingInnerRegion(inCell, 0, 0);
 		auto expectedC00 = 49.11e-12; // C11 with insulation. Table 3. 
 		                              // Paper has a mistake, this is the correct value.
 		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
@@ -612,6 +612,47 @@ TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 		auto computedL00 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 0);
 		auto expectedL00 = 320e-9; // L11 with insulation. Table 3. 
 								   // Paper has a mistake, this is the correct value.
+		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+	}
+
+}
+
+
+TEST_F(DriverTest, lansink2024_single_wire_multipolar_in_cell_parameters)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+	// VALUES IN TABLE 3 ARE WRONG AND HAVE BEEN CORRECTED.
+
+	const std::string CASE{ "lansink2024_single_wire_multipolar" };
+
+	auto inCell{
+		Driver::loadFromFile(
+			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
+		).getInCellPotentials()
+	};
+
+	Box fdtdCell{ Vector({-0.0075, -0.0075}), Vector({0.0075, 0.0075}) };
+
+	const double rTol = 0.05;
+
+	// In this test case inner region coincides with fdtd-cell.
+	// In-cell capacitances.
+	{
+		auto computedC00 = inCell.getCapacitanceOnBox(0, 0, fdtdCell);
+		auto expectedC00 = 49.11e-12; // C11 with insulation. Table 3. 
+		// Paper has a mistake, this is the correct value.
+		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
+	}
+
+	// In-cell inductances
+	{
+		auto computedL00 = inCell.getInductanceOnBox(0, 0, fdtdCell);
+		auto expectedL00 = 320e-9; // L11 with insulation. Table 3. 
+		// Paper has a mistake, this is the correct value.
 		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
 	}
 

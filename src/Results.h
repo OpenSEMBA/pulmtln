@@ -8,6 +8,8 @@
 
 namespace pulmtln {
 
+using Box = std::pair<mfem::Vector, mfem::Vector>;
+
 struct PULParameters {
     PULParameters() = default;
     PULParameters(const nlohmann::json&);
@@ -32,6 +34,7 @@ struct FloatingPotentials {
     mfem::DenseMatrix electric, magnetic;
 };
 
+
 struct FieldReconstruction {
     double innerRegionAveragePotential;
     mfem::Vector expansionCenter;
@@ -40,10 +43,15 @@ struct FieldReconstruction {
 };
 
 struct InCellPotentials {
-    double innerRegionRadius;
+    Box innerRegionBox;
 
     // Electric and magnetic potentials multipolar expansions for each active conductor.
     std::map<MaterialId, FieldReconstruction> electric, magnetic;
+
+    double getCapacitanceUsingInnerRegion(int i, int j) const;
+    double getInductanceUsingInnerRegion(int i, int j) const;
+    double getCapacitanceOnBox(int i, int j, const Box& box) const;
+    double getInductanceOnBox(int i, int j, const Box& box) const;
 };
 
 }

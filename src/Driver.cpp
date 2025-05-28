@@ -412,26 +412,4 @@ InCellPotentials Driver::getInCellPotentials() const
 	return res;
 }
 
-
-double Driver::getInCellCapacitanceUsingInnerRegion(
-	const InCellPotentials& potential, int i, int j)
-{
-	double Qj = potential.electric.at(j).ab[0].first;
-	double avVj = potential.electric.at(j).innerRegionAveragePotential;
-	double ViWhenPrescribedVj = potential.electric.at(j).conductorPotentials.at(i);
-	avVj = -avVj + ViWhenPrescribedVj;
-	return Qj / avVj * EPSILON0_SI;
-}
-
-double Driver::getInCellInductanceUsingInnerRegion(
-	const InCellPotentials& potential, int i, int j)
-{
-	double Ij = potential.magnetic.at(j).ab[0].first;
-	double avAj = potential.magnetic.at(j).innerRegionAveragePotential;
-	double AiWhenPrescribedAj = potential.magnetic.at(j).conductorPotentials.at(i);
-	avAj = -avAj + AiWhenPrescribedAj;
-	return avAj / Ij * MU0_SI;
-}
-
-
 }

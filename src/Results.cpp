@@ -86,6 +86,32 @@ void PULParameters::saveToJSONFile(const std::string& filename) const
     ofs << j;
 }
 
+double InCellPotentials::getCapacitanceUsingInnerRegion(int i, int j) const
+{
+    double Qj = electric.at(j).ab[0].first;
+    double avVj = electric.at(j).innerRegionAveragePotential;
+    double ViWhenPrescribedVj = electric.at(j).conductorPotentials.at(i);
+    avVj = -avVj + ViWhenPrescribedVj;
+    return Qj / avVj * EPSILON0_SI;
+}
 
+double InCellPotentials::getInductanceUsingInnerRegion(int i, int j) const
+{
+    double Ij = magnetic.at(j).ab[0].first;
+    double avAj = magnetic.at(j).innerRegionAveragePotential;
+    double AiWhenPrescribedAj = magnetic.at(j).conductorPotentials.at(i);
+    avAj = -avAj + AiWhenPrescribedAj;
+    return avAj / Ij * MU0_SI;
+}
+
+double InCellPotentials::getCapacitanceOnBox(int i, int j, const Box& box) const
+{
+    return 0.0;
+}
+
+double InCellPotentials::getInductanceOnBox(int i, int j, const Box& box) const
+{
+    return 0.0;
+}
 
 }
