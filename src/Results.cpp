@@ -133,6 +133,7 @@ std::array<std::vector<double>, 2> buildIntegrationPlanesForBox(
                 const double newPoint = *prev + k * step;
                 planes[x].insert(newPoint);
             }
+			planes[x].insert(*it); 
         }
     }
 
