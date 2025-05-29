@@ -131,5 +131,33 @@ double Model::getAreaOfMaterial(const std::string& materialName) const
 
 }
 
+Box Model::getBoundingBoxOfMaterial(const std::string& materialName) const
+{
+	Box res{
+		Vector({infinity(), infinity()}),
+		Vector({-infinity(), -infinity()})
+	};
+
+	auto materials{ getMaterials().buildNameToAttrMap() };
+	auto tag = materials.at(materialName);
+	
+	for (int e = 0; e < mesh_->GetNE(); ++e) {
+		auto el = mesh_->GetElement(e);
+		if (el->GetAttribute() != tag) {
+			continue;
+		}
+		for (int v = 0; v < el->GetNVertices(); ++v) {
+			auto vId = el->GetVertices()[v];
+			for (int x = 0; x < 2; ++x) {
+				auto vx = mesh_->GetVertex(vId)[x];
+				res.min[x] = std::min(res.min[x], vx);
+				res.max[x] = std::max(res.max[x], vx);
+			}
+		}
+	}
+
+	return res;
+}
+
 
 }

@@ -319,14 +319,6 @@ std::list<std::string> listMaterialsInInnerRegion(
 	return res;
 }
 
-double getInnerRegionArea(const Model& m)
-{
-	double res = 0.0;
-	for (auto name : listMaterialsInInnerRegion(m)) {
-		res += m.getAreaOfMaterial(name);
-	}
-	return res;
-}
 
 double getInnerRegionAveragePotential(
 	const Model& m, 
@@ -402,12 +394,10 @@ InCellPotentials Driver::getInCellPotentials() const
 		throw std::runtime_error("In cell parameters can only be computed for open problems.");
 	}
 
-	const double innerRegionArea{ getInnerRegionArea(model_) };
-	res.innerRegionRadius = std::sqrt(innerRegionArea / M_PI);
+	res.innerRegionBox = model_.getBoundingBoxOfMaterial(INNER_VACUUM_DEFAULT_NAME);
 
 	res.electric = getFieldParameters(model_, opts_, false);
 	res.magnetic = getFieldParameters(model_, opts_, true);
-
 
 	return res;
 }

@@ -67,13 +67,15 @@ struct Materials {
 				}
 			}
 		}
-		else if constexpr (std::is_same<T, Dielectric>()) {
+		if constexpr (std::is_same<T, Dielectric>()) {
 			for (const auto& m : dielectrics) {
 				if (m.name == name) {
 					return m;
 				}
 			}
 		}
+
+		throw std::runtime_error("Invalid material type");
 	}
 
 	NameToAttrMap buildNameToAttrMap() const;

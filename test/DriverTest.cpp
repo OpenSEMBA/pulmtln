@@ -554,26 +554,26 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 	// In this test case inner region coincides with fdtd-cell.
 	// In-cell capacitances.
 	{
-		auto computedC00 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 0);
+		auto computedC00 = inCell.getCapacitanceUsingInnerRegion(0, 0);
 		auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
 	}
 
 	{
-		auto computedC01 = Driver::getInCellCapacitanceUsingInnerRegion(inCell, 0, 1);
+		auto computedC01 = inCell.getCapacitanceUsingInnerRegion(0, 1);
 		auto expectedC01 = 43.99e-12; // C12 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
 	}
 
 	// In-cell inductances
 	{
-		auto computedL00 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 0);
+		auto computedL00 = inCell.getInductanceUsingInnerRegion(0, 0);
 		auto expectedL00 = 791e-9; // L11 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
 	}
 
 	{
-		auto computedL01 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 1);
+		auto computedL01 = inCell.getInductanceUsingInnerRegion(0, 1);
 		auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
 		EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
 	}
@@ -601,7 +601,7 @@ TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 	// In this test case inner region coincides with fdtd-cell.
 	// In-cell capacitances.
 	{
-		auto computedC00 = inCell.getCapacitanceUsingInnerRegion(inCell, 0, 0);
+		auto computedC00 = inCell.getCapacitanceUsingInnerRegion(0, 0);
 		auto expectedC00 = 49.11e-12; // C11 with insulation. Table 3. 
 		                              // Paper has a mistake, this is the correct value.
 		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
@@ -609,14 +609,13 @@ TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 
 	// In-cell inductances
 	{
-		auto computedL00 = Driver::getInCellInductanceUsingInnerRegion(inCell, 0, 0);
+		auto computedL00 = inCell.getInductanceUsingInnerRegion(0, 0);
 		auto expectedL00 = 320e-9; // L11 with insulation. Table 3. 
 								   // Paper has a mistake, this is the correct value.
 		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
 	}
 
 }
-
 
 TEST_F(DriverTest, lansink2024_single_wire_multipolar_in_cell_parameters)
 {

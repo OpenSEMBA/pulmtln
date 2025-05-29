@@ -8,8 +8,6 @@
 
 namespace pulmtln {
 
-using Box = std::pair<mfem::Vector, mfem::Vector>;
-
 struct PULParameters {
     PULParameters() = default;
     PULParameters(const nlohmann::json&);

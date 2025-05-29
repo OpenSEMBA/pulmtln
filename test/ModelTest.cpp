@@ -49,3 +49,13 @@ TEST_F(ModelTest, lansink2024_fdtd_cell_areas)
 
 	EXPECT_NEAR(0.04, c0 + c1 + v0, 1e-8);
 }
+
+TEST_F(ModelTest, lansink2024_fdtd_cell_bounding_box)
+{
+	auto m{ Parser{ inputCase("lansink2024_fdtd_cell") }.readModel() };
+	auto box = m.getBoundingBoxOfMaterial("Vacuum_0");
+	EXPECT_NEAR(-0.11, box.min[0], 1e-8);
+	EXPECT_NEAR(-0.10, box.min[1], 1e-8);
+	EXPECT_NEAR( 0.09, box.max[0], 1e-8);
+	EXPECT_NEAR( 0.10, box.max[1], 1e-8);
+}

@@ -5,6 +5,21 @@
 
 namespace pulmtln {
 
+struct Box {
+	mfem::Vector min, max;
+
+	double area() const 
+	{
+		return (max[0] - min[0]) * (max[1] - min[1]);
+	}
+
+	bool isWithinBox(const mfem::Vector& point) const 
+	{
+		return (point[0] >= min[0] && point[0] <= max[0]) &&
+			(point[1] >= min[1] && point[1] <= max[1]);
+	}
+};
+
 class Model {
 public:
 	enum class Openness {
@@ -31,6 +46,7 @@ public:
 	Openness determineOpenness() const;
 	
 	double getAreaOfMaterial(const std::string& materialName) const;
+	Box getBoundingBoxOfMaterial(const std::string& materialName) const;
 
 private:
 	Materials materials_;
