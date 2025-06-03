@@ -144,40 +144,56 @@ std::array<std::vector<double>, 2> buildIntegrationPlanesForBox(
 	return res;
 }
 
-double InCellPotentials::getCapacitanceOnBox(int i, int j, const Box& box) const
+double getAveragePotential(
+    const FieldReconstruction& potential, 
+    const Box& innerBox, 
+    const Box& outerBox)
 {
-	auto integrationPlanes{ buildIntegrationPlanesForBox(box, innerRegionBox) };
+    auto integrationPlanes{ buildIntegrationPlanesForBox(outerBox, innerBox) };
     double outerV = 0.0;
     for (int m = 1; m < integrationPlanes[0].size(); ++m) {
         for (int n = 1; n < integrationPlanes[1].size(); ++n) {
-			mfem::Vector midPoint({
-				(integrationPlanes[0][m] + integrationPlanes[0][m - 1]) / 2.0,
-				(integrationPlanes[1][n] + integrationPlanes[1][n - 1]) / 2.0
-			});
-            if (innerRegionBox.isWithinBox(midPoint)) {
-				// If the point is within the inner region, we do not integrate over it.
-				continue;
+            const auto& xMin = integrationPlanes[0][m - 1];
+            const auto& xMax = integrationPlanes[0][m];
+            const auto& yMin = integrationPlanes[1][n - 1];
+            const auto& yMax = integrationPlanes[1][n];
+
+            mfem::Vector midPoint({ 0.5 * (xMin + xMax), 0.5 * (yMin + yMax) });
+            double area = (xMax - xMin) * (yMax - yMin);
+            if (innerBox.isWithinBox(midPoint)) {
+                // If the point is within the inner region, we do not integrate over it.
+                continue;
             }
-			double area = (integrationPlanes[0][m] - integrationPlanes[0][m - 1]) *
-				(integrationPlanes[1][n] - integrationPlanes[1][n - 1]);
-			outerV += area * multipolarExpansion(midPoint, electric.at(j).ab, electric.at(j).expansionCenter);
+            outerV += area * multipolarExpansion(midPoint, potential.ab, potential.expansionCenter);
         }
     }
 
-    double innerV = electric.at(j).innerRegionAveragePotential * innerRegionBox.area();
+    double innerV = potential.innerRegionAveragePotential * innerBox.area();
+    double avVj = (innerV + outerV) / outerBox.area();
 
+    return avVj;
+}
+
+double InCellPotentials::getCapacitanceOnBox(int i, int j, const Box& cellBox) const
+{
 	double Qj = electric.at(j).ab[0].first;
-	double avVj = (innerV + outerV) / box.area();
+
+    double avVj = getAveragePotential(electric.at(j), innerRegionBox, cellBox);
 	double ViWhenPrescribedVj = electric.at(j).conductorPotentials.at(i);
 	avVj = -avVj + ViWhenPrescribedVj;
 	
 	return Qj / avVj * EPSILON0_SI ;
 }
 
-double InCellPotentials::getInductanceOnBox(int i, int j, const Box& box) const
+double InCellPotentials::getInductanceOnBox(int i, int j, const Box& cellBox) const
 {
-    throw std::runtime_error("Not implemented.");
-    return 0.0;
+    double Ij = magnetic.at(j).ab[0].first;
+
+    double avAj = getAveragePotential(magnetic.at(j), innerRegionBox, cellBox);
+    double AiWhenPrescribedAj = electric.at(j).conductorPotentials.at(i);
+    avAj = -avAj + AiWhenPrescribedAj;
+
+    return avAj / Ij * MU0_SI;
 }
 
 }

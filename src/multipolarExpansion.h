@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FES.h"
+#include "constants.h"
 
 namespace pulmtln {
 
@@ -34,7 +35,7 @@ static double multipolarExpansion(
             res += (an * std::cos(n * phi) + bn * std::sin(n * phi)) / std::pow(r, n);
         }
     }
-
+	res /= 2.0 * M_PI; 
     return res;
 }
 

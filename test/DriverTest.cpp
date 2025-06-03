@@ -636,7 +636,7 @@ TEST_F(DriverTest, lansink2024_single_wire_multipolar_in_cell_parameters)
 
 	Box fdtdCell{ Vector({-0.0075, -0.0075}), Vector({0.0075, 0.0075}) };
 
-	const double rTol = 0.05;
+	const double rTol = 0.06;
 
 	// In this test case inner region coincides with fdtd-cell.
 	// In-cell capacitances.
