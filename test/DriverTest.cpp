@@ -579,6 +579,67 @@ TEST_F(DriverTest, lansink2024_fdtd_in_cell_parameters_around_conductor_1)
 	}
 }
 
+
+TEST_F(DriverTest, lansink2024_two_wires_using_multipolar_expansion)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	const std::string CASE{ "lansink2024" };
+
+	auto inCell{
+		Driver::loadFromFile(
+			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
+		).getInCellPotentials()
+	};
+
+
+	const double rTol = 0.06;
+
+	{
+		Box fdtdCell{ Vector({-0.110, -0.100}), Vector({0.090, 0.100}) };
+		
+		auto computedC00 = inCell.getCapacitanceOnBox(0, 0, fdtdCell);
+		auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
+	
+		auto computedC01 = inCell.getCapacitanceOnBox(0, 1, fdtdCell);
+		auto expectedC01 = 43.99e-12; // C12 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
+	
+		auto computedL00 = inCell.getInductanceOnBox(0, 0, fdtdCell);
+		auto expectedL00 = 791e-9; // L11 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+	
+		auto computedL01 = inCell.getInductanceOnBox(0, 1, fdtdCell);
+		auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
+	}
+
+	{
+		Box fdtdCell{ Vector({-0.090, -0.100}), Vector({0.110, 0.100}) };
+
+		auto computedC10 = inCell.getCapacitanceOnBox(0, 0, fdtdCell);
+		auto expectedC10 = 44.31e-12; // C21 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedC10, computedC10), rTol);
+
+		auto computedC11 = inCell.getCapacitanceOnBox(0, 1, fdtdCell);
+		auto expectedC11 = 28.79e-12; // C22 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
+
+		auto computedL10 = inCell.getInductanceOnBox(0, 0, fdtdCell);
+		auto expectedL10 = 251e-9; // L21 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedL10, computedL10), rTol);
+
+		auto computedL11 = inCell.getInductanceOnBox(0, 1, fdtdCell);
+		auto expectedL11 = 387e-9; // L22 for floating in paper. Table 1.
+		EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
+	}
+}
+
 TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 {
 	// From:
