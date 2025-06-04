@@ -599,45 +599,41 @@ TEST_F(DriverTest, lansink2024_two_wires_using_multipolar_expansion)
 
 	const double rTol = 0.06;
 
-	{
-		Box fdtdCell{ Vector({-0.110, -0.100}), Vector({0.090, 0.100}) };
+	Box fdtdCell0{ Vector({-0.110, -0.100}), Vector({0.090, 0.100}) };
 		
-		auto computedC00 = inCell.getCapacitanceOnBox(0, 0, fdtdCell);
-		auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
+	auto computedC00 = inCell.getCapacitanceOnBox(0, 0, fdtdCell0);
+	auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedC00, computedC00), rTol);
 	
-		auto computedC01 = inCell.getCapacitanceOnBox(0, 1, fdtdCell);
-		auto expectedC01 = 43.99e-12; // C12 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
+	auto computedC01 = inCell.getCapacitanceOnBox(0, 1, fdtdCell0);
+	auto expectedC01 = 43.99e-12; // C12 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedC01, computedC01), rTol);
 	
-		auto computedL00 = inCell.getInductanceOnBox(0, 0, fdtdCell);
-		auto expectedL00 = 791e-9; // L11 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+	auto computedL00 = inCell.getInductanceOnBox(0, 0, fdtdCell0);
+	auto expectedL00 = 791e-9; // L11 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
 	
-		auto computedL01 = inCell.getInductanceOnBox(0, 1, fdtdCell);
-		auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
-	}
+	auto computedL01 = inCell.getInductanceOnBox(0, 1, fdtdCell0);
+	auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
 
-	{
-		Box fdtdCell{ Vector({-0.090, -0.100}), Vector({0.110, 0.100}) };
+	Box fdtdCell1{ Vector({-0.090, -0.100}), Vector({0.110, 0.100}) };
 
-		auto computedC10 = inCell.getCapacitanceOnBox(0, 0, fdtdCell);
-		auto expectedC10 = 44.31e-12; // C21 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedC10, computedC10), rTol);
+	auto computedC10 = inCell.getCapacitanceOnBox(1, 0, fdtdCell1);
+	auto expectedC10 = 44.31e-12; // C21 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedC10, computedC10), rTol);
 
-		auto computedC11 = inCell.getCapacitanceOnBox(0, 1, fdtdCell);
-		auto expectedC11 = 28.79e-12; // C22 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
+	auto computedC11 = inCell.getCapacitanceOnBox(1, 1, fdtdCell1);
+	auto expectedC11 = 28.79e-12; // C22 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedC11, computedC11), rTol);
 
-		auto computedL10 = inCell.getInductanceOnBox(0, 0, fdtdCell);
-		auto expectedL10 = 251e-9; // L21 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedL10, computedL10), rTol);
+	auto computedL10 = inCell.getInductanceOnBox(1, 0, fdtdCell1);
+	auto expectedL10 = 251e-9; // L21 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedL10, computedL10), rTol);
 
-		auto computedL11 = inCell.getInductanceOnBox(0, 1, fdtdCell);
-		auto expectedL11 = 387e-9; // L22 for floating in paper. Table 1.
-		EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
-	}
+	auto computedL11 = inCell.getInductanceOnBox(1, 1, fdtdCell1);
+	auto expectedL11 = 387e-9; // L22 for floating in paper. Table 1.
+	EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
 }
 
 TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)

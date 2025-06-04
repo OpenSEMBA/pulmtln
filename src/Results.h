@@ -32,7 +32,6 @@ struct FloatingPotentials {
     mfem::DenseMatrix electric, magnetic;
 };
 
-
 struct FieldReconstruction {
     double innerRegionAveragePotential;
     mfem::Vector expansionCenter;
@@ -42,14 +41,15 @@ struct FieldReconstruction {
 
 struct InCellPotentials {
     Box innerRegionBox;
-
-    // Electric and magnetic potentials multipolar expansions for each active conductor.
     std::map<MaterialId, FieldReconstruction> electric, magnetic;
 
     double getCapacitanceUsingInnerRegion(int i, int j) const;
     double getInductanceUsingInnerRegion(int i, int j) const;
     double getCapacitanceOnBox(int i, int j, const Box& box) const;
     double getInductanceOnBox(int i, int j, const Box& box) const;
+
+    nlohmann::json toJSON() const;
+    void saveToJSONFile(const std::string& filename) const;
 };
 
 }
