@@ -11,8 +11,8 @@ class Driver {
 public:
     Driver(Model&& model, const DriverOptions& opts);
     
-    PULParameters getMTLPUL() const;
-    PULParametersByDomain getMTLPULByDomains() const;
+    PULParameters getPULMTL() const;
+    PULParametersByDomain getPULMTLByDomains() const;
     InCellPotentials getInCellPotentials() const;
     FloatingPotentials getFloatingPotentials() const;
 
@@ -21,6 +21,8 @@ public:
     static SolverInputs buildSolverInputsFromModel(
         const Model& model,
         bool ignoreDielectrics);
+
+    void run() const;
 
     static Driver loadFromFile(const std::string& filename);
     static DenseMatrix getCMatrix(

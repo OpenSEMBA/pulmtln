@@ -113,8 +113,7 @@ DriverOptions Parser::readDriverOptions() const
 	setIfExists<bool>(j, res.solverOptions.printIterations, "printIterations");
 	
 	setIfExists<bool>(j, res.makeMatricesSymmetric, "makeMatricesSymmetric");
-	setIfExists<bool>(j, res.exportMatrices, "exportMatrices");
-
+	
 	setIfExists<bool>(j, res.exportParaViewSolution, "exportParaviewSolution");
 	setIfExists<bool>(j, res.exportVisItSolution, "exportVisItSolution");
 	setIfExists<std::string>(j, res.exportFolder, "exportFolder");

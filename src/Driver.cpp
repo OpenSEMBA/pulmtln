@@ -22,7 +22,32 @@ Driver Driver::loadFromFile(const std::string& fn)
 Driver::Driver(Model&& model, const DriverOptions& opts) :
 	model_{ std::move(model) },
 	opts_{ opts }
-{}
+{
+	auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	std::vector<int> conductorIds;
+	conductorIds.reserve(conductors.size());
+	for (const auto& [name, attr] : conductors) {
+		conductorIds.push_back(Materials::getMaterialIdFromName(name));
+	}
+	std::sort(conductorIds.begin(), conductorIds.end());
+
+	// Preconditions.
+	if (conductorIds.empty()) {
+		throw std::runtime_error("Model must have at least one conductor.");
+	}
+
+	if (conductorIds.front() != 0) {
+		throw std::runtime_error(
+			"Conductor with id 0 must be present in the model. ");
+	}
+
+	for (int i = 1; i < conductorIds.size(); ++i) {
+		if (conductorIds[i] != conductorIds[i - 1] + 1) {
+			throw std::runtime_error(
+				"Conductor ids must be consecutive.");
+		}
+	}
+}
 
 AttrToValueMap buildAttrToValueMap(
 	const NameToAttrMap& matToAtt, double value)
@@ -189,18 +214,32 @@ PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& op
 	return res;
 }
 
-PULParameters Driver::getMTLPUL() const
+void Driver::run() const
 {
-	auto res{ buildPULParametersForModel(model_, opts_) };
-
-	if (opts_.exportMatrices) {
-		res.saveToJSONFile(opts_.exportFolder + "matrices.pulmtln.out.json");
+	auto openness{ model_.determineOpenness() };
+	if (openness == Model::Openness::closed) {
+		auto pul = buildPULParametersForModel(model_, opts_);
+		saveToJSONFile(
+			pul.toJSON(), 
+			opts_.exportFolder + "pulmtln.out.json");
 	}
-
-	return res;
+	else if (openness == Model::Openness::open) {
+		auto inCell = getInCellPotentials();
+		saveToJSONFile(
+			inCell.toJSON(),
+			opts_.exportFolder + "inCellPotentials.out.json");
+	}
+	else {
+		throw std::runtime_error("Openness of the model is not supported.");
+	}
 }
 
-PULParametersByDomain Driver::getMTLPULByDomains() const
+PULParameters Driver::getPULMTL() const
+{
+	return buildPULParametersForModel(model_, opts_);
+}
+
+PULParametersByDomain Driver::getPULMTLByDomains() const
 {
 	PULParametersByDomain res;
 

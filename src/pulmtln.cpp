@@ -20,8 +20,6 @@ int main(int argc, char* argv[])
 	desc.add_options()
 		("help,h", "this help message")
 		("input,i", po::value(&inputFilename), "input filename .pulmtln.json")
-		("unshielded,u", po::value<bool>()->default_value(false),
-			"ignore dielectrics and use unshielded conductors (default: false)")dasdasd
 	;
 
 	po::variables_map vm;
@@ -46,7 +44,7 @@ int main(int argc, char* argv[])
 	auto driver{ pulmtln::Driver::loadFromFile(inputFilename) };
 	driver.setExportFolder(folder);
 
-	driver.getMTLPUL();
+	driver.run();
 
 	std::cout << "-- pulmtln finished succesfully --" << std::endl;
 }

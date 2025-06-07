@@ -7,6 +7,15 @@ namespace pulmtln {
 using namespace mfem;
 using json = nlohmann::json;
 
+std::vector<double> toVec(const Vector& vec)
+{
+	std::vector<double> r(vec.Size());
+	for (auto i{ 0 }; i < vec.Size(); ++i) {
+		r[i] = vec[i];
+	}
+	return r;
+}
+
 std::vector<std::vector<double>> toVecVec(const DenseMatrix& m)
 {
     std::vector<std::vector<double>> r(m.NumRows());
@@ -20,7 +29,16 @@ std::vector<std::vector<double>> toVecVec(const DenseMatrix& m)
     return r;
 }
 
-DenseMatrix toDenseMatrix(const std::vector<std::vector<double>>& v)
+Vector toMFEMVector(const std::vector<double>& v)
+{
+	Vector r(v.size());
+	for (auto i{ 0 }; i < v.size(); ++i) {
+		r(i) = v[i];
+	}
+	return r;
+}
+
+DenseMatrix toMFEMDenseMatrix(const std::vector<std::vector<double>>& v)
 {
     
     if (v.size() == 0 || v[0].size() == 0) {
@@ -48,8 +66,8 @@ PULParameters::PULParameters(const json& j)
     if (!j.contains("C") || !j.contains("L")) {
         throw std::runtime_error("JSON does not contain C and/or L.");
     }
-    C = toDenseMatrix(j["C"]);
-    L = toDenseMatrix(j["L"]);
+    C = toMFEMDenseMatrix(j["C"]);
+    L = toMFEMDenseMatrix(j["L"]);
 }
 
 bool PULParameters::operator==(const PULParameters& rhs) const
@@ -79,11 +97,62 @@ json PULParameters::toJSON() const
     return res;
 }
 
-void PULParameters::saveToJSONFile(const std::string& filename) const
+void saveToJSONFile(const json& j, const std::string& filename)
 {
     std::ofstream ofs(filename);
-    auto j{ toJSON() };
     ofs << j;
+}
+
+multipolarCoefficients multipolarCoefficientsFromJSON(const json& j)
+{
+    multipolarCoefficients res;
+	for (const auto& coeffs : j) {
+        res.push_back(std::make_pair(coeffs[0], coeffs[1]));
+	}
+	return res;
+}
+
+std::map<MaterialId, FieldReconstruction> potentialsFromJSON(const json& j)
+{
+    std::map<MaterialId, FieldReconstruction> res;
+    int reconstructedId = 0;
+    for (const auto& f : j) {
+		FieldReconstruction fr;
+		
+        fr.innerRegionAveragePotential = f.at("innerRegionAveragePotential").get<double>();
+		fr.expansionCenter = toMFEMVector(f.at("expansionCenter").get<std::vector<double>>());
+		
+        fr.ab = multipolarCoefficientsFromJSON(f.at("ab"));
+        
+        int id = 0;
+        for (const auto& potential : f.at("conductorPotentials")) {
+            fr.conductorPotentials[id++] = potential;
+		}
+
+		res[reconstructedId++] = fr;
+    }
+    
+    return res;
+}
+
+InCellPotentials::InCellPotentials(const nlohmann::json& j)
+{
+    innerRegionBox.min = 
+        toMFEMVector(j.at("innerRegionBox").at("min").get<std::vector<double>>());
+	innerRegionBox.max =
+		toMFEMVector(j.at("innerRegionBox").at("max").get<std::vector<double>>());
+
+    electric = potentialsFromJSON(j.at("electric"));
+	magnetic = potentialsFromJSON(j.at("magnetic"));
+}
+
+bool InCellPotentials::operator==(const InCellPotentials& rhs) const
+{
+    bool res = true;
+
+    res &= innerRegionBox == rhs.innerRegionBox;
+    res &= electric == rhs.electric;
+	res &= magnetic == rhs.magnetic;
 }
 
 double InCellPotentials::getCapacitanceUsingInnerRegion(int i, int j) const
@@ -194,6 +263,64 @@ double InCellPotentials::getInductanceOnBox(int i, int j, const Box& cellBox) co
     avAj = -avAj + AiWhenPrescribedAj;
 
     return avAj / Ij * MU0_SI;
+}
+
+nlohmann::json InCellPotentials::toJSON() const
+{
+    nlohmann::json res;
+    res["innerRegionBox"] = {
+		"min", toVec(innerRegionBox.min),
+		"max", toVec(innerRegionBox.max)
+    };
+
+    for (const auto& [matId, fieldReconstruction] : electric) {
+		res["electric"] = nlohmann::json::array();
+        res["electric"].push_back(electric.at(matId).toJSON());
+	}
+	for (const auto& [matId, fieldReconstruction] : magnetic) {
+		res["magnetic"] = nlohmann::json::array();
+		res["magnetic"].push_back(magnetic.at(matId).toJSON());
+	}
+
+    return res;
+}
+
+nlohmann::json FieldReconstruction::toJSON() const
+{
+	nlohmann::json res;
+
+	res["innerRegionAveragePotential"] = innerRegionAveragePotential;
+	res["expansionCenter"] = toVec(expansionCenter);
+	res["ab"] = nlohmann::json::array();
+	for (const auto& [a, b] : ab) {
+		res["ab"].push_back({ a, b });
+	}
+    res["conductorPotentials"] = nlohmann::json::array();
+    for (const auto& [condId, v] : conductorPotentials) {
+        res["conductorPotentials"].push_back(v);
+    }
+
+    return res;
+}
+
+bool FieldReconstruction::operator==(const FieldReconstruction& rhs) const
+{
+    bool res;
+
+	res = innerRegionAveragePotential == rhs.innerRegionAveragePotential;
+	res &= expansionCenter == rhs.expansionCenter;
+	res &= ab == rhs.ab;
+	
+    if (conductorPotentials.size() != rhs.conductorPotentials.size()) {
+		return false;
+	}
+	for (const auto& [condId, v] : conductorPotentials) {
+		if (rhs.conductorPotentials.find(condId) == rhs.conductorPotentials.end()) {
+			return false;
+		}
+		res &= v == rhs.conductorPotentials.at(condId);
+	}
+	return res;
 }
 
 }

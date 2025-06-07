@@ -15,7 +15,7 @@ class DriverTest : public ::testing::Test {};
 TEST_F(DriverTest, empty_coax)
 {
 	// Empty Coaxial case.
-	auto out{ Driver::loadFromFile(inputCase("empty_coax")).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("empty_coax")).getPULMTL() };
 
 	auto CExpected{ EPSILON0_SI * 2 * M_PI / log(0.05 / 0.025) };
 
@@ -36,7 +36,7 @@ TEST_F(DriverTest, partially_filled_coax)
 	// Dielectric internal radius -> rI_dielectric = 25 mm
 	// Dielectric external radius -> rO_dielectric = 35 mm
 	// Dielectric permittivity -> eps_r = 4.0
-	auto out{ Driver::loadFromFile(inputCase("partially_filled_coax")).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("partially_filled_coax")).getPULMTL() };
 
 	// Equivalent capacity is the series of the inner and outer capacitors.
 	auto COut{ EPSILON0_SI * 2 * M_PI / log(0.050 / 0.035) };
@@ -58,9 +58,9 @@ TEST_F(DriverTest, partially_filled_coax)
 TEST_F(DriverTest, partially_filled_coax_by_domains)
 {
 	auto dr{ Driver::loadFromFile(inputCase("partially_filled_coax")) };
-	auto globalOut{ dr.getMTLPUL() };
+	auto globalOut{ dr.getPULMTL() };
 
-	auto out{ dr.getMTLPULByDomains() };
+	auto out{ dr.getPULMTLByDomains() };
 	EXPECT_EQ(1, out.domainTree.verticesSize());
 	ASSERT_EQ(1, out.domainToPUL.size());
 
@@ -90,7 +90,7 @@ TEST_F(DriverTest, two_wires_coax)
 
 	const double rTol{ 2.5e-2 };
 
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(fn).getPULMTL() };
 
 	const int N{ 2 };
 	ASSERT_EQ(N, out.C.NumCols());
@@ -214,7 +214,7 @@ TEST_F(DriverTest, five_wires)
 	couplingExpected.UseExternalData(couplingExpectedData, 5, 5);
 
 	auto out{
-		Driver::loadFromFile(fn).getMTLPUL().getCapacitiveCouplingCoefficients()
+		Driver::loadFromFile(fn).getPULMTL().getCapacitiveCouplingCoefficients()
 	};
 
 	ASSERT_EQ(couplingExpected.NumRows(), out.NumRows());
@@ -255,7 +255,7 @@ TEST_F(DriverTest, three_wires_ribbon)
 	LExpected.UseExternalData(LExpectedData, 2, 2);
 	LExpected *= 1e-6;
 
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(fn).getPULMTL() };
 
 	// Tolerance is quite for this test. 
 	// I guess that Paul's method is not very exact for this case.
@@ -336,7 +336,7 @@ TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 
 TEST_F(DriverTest, nested_coax)
 {
-	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getMTLPUL() };
+	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getPULMTL() };
 
 
 	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
@@ -363,7 +363,7 @@ TEST_F(DriverTest, nested_coax)
 
 TEST_F(DriverTest, nested_coax_by_domains)
 {
-	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getMTLPULByDomains() };
+	auto out{ Driver::loadFromFile(inputCase("nested_coax")).getPULMTLByDomains() };
 
 	auto C01{ EPSILON0_SI * 2.0 * M_PI / log(8.0 / 5.6) };
 	auto C12{ EPSILON0_SI * 2.0 * M_PI / log(4.8 / 2.0) };
@@ -403,7 +403,7 @@ TEST_F(DriverTest, agrawal1981)
 	CExpected.UseExternalData(CExpectedData, nConductors, nConductors);
 	CExpected *= 1e-12;
 
-	auto out{ Driver::loadFromFile(fn).getMTLPUL() };
+	auto out{ Driver::loadFromFile(fn).getPULMTL() };
 
 	const double rTol{ 0.10 };
 

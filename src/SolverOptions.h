@@ -20,8 +20,7 @@ struct DriverOptions {
 	bool exportVisItSolution{ false };
 	
 	bool makeMatricesSymmetric{ false };
-	bool exportMatrices{ true };
-
+	
 	std::string exportFolder{ "./" };
 };
 

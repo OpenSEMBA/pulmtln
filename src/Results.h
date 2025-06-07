@@ -8,6 +8,9 @@
 
 namespace pulmtln {
 
+
+void saveToJSONFile(const nlohmann::json&, const std::string& filename);
+
 struct PULParameters {
     PULParameters() = default;
     PULParameters(const nlohmann::json&);
@@ -18,8 +21,6 @@ struct PULParameters {
 
     nlohmann::json toJSON() const;
 
-    void saveToJSONFile(const std::string& filename) const;
-    
     mfem::DenseMatrix L, C; // Stored in SI units.
 };
 
@@ -37,9 +38,17 @@ struct FieldReconstruction {
     mfem::Vector expansionCenter;
     multipolarCoefficients ab;
     std::map<MaterialId, double> conductorPotentials;
+
+    nlohmann::json toJSON() const;
+	bool operator==(const FieldReconstruction& rhs) const;
 };
 
 struct InCellPotentials {
+	InCellPotentials() = default;
+    InCellPotentials(const nlohmann::json&);
+
+	bool operator==(const InCellPotentials&) const;
+
     Box innerRegionBox;
     std::map<MaterialId, FieldReconstruction> electric, magnetic;
 
@@ -49,7 +58,6 @@ struct InCellPotentials {
     double getInductanceOnBox(int i, int j, const Box& box) const;
 
     nlohmann::json toJSON() const;
-    void saveToJSONFile(const std::string& filename) const;
 };
 
 }
