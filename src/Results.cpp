@@ -148,11 +148,14 @@ InCellPotentials::InCellPotentials(const nlohmann::json& j)
 
 bool InCellPotentials::operator==(const InCellPotentials& rhs) const
 {
-    bool res = true;
+    bool res;
 
-    res &= innerRegionBox == rhs.innerRegionBox;
-    res &= electric == rhs.electric;
-	res &= magnetic == rhs.magnetic;
+    res = (innerRegionBox == rhs.innerRegionBox);
+
+    res = res && (electric == rhs.electric);
+	res = res && (magnetic == rhs.magnetic);
+
+    return res;
 }
 
 double InCellPotentials::getCapacitanceUsingInnerRegion(int i, int j) const
@@ -161,6 +164,7 @@ double InCellPotentials::getCapacitanceUsingInnerRegion(int i, int j) const
     double avVj = electric.at(j).innerRegionAveragePotential;
     double ViWhenPrescribedVj = electric.at(j).conductorPotentials.at(i);
     avVj = -avVj + ViWhenPrescribedVj;
+
     return Qj / avVj * EPSILON0_SI;
 }
 
@@ -170,6 +174,7 @@ double InCellPotentials::getInductanceUsingInnerRegion(int i, int j) const
     double avAj = magnetic.at(j).innerRegionAveragePotential;
     double AiWhenPrescribedAj = magnetic.at(j).conductorPotentials.at(i);
     avAj = -avAj + AiWhenPrescribedAj;
+    
     return avAj / Ij * MU0_SI;
 }
 
@@ -268,10 +273,10 @@ double InCellPotentials::getInductanceOnBox(int i, int j, const Box& cellBox) co
 nlohmann::json InCellPotentials::toJSON() const
 {
     nlohmann::json res;
-    res["innerRegionBox"] = {
-		"min", toVec(innerRegionBox.min),
-		"max", toVec(innerRegionBox.max)
-    };
+    res["innerRegionBox"] = nlohmann::json::object({
+        {"min", toVec(innerRegionBox.min)},
+        {"max", toVec(innerRegionBox.max)}
+    });
 
     for (const auto& [matId, fieldReconstruction] : electric) {
 		res["electric"] = nlohmann::json::array();
@@ -308,7 +313,10 @@ bool FieldReconstruction::operator==(const FieldReconstruction& rhs) const
     bool res;
 
 	res = innerRegionAveragePotential == rhs.innerRegionAveragePotential;
-	res &= expansionCenter == rhs.expansionCenter;
+    
+    res &= expansionCenter[0] == rhs.expansionCenter[0];
+	res &= expansionCenter[1] == rhs.expansionCenter[1];
+
 	res &= ab == rhs.ab;
 	
     if (conductorPotentials.size() != rhs.conductorPotentials.size()) {

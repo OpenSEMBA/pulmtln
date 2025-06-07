@@ -21,7 +21,11 @@ struct Box {
 
 	bool operator==(const Box& rhs) const
 	{
-		return (min == rhs.min && max == rhs.max);
+		for (int i = 0; i < min.Size(); ++i) {
+			if (min[i] != rhs.min[i] || max[i] != rhs.max[i]) {
+				return false;
+			}
+		}
 	}
 };
 
