@@ -8,7 +8,7 @@ using json = nlohmann::json;
 
 static std::string testDataFolder(){ return "./testData/"; }
 static std::string casesFolder()   { return testDataFolder(); }
-static std::string outFolder()     { return "ParaView/"; }
+static std::string outFolder()     { return "Results/tests/"; }
 
 
 static std::string smbCase(const std::string& name)

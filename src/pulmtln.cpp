@@ -43,7 +43,8 @@ int main(int argc, char* argv[])
 
 	auto driver{ pulmtln::Driver::loadFromFile(inputFilename) };
 	driver.setExportFolder(folder);
-	driver.getMTLPUL();
+
+	driver.run();
 
 	std::cout << "-- pulmtln finished succesfully --" << std::endl;
 }

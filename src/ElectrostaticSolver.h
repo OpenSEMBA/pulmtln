@@ -2,6 +2,7 @@
 
 #include "SolverOptions.h"
 #include "constants.h"
+#include "multipolarExpansion.h"
 #include "FES.h"
 #include "AttrToValueMap.h"
 
@@ -9,14 +10,10 @@ namespace pulmtln {
 
 using namespace mfem;
 
-struct SolverParameters {
-    
-    AttrToValueMap dirichletBoundaries;
-    
+struct SolverInputs {
+    AttrToValueMap dirichletBoundaries; 
     AttrToValueMap neumannBoundaries;
-    
     std::vector<int> openBoundaries;
-
     AttrToValueMap domainPermittivities;
 };
 
@@ -24,32 +21,40 @@ class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
         Mesh& mesh,
-        const SolverParameters&,
+        const SolverInputs&,
         const SolverOptions = SolverOptions{});
     ~ElectrostaticSolver();
 
     void Solve();
+    void setDirichletConditions(const AttrToValueMap& dbcs);
+    void setNeumannCondition(const int bdrAttribute, Coefficient& chargeDensity);
 
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
 
-    const GridFunction& GetPotential() { return *phi_; }
-    const GridFunction& GetElectricField() { return *e_; }
+    const GridFunction& getPotential() const { return *phi_; }
+    const GridFunction& getElectricField() const { return *e_; }
 
+    double getTotalChargeFromRho() const;
+    double getTotalCharge() const;
+    
+    Vector getCenterOfCharge() const;
+    double getChargeMomentComponent(int order, int component, const Vector& center) const;
+    multipolarCoefficients getMultipolarCoefficients(std::size_t order) const;
 
-    double totalChargeFromRho() const;
-    double totalCharge() const;
-    double chargeInBoundary(int bdrAttribute) const;
-    double totalEnergy() const;
-
+    double getChargeInBoundary(int bdrAttribute) const;
+    double getAveragePotentialInDomain(int attr) const;
+    double getAveragePotentialInBoundary(int bdrAttribute) const;
+    double getTotalEnergy() const;
 
     Mesh* getMesh() { return mesh_; }
+
 private:
     SolverOptions opts_;
     
     Mesh* mesh_;
 
-    SolverParameters parameters_;
+    SolverInputs parameters_;
 
     H1_FESpace* H1FESpace_;    // Continuous space for phi
     ND_FESpace* HCurlFESpace_; // Tangentially continuous space for E
@@ -79,7 +84,7 @@ private:
     Array<int> ess_bdr_, ess_bdr_tdofs_, open_bdr_; // Essential Boundary Condition DoFs
 
     void Assemble();
-    void applyBoundaryValuesToGridFunction(
+    void applyBoundaryConstantValuesToGridFunction(
         const AttrToValueMap& bdrValues, 
         GridFunction& gf) const;
 };

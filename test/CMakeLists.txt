@@ -10,10 +10,11 @@ add_executable(${PROJECT_NAME}_tests
 	"mfemTest.cpp"
 	"DriverTest.cpp"
     "ParserTest.cpp"
-	"ParametersTest.cpp"
+	"ResultsTest.cpp"
 	"ModelTest.cpp"
 	"DirectedGraphTest.cpp"
-	"DomainTest.cpp")
+	"DomainTest.cpp" 
+	"multipolarExpansionTest.cpp")
 
 include_directories(./)
  
