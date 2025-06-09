@@ -487,6 +487,76 @@ TEST_F(DriverTest, DISABLED_lansink2024_inner_multipole_boundaries_o1) // Disabl
 	}
 }
 
+TEST_F(DriverTest, empty_coax_neumann_boundaries_o1) // Disabling test until deciding on expected results
+{
+	const std::string CASE{ "empty_coax_neumann" };
+		
+	SolverInputs p;
+	p.dirichletBoundaries = { {
+		{1,  1.0}, // Conductor 0 bdr.
+	} };
+
+	const int neumannBoundaryAttr{ 2 };
+
+
+	auto m{ Mesh::LoadFromFile(casesFolder() + CASE + "/" + CASE + ".msh") };
+
+	const int numberOfPoles = 3;
+	for (int n = 0; n < numberOfPoles; n++) {
+
+		ElectrostaticSolver s{ m, p };
+
+		// Sets multipolar expansion over internal boundary.
+		mfem::Vector origin({ 0.0, 0.0 });
+		{
+			std::vector<multipolarCoefficient> ab(n + 1);
+			std::fill(ab.begin(), ab.end(), std::make_pair(0.0, 0.0));
+			ab.back() = { -1.0, 0.0 };
+			std::function<double(const Vector&)> f =
+				std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
+			FunctionCoefficient fc(f);
+			s.setNeumannCondition(neumannBoundaryAttr, fc);
+			s.Solve();
+
+			std::stringstream ss;
+			ss << n;
+			const std::string resultName = outFolder() + CASE + "_a" + ss.str();
+
+			ParaViewDataCollection pd(resultName, s.getMesh());
+			s.writeParaViewFields(pd);
+
+			s.writeInMoMBoundaryFormat(neumannBoundaryAttr, resultName);
+
+			auto Q1{ s.getChargeInBoundary(1) };
+			auto Q2{ s.getChargeInBoundary(neumannBoundaryAttr) };
+		}
+
+		if (n > 0) {
+			std::vector<multipolarCoefficient> ab(n + 1);
+			std::fill(ab.begin(), ab.end(), std::make_pair(0.0, 0.0));
+			ab.back() = { 0.0, -1.0 };
+			std::function<double(const Vector&)> f =
+				std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
+			FunctionCoefficient fc(f);
+			s.setNeumannCondition(neumannBoundaryAttr, fc);
+			s.Solve();
+
+			std::stringstream ss;
+			ss << n;
+			const std::string resultName = outFolder() + CASE + "_b" + ss.str();
+
+			ParaViewDataCollection pd(resultName, s.getMesh());
+			s.writeParaViewFields(pd);
+
+			s.writeInMoMBoundaryFormat(neumannBoundaryAttr, resultName);
+
+			auto Q1{ s.getChargeInBoundary(1) };
+			auto Q2{ s.getChargeInBoundary(neumannBoundaryAttr) };
+		}
+
+	}
+}
+
 TEST_F(DriverTest, lansink2024_floating_potentials)
 {
 	// From:

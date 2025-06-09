@@ -31,6 +31,8 @@ public:
 
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
+	void writeInMoMBoundaryFormat(
+		int bdrAttribute, const std::string& filename) const;
 
     const GridFunction& getPotential() const { return *phi_; }
     const GridFunction& getElectricField() const { return *e_; }

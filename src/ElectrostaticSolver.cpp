@@ -531,8 +531,7 @@ void ElectrostaticSolver::writeParaViewFields(ParaViewDataCollection& pv) const
     pv.Save();
 }
 
-void ElectrostaticSolver::writeVisItFields(
-    VisItDataCollection& pv) const
+void ElectrostaticSolver::writeVisItFields(VisItDataCollection& pv) const
 {
     pv.SetLevelsOfDetail(3);
     pv.RegisterField("Phi", phi_);
@@ -542,5 +541,67 @@ void ElectrostaticSolver::writeVisItFields(
 
     pv.Save();
 }
+
+void ElectrostaticSolver::writeInMoMBoundaryFormat(int bdrAttribute, const std::string& filename) const
+{
+    // Prepares maps
+    using NodeId = int;
+    using ElementId = int;
+    
+    struct NodeInfo {
+        double x, y;
+        double value;
+    };
+
+    std::map<NodeId, NodeInfo> nodeMap;
+    std::map<ElementId, std::array<NodeId,2>> bdrElementMap;
+    for (int e = 0; e < H1FESpace_->GetNBE(); ++e) {
+        if (bdrAttribute != H1FESpace_->GetBdrAttribute(e)) {
+            continue;
+        }
+        mfem::Array<int> vs;
+        H1FESpace_->GetMesh()->GetBdrElementVertices(e, vs);
+        assert(vs.Size() == 2);
+
+        bdrElementMap[e] = { vs[0], vs[1] };
+
+        for (int v : vs) {
+            
+            double pos[2];
+            H1FESpace_->GetMesh()->GetNode(v, pos);
+            
+            mfem::Array<int> dofs;
+            H1FESpace_->GetVertexDofs(v, dofs);
+            assert(dofs.Size() == 1);
+            
+            double phiValue = (*phi_)(dofs[0]);
+            NodeInfo nInfo{ pos[0], pos[1], phiValue };
+            
+            nodeMap[v] = nInfo;
+        }
+
+    }
+
+    // Exports
+    {
+        std::string elementsFile{ filename + ".BELEMENTS" };
+        std::ofstream fs(elementsFile);
+        fs << bdrElementMap.size() << std::endl;
+        for (const auto& [eId, nodeIds] : bdrElementMap) {
+            fs << eId+1 << " " << nodeIds[0]+1 << " " << nodeIds[1]+1 << std::endl;
+        }
+    }
+    
+    {
+        std::string nodesFile{ filename + ".NODES" };
+        std::ofstream fs(nodesFile);
+        fs << nodeMap.size() << std::endl;
+        for (const auto& [nId, nInfo] : nodeMap) {
+            fs << nId+1 << " " << nInfo.x << " " << nInfo.y << " " << nInfo.value << std::endl;
+         }
+    }
+}
+
+
 
 }

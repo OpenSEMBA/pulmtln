@@ -1,0 +1,17 @@
+{
+  "analysis": {
+    "order": 1,
+    "exportParaViewSolution": true,
+    "exportFolder": "Results/empty_coax/"
+  },
+  "model": {
+    "materials": {
+      "Conductor_0": {"type": "PEC", "tag": 1 },
+      "OpenBoundary_0": {"type": "OpenBoundary", "tag": 2 },
+      "Vacuum_0":    {"type": "Vacuum", "tag": 3}
+    },  
+    "gmshFile": "empty_coax_neumann.msh"
+  }
+}
+
+}
