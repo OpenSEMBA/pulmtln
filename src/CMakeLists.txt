@@ -18,7 +18,8 @@ add_library(${LIBRARY_NAME} STATIC
 	"Driver.cpp" 
 	"Parser.cpp"
 	"Model.cpp"
-	"Parameters.cpp" 
+	"Materials.cpp"
+	"Results.cpp" 
 	"DirectedGraph.cpp"
 	"Domain.cpp")
 

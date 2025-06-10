@@ -98,7 +98,7 @@ DomainTree::DomainTree(const Domain::IdToDomain& domains)
 
 Domain::IdToDomain Domain::buildDomains(const Model& model)
 {
-	if (model.determineOpenness() != Model::OpennessType::closed) {
+	if (model.determineOpenness() != Model::Openness::closed) {
 		throw std::runtime_error("Domains can only be determined for closed problems.");
 	}
 
@@ -127,7 +127,7 @@ Domain::IdToDomain Domain::buildDomains(const Model& model)
 		for (const auto& pec : model.getMaterials().pecs) {
 			auto bdrElems = getBdrElemsInDomain(&pec, vsInDomain, mesh);
 			if (!bdrElems.empty()) {
-				domain.conductorIds.insert(Materials::getNumberContainedInName(pec.name));
+				domain.conductorIds.insert(Materials::getMaterialIdFromName(pec.name));
 				domain.bdrElems.insert(bdrElems.begin(), bdrElems.end());
 			}
 		}

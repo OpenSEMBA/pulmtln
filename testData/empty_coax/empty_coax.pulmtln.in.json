@@ -1,7 +1,8 @@
 {
   "analysis": {
     "order": 3,
-    "exportParaViewSolution": true
+    "exportParaViewSolution": true,
+    "exportFolder": "Results/empty_coax/"
   },
   "model": {
     "materials": {

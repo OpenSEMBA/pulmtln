@@ -5,17 +5,41 @@
 
 namespace pulmtln {
 
+struct Box {
+	mfem::Vector min, max;
+
+	double area() const 
+	{
+		return (max[0] - min[0]) * (max[1] - min[1]);
+	}
+
+	bool isWithinBox(const mfem::Vector& point) const 
+	{
+		return (point[0] >= min[0] && point[0] <= max[0]) &&
+			(point[1] >= min[1] && point[1] <= max[1]);
+	}
+
+	bool operator==(const Box& rhs) const
+	{
+		for (int i = 0; i < min.Size(); ++i) {
+			if (min[i] != rhs.min[i] || max[i] != rhs.max[i]) {
+				return false;
+			}
+		}
+	}
+};
+
 class Model {
 public:
-	enum class OpennessType {
-		open,
-		semiopen,
-		closed
+	enum class Openness {
+		open,     // The most external boundary is open.
+		semiopen, // The most external boundaries are open and a conductor.
+		closed    // The most external boundary is a conductor.
 	};
 
 	Model() = default;
 	Model(
-		mfem::Mesh& mesh, // Model gets ownership of mesh.
+		mfem::Mesh& mesh,          // Model gets ownership of mesh.
 		const Materials& materials // Stores only materials present in mesh.
 	);
 
@@ -23,11 +47,15 @@ public:
 	const mfem::Mesh* getMesh() const { return mesh_.get(); }
 
 	const Materials& getMaterials() const { return materials_; }
+	std::size_t numberOfConductors() const;
 	
 	void setGroundConductorId(MaterialId id) { groundConductorId_ = id; }
 	MaterialId getGroundConductorId() const { return groundConductorId_; }
 
-	OpennessType determineOpenness() const;
+	Openness determineOpenness() const;
+	
+	double getAreaOfMaterial(const std::string& materialName) const;
+	Box getBoundingBoxOfMaterial(const std::string& materialName) const;
 
 private:
 	Materials materials_;

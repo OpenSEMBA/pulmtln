@@ -11,13 +11,16 @@ struct SolverOptions {
 
 struct DriverOptions {
 	SolverOptions solverOptions;
+	
+	// Number of coefficients in the multipolar expansion 
+	// for in-cell parameters calculations.
+	int multipolarExpansionOrder{ 5 }; 
 
 	bool exportParaViewSolution{ true };
 	bool exportVisItSolution{ false };
 	
 	bool makeMatricesSymmetric{ false };
-	bool exportMatrices{ true };
-
+	
 	std::string exportFolder{ "./" };
 };
 

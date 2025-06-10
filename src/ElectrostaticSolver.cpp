@@ -58,7 +58,7 @@ double firstOrderABC(const Vector& rVec)
 
 ElectrostaticSolver::ElectrostaticSolver(
     Mesh& mesh,
-    const SolverParameters& parameters,
+    const SolverInputs& parameters,
     const SolverOptions opts) : 
     opts_(opts),
     mesh_(&mesh),
@@ -96,7 +96,7 @@ ElectrostaticSolver::ElectrostaticSolver(
         parameters.dirichletBoundaries.getAttributesAsArray()
     );
 
-    // Setup various coefficients
+    // Setup domain permittivity coefficients.
     if (parameters_.domainPermittivities.empty()) {
         epsCoef_ = new ConstantCoefficient(EPSILON0_NATURAL);
     } else {
@@ -114,13 +114,13 @@ ElectrostaticSolver::ElectrostaticSolver(
     divEpsGrad_ = new BilinearForm(H1FESpace_);
     divEpsGrad_->AddDomainIntegrator(new DiffusionIntegrator(*epsCoef_));
 
-
-    std::unique_ptr<Coefficient> openRegionCoeff;
+    // Setup open regions.
+    std::unique_ptr<Coefficient> openBoundaryCoeff;
     if (!parameters.openBoundaries.empty()) {
         open_bdr_ = AttrToMarker(*mesh_, toArray(parameters.openBoundaries));
-        openRegionCoeff.reset(new FunctionCoefficient(firstOrderABC));
+        openBoundaryCoeff.reset(new FunctionCoefficient(firstOrderABC));
         divEpsGrad_->AddBoundaryIntegrator(
-            new BoundaryMassIntegrator(*openRegionCoeff),
+            new BoundaryMassIntegrator(*openBoundaryCoeff),
             open_bdr_
         );
     }
@@ -148,6 +148,10 @@ ElectrostaticSolver::ElectrostaticSolver(
     sigma_src_ = new GridFunction(H1FESpace_);
 
     Assemble();
+
+    // Apply Neumann conditions on sigma_src.
+    *sigma_src_ = 0.0;
+    applyBoundaryConstantValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
 }
 
 ElectrostaticSolver::~ElectrostaticSolver()
@@ -189,7 +193,6 @@ void ElectrostaticSolver::Assemble()
     h1SurfMass_->Assemble();
     h1SurfMass_->Finalize();
 
-    *rhod_ = 0.0;
     rhod_->Assemble();
 
     grad_->Assemble();
@@ -199,7 +202,7 @@ void ElectrostaticSolver::Assemble()
     div_->Finalize();
 }
 
-void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
+void ElectrostaticSolver::applyBoundaryConstantValuesToGridFunction(
     const AttrToValueMap& bdrValues,
     GridFunction& gf) const
 {
@@ -213,31 +216,26 @@ void ElectrostaticSolver::applyBoundaryValuesToGridFunction(
     Array<int> bdr_attr(mesh_->bdr_attributes.Max());
     for (int i = 0; i < attributes.Size(); i++)
     {
-        ConstantCoefficient voltage(values[i]);
+        ConstantCoefficient val(values[i]);
         bdr_attr = 0;
         if (attributes[i] <= bdr_attr.Size())
         {
             bdr_attr[attributes[i] - 1] = 1;
         }
-        gf.ProjectBdrCoefficient(voltage, bdr_attr);
+        gf.ProjectBdrCoefficient(val, bdr_attr);
     }
 }
 
 void ElectrostaticSolver::Solve()
 {
-    // Initialize the surface charge density
-    if (sigma_src_)
-    {
-        *sigma_src_ = 0.0;
-        applyBoundaryValuesToGridFunction(parameters_.neumannBoundaries, *sigma_src_);
-        h1SurfMass_->AddMult(*sigma_src_, *rhod_);
-    }
+    // Initialize the surface charge density (From Neumann boundaries).
+    h1SurfMass_->Mult(*sigma_src_, *rhod_);
     
-    // Computes phi.
-    *phi_ = 0.0; 
+    // Solves phi (electrostatic potential).
     {
+        *phi_ = 0.0;
         auto dbcs{ parameters_.dirichletBoundaries.getAttributesAsArray() };
-        applyBoundaryValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);
+        applyBoundaryConstantValuesToGridFunction(parameters_.dirichletBoundaries, *phi_);
 
         // Determine the essential BC degrees of freedom
         if (dbcs.Size() > 0) {
@@ -279,7 +277,7 @@ void ElectrostaticSolver::Solve()
         hDivMass_->FormLinearSystem(dbc_dofs_d, *d_, ed, MassHDiv, D, ED);
 
         GSSmoother M(MassHDiv);
-        PCG(MassHDiv, M, ED, D, opts_.printIterations, 200, 1e-12);
+        PCG(MassHDiv, M, ED, D, opts_.printIterations, 500, 1e-12);
         
         hDivMass_->RecoverFEMSolution(D, ed, *d_);
     }
@@ -289,7 +287,23 @@ void ElectrostaticSolver::Solve()
     
 }
 
-double ElectrostaticSolver::totalChargeFromRho() const
+void ElectrostaticSolver::setDirichletConditions(const AttrToValueMap& dbcs)
+{
+    parameters_.dirichletBoundaries = dbcs;
+}
+
+void ElectrostaticSolver::setNeumannCondition(
+    const int bdrAttribute, 
+    Coefficient& chargeDensity)
+{
+    Array<int> bdr_attr(mesh_->bdr_attributes.Max());
+    bdr_attr = 0;
+    bdr_attr[bdrAttribute - 1] = 1;
+    
+    sigma_src_->ProjectBdrCoefficient(chargeDensity, bdr_attr);
+}
+
+double ElectrostaticSolver::getTotalChargeFromRho() const
 {
     LinearForm l2_vol_int{L2FESpace_};
     ConstantCoefficient oneCoef{1.0};
@@ -298,7 +312,7 @@ double ElectrostaticSolver::totalChargeFromRho() const
     return l2_vol_int(*rho_);
 }
 
-double ElectrostaticSolver::totalCharge() const
+double ElectrostaticSolver::getTotalCharge() const
 {
     LinearForm rt_surf_int{HDivFESpace_};
     rt_surf_int.AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator);
@@ -306,17 +320,104 @@ double ElectrostaticSolver::totalCharge() const
     return rt_surf_int(*d_);
 }
 
-std::unique_ptr<LinearForm> buildSurfaceIntegratorForBoundary(RT_FESpace* fes, int bdrAttribute)
+double ElectrostaticSolver::getChargeMomentComponent(
+    int n, int d, const Vector& center) const
+{
+    // Computes the 2^n-polar term component for direction d around an expansion center.
+    // d == 0, corresponds with $a_n$
+    // d == 1, corresponds with $b_n$
+    
+    Array<int> chargedBoundaries;
+    for (const auto& [attr, val] : parameters_.dirichletBoundaries) {
+        chargedBoundaries.Append(attr);
+    }
+    for (const auto& [attr, val] : parameters_.neumannBoundaries) {
+        chargedBoundaries.Append(attr);
+    }
+
+    if (n == 0) {
+        if (d == 0) {
+            double Qt = 0.0;
+            for (auto b : chargedBoundaries) {
+                Qt += getChargeInBoundary(b);
+            }
+            return Qt; // a_0
+        }
+        else {
+            return 0.0;  // b_0
+        }
+    }
+
+    std::function<double(Vector)> xComponent =
+        std::bind(momentComponent, std::placeholders::_1, n, d, center);
+    FunctionCoefficient xComponentFunctionCoeff(xComponent);
+    ProductCoefficient weight{ -1.0, xComponentFunctionCoeff };
+
+    Array<Coefficient*> coefsArray(chargedBoundaries.Size());
+    for (int i = 0; i < coefsArray.Size(); i++) {
+        coefsArray[i] = &weight;
+    }
+    PWCoefficient pwcoeff{ chargedBoundaries, coefsArray };
+
+    LinearForm surf_int(HDivFESpace_);
+    surf_int.AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(pwcoeff));
+    surf_int.Assemble();
+
+    return surf_int(*d_);
+}
+
+Vector ElectrostaticSolver::getCenterOfCharge() const
+{
+    // "Center of Charge" is the place where the dipole moment is zero.
+    // It can only be defined for open and non-neutral systems.
+
+    if (parameters_.openBoundaries.size() !=  1) {
+        throw std::runtime_error("Not implemented for closed problems.");
+    }
+    const int& openBoundaryAttr = parameters_.openBoundaries.front();
+    auto Q{ this->getTotalCharge() - getChargeInBoundary(openBoundaryAttr)};
+
+    Vector origin(2);
+    origin = 0.0;
+
+    Vector res(2);
+    for (int x = 0; x < 2; ++x) {
+        res(x) = getChargeMomentComponent(1,x, origin) / Q;
+    }
+    
+    return res;
+}
+
+multipolarCoefficients ElectrostaticSolver::getMultipolarCoefficients(
+    std::size_t order) const
+{
+    auto centerOfCharge{ getCenterOfCharge() };
+
+    multipolarCoefficients ab(order + 1);
+    
+    for (int n = 0; n < order + 1; n++) {
+        ab[n] = {
+            getChargeMomentComponent(n, 0, centerOfCharge),
+            getChargeMomentComponent(n, 1, centerOfCharge)
+        };
+    }
+    
+    return ab;
+}
+
+std::unique_ptr<LinearForm> buildHDivBoundaryIntegrator(
+    RT_FESpace* fes, 
+    int bdrAttribute,
+    Coefficient& coeff)
 {
     mfem::Array<int> attr(1);
     attr[0] = bdrAttribute;
 
-    Array<Coefficient*> coefs(attr.Size());
-    ConstantCoefficient one{ -1.0 };
-    for (int i = 0; i < coefs.Size(); i++) {
-        coefs[i] = &one;
+    Array<Coefficient*> coefsArray(attr.Size());
+    for (int i = 0; i < coefsArray.Size(); i++) {
+        coefsArray[i] = &coeff;
     }
-    PWCoefficient pwcoeff{ attr, coefs };
+    PWCoefficient pwcoeff{ attr, coefsArray };
 
     auto surf_int =  std::make_unique<LinearForm>(fes);
     surf_int->AddBoundaryIntegrator(new VectorFEBoundaryFluxLFIntegrator(pwcoeff));
@@ -325,17 +426,88 @@ std::unique_ptr<LinearForm> buildSurfaceIntegratorForBoundary(RT_FESpace* fes, i
     return surf_int;
 }
 
-double ElectrostaticSolver::chargeInBoundary(int bdrAttribute) const
+std::unique_ptr<LinearForm> buildH1BoundaryIntegrator(
+    H1_FESpace* fes, 
+    int bdrAttribute,
+    Coefficient& coeff)
 {
-    auto surf_int{ buildSurfaceIntegratorForBoundary(HDivFESpace_, bdrAttribute) };
+    mfem::Array<int> attr(1);
+    attr[0] = bdrAttribute;
+
+    Array<Coefficient*> coeffsArray(attr.Size());
+    for (int i = 0; i < coeffsArray.Size(); i++) {
+        coeffsArray[i] = &coeff;
+    }
+    PWCoefficient pwcoeff{ attr, coeffsArray };
+
+    auto surf_int = std::make_unique<LinearForm>(fes);
+    surf_int->AddBoundaryIntegrator(new BoundaryLFIntegrator(pwcoeff));
+    surf_int->Assemble();
+
+    return surf_int;
+}
+
+
+double ElectrostaticSolver::getChargeInBoundary(int bdrAttribute) const
+{
+    ConstantCoefficient minusOne{ -1.0 };
+    auto surf_int{ buildHDivBoundaryIntegrator(HDivFESpace_, bdrAttribute, minusOne) };
     return (*surf_int)(*d_);
 }
 
-double ElectrostaticSolver::totalEnergy() const
+double ElectrostaticSolver::getAveragePotentialInDomain(int domainAttribute) const
 {
+    mfem::Array<int> attr(1);
+    attr[0] = domainAttribute;
+
+    Array<Coefficient*> coeffsArray(attr.Size());
+    ConstantCoefficient one;
+    for (int i = 0; i < coeffsArray.Size(); i++) {
+        coeffsArray[i] = &one;
+    }
+    PWCoefficient pwcoeff{ attr, coeffsArray };
+
+    LinearForm domain_int(H1FESpace_);
+    domain_int.AddDomainIntegrator(new DomainLFIntegrator(pwcoeff));
+    domain_int.Assemble();
+
+    GridFunction ones(H1FESpace_);
+    ones = 1.0;
+    
+    double totalPotential = domain_int(*phi_);
+    double area = domain_int(ones);
+
+    return totalPotential / area;
+}
+
+double ElectrostaticSolver::getAveragePotentialInBoundary(int bdrAttribute) const
+{
+    ConstantCoefficient one{ 1.0 };
+    auto surf_int{ buildH1BoundaryIntegrator(H1FESpace_, bdrAttribute, one) };
+
+    GridFunction ones(H1FESpace_);
+    ones = 1.0;
+    
+    auto totalPotential = (*surf_int)(*phi_);
+    auto totalLength = (*surf_int)(ones);
+
+    return totalPotential / totalLength;
+}
+
+double ElectrostaticSolver::getTotalEnergy() const
+{
+    Array<int> domainAttributes = mesh_->attributes;
+    int maxAttr = domainAttributes.Max();
+
+    Vector domainPermittivities(maxAttr);
+    domainPermittivities = EPSILON0_NATURAL;
+    for (const auto& [domainAttr, relPerm] : parameters_.domainPermittivities) {
+        domainPermittivities[domainAttr - 1] *= relPerm;
+    }
+    PWConstCoefficient permittivities(domainPermittivities);
+    
     BilinearForm mass{ HCurlFESpace_ };
-    ConstantCoefficient eps{ EPSILON0_NATURAL };
-    mass.AddDomainIntegrator(new VectorFEMassIntegrator(eps));
+    mass.AddDomainIntegrator(new VectorFEMassIntegrator(permittivities));
     mass.Assemble();
     
     GridFunction aux(e_->FESpace());
@@ -366,7 +538,7 @@ void ElectrostaticSolver::writeVisItFields(
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
-    //pv.RegisterField("Rho", rho_);
+    pv.RegisterField("Rho", rho_);
 
     pv.Save();
 }

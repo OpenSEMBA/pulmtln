@@ -3,8 +3,7 @@
     "order": 3,
     "exportParaViewSolution": true,
     "exportVisItSolution": true,
-    "exportFolder": "Results/nested_coax/",
-    "exportMatrices": true
+    "exportFolder": "Results/nested_coax/"
   },
   "model": {
     "materials": {
