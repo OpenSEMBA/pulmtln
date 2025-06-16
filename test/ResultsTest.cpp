@@ -31,11 +31,12 @@ TEST_F(ResultsTest, PULParameters_serialization_to_JSON)
 
 TEST_F(ResultsTest, InCellPotentials_serialization_to_JSON)
 {
+	// Dummy values
 	InCellPotentials p;
-	p.innerRegionBox = Box{ Vector({ 0.0, 0.0 }), Vector({ 1.0, 1.0 }) };
+	p.innerRegionBox = Box{ { 0.0, 0.0 }, { 1.0, 1.0 } };
 	
 	p.electric[0].innerRegionAveragePotential = 1.0;
-	p.electric[0].expansionCenter = mfem::Vector({ 0.5, 0.5 });
+	p.electric[0].expansionCenter = { 0.5, 0.5 };
 	p.electric[0].ab = {
 		{1.0, 0.0}, {0.5, 0.5}, {0.25, 0.25}
 	};
@@ -43,7 +44,7 @@ TEST_F(ResultsTest, InCellPotentials_serialization_to_JSON)
 	p.electric[0].conductorPotentials[1] = 2.0;
 
 	p.magnetic[0].innerRegionAveragePotential = 2.0;
-	p.magnetic[0].expansionCenter = mfem::Vector({ 0.5, 0.5 });
+	p.magnetic[0].expansionCenter = { 0.5, 0.5 };
 	p.magnetic[0].ab = {
 		{2.0, 0.0}, {1.0, 1.0}, {0.5, 0.5}
 	};
@@ -52,6 +53,46 @@ TEST_F(ResultsTest, InCellPotentials_serialization_to_JSON)
 
 	json j{ p.toJSON() };
 	
+	InCellPotentials r{ j };
+
+	EXPECT_EQ(p, r);
+
+}
+
+TEST_F(ResultsTest, InCellPotentials_serialization_to_JSON_2)
+{
+	// Dummy values
+	InCellPotentials p;
+	p.innerRegionBox = Box{ { 0.0, 0.0 }, { 1.0, 1.0 } };
+	
+	// Electric
+	p.electric[0].innerRegionAveragePotential = 1.0;
+	p.electric[0].expansionCenter = { 0.5, 0.5 };
+	p.electric[0].ab = { {1.0, 0.0}, {0.5, 0.5}, {0.25, 0.25} };
+	p.electric[0].conductorPotentials[0] = 1.0;
+	p.electric[0].conductorPotentials[1] = 2.0;
+
+	p.electric[1].innerRegionAveragePotential = 1.0;
+	p.electric[1].expansionCenter = { 0.5, 0.5 };
+	p.electric[1].ab = {{1.0, 0.0}, {0.5, 0.5}, {0.25, 0.25} };
+	p.electric[1].conductorPotentials[0] = 1.0;
+	p.electric[1].conductorPotentials[1] = 2.0;
+
+	// Magnetic
+	p.magnetic[0].innerRegionAveragePotential = 2.0;
+	p.magnetic[0].expansionCenter = { 0.5, 0.5 };
+	p.magnetic[0].ab = { {2.0, 0.0}, {1.0, 1.0}, {0.5, 0.5} };
+	p.magnetic[0].conductorPotentials[0] = 1.0;
+	p.magnetic[0].conductorPotentials[1] = 2.0;
+
+	p.magnetic[1].innerRegionAveragePotential = 2.0;
+	p.magnetic[1].expansionCenter = { 0.5, 0.5 };
+	p.magnetic[1].ab = { {2.0, 0.0}, {1.0, 1.0}, {0.5, 0.5} };
+	p.magnetic[1].conductorPotentials[0] = 1.0;
+	p.magnetic[1].conductorPotentials[1] = 2.0;
+
+	json j{ p.toJSON() };
+
 	InCellPotentials r{ j };
 
 	EXPECT_EQ(p, r);
