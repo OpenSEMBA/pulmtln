@@ -599,7 +599,7 @@ TEST_F(DriverTest, lansink2024_two_wires_using_multipolar_expansion)
 
 	const double rTol = 0.06;
 
-	Box fdtdCell0{ Vector({-0.110, -0.100}), Vector({0.090, 0.100}) };
+	Box fdtdCell0{{-0.110, -0.100}, {0.090, 0.100} };
 		
 	auto computedC00 = inCell.getCapacitanceOnBox(0, 0, fdtdCell0);
 	auto expectedC00 = 14.08e-12; // C11 for floating in paper. Table 1.
@@ -617,7 +617,7 @@ TEST_F(DriverTest, lansink2024_two_wires_using_multipolar_expansion)
 	auto expectedL01 = 253e-9; // L12 for floating in paper. Table 1.
 	EXPECT_NEAR(0.0, relError(expectedL01, computedL01), rTol);
 
-	Box fdtdCell1{ Vector({-0.090, -0.100}), Vector({0.110, 0.100}) };
+	Box fdtdCell1{ {-0.090, -0.100}, {0.110, 0.100} };
 
 	auto computedC10 = inCell.getCapacitanceOnBox(1, 0, fdtdCell1);
 	auto expectedC10 = 44.31e-12; // C21 for floating in paper. Table 1.
@@ -691,7 +691,7 @@ TEST_F(DriverTest, lansink2024_single_wire_multipolar_in_cell_parameters)
 		).getInCellPotentials()
 	};
 
-	Box fdtdCell{ Vector({-0.0075, -0.0075}), Vector({0.0075, 0.0075}) };
+	Box fdtdCell{ {-0.0075, -0.0075}, {0.0075, 0.0075} };
 
 	const double rTol = 0.06;
 

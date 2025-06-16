@@ -134,8 +134,8 @@ double Model::getAreaOfMaterial(const std::string& materialName) const
 Box Model::getBoundingBoxOfMaterial(const std::string& materialName) const
 {
 	Box res{
-		Vector({infinity(), infinity()}),
-		Vector({-infinity(), -infinity()})
+		{infinity(), infinity()},
+		{-infinity(), -infinity()}
 	};
 
 	auto materials{ getMaterials().buildNameToAttrMap() };

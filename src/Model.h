@@ -6,7 +6,7 @@
 namespace pulmtln {
 
 struct Box {
-	mfem::Vector min, max;
+	std::array<double,2> min, max;
 
 	double area() const 
 	{
@@ -21,11 +21,7 @@ struct Box {
 
 	bool operator==(const Box& rhs) const
 	{
-		for (int i = 0; i < min.Size(); ++i) {
-			if (min[i] != rhs.min[i] || max[i] != rhs.max[i]) {
-				return false;
-			}
-		}
+		return min == rhs.min && max == rhs.max;
 	}
 };
 
