@@ -35,8 +35,8 @@ struct FloatingPotentials {
 
 struct FieldReconstruction {
     double innerRegionAveragePotential;
-    mfem::Vector expansionCenter;
-    multipolarCoefficients ab;
+    std::array<double,2> expansionCenter;
+    multipolarCoefficients ab; // Stored in natural units.
     std::map<MaterialId, double> conductorPotentials;
 
     nlohmann::json toJSON() const;

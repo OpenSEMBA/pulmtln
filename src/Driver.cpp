@@ -414,7 +414,10 @@ std::map<MaterialId, FieldReconstruction> getFieldParameters(
 
 		res[condI].innerRegionAveragePotential = 
 			getInnerRegionAveragePotential(model, s, true);
-		res[condI].expansionCenter = s.getCenterOfCharge();
+		auto centerOfCharge = s.getCenterOfCharge();
+		std::copy(
+			centerOfCharge.begin(), centerOfCharge.end(), 
+			res[condI].expansionCenter.begin());
 		res[condI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
 			auto condJ = Materials::getMaterialIdFromName(nameJ);

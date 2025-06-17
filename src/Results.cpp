@@ -120,7 +120,7 @@ std::map<MaterialId, FieldReconstruction> potentialsFromJSON(const json& j)
 		FieldReconstruction fr;
 		
         fr.innerRegionAveragePotential = f.at("innerRegionAveragePotential").get<double>();
-		fr.expansionCenter = toMFEMVector(f.at("expansionCenter").get<std::vector<double>>());
+		fr.expansionCenter = f.at("expansionCenter").get<std::array<double,2>>();
 		
         fr.ab = multipolarCoefficientsFromJSON(f.at("ab"));
         
@@ -137,10 +137,8 @@ std::map<MaterialId, FieldReconstruction> potentialsFromJSON(const json& j)
 
 InCellPotentials::InCellPotentials(const nlohmann::json& j)
 {
-    innerRegionBox.min = 
-        toMFEMVector(j.at("innerRegionBox").at("min").get<std::vector<double>>());
-	innerRegionBox.max =
-		toMFEMVector(j.at("innerRegionBox").at("max").get<std::vector<double>>());
+    innerRegionBox.min = j.at("innerRegionBox").at("min").get<std::array<double,2>>();
+	innerRegionBox.max = j.at("innerRegionBox").at("max").get<std::array<double,2>>();
 
     electric = potentialsFromJSON(j.at("electric"));
 	magnetic = potentialsFromJSON(j.at("magnetic"));
@@ -148,14 +146,19 @@ InCellPotentials::InCellPotentials(const nlohmann::json& j)
 
 bool InCellPotentials::operator==(const InCellPotentials& rhs) const
 {
-    bool res;
+    
+    if (!(innerRegionBox == rhs.innerRegionBox)) {
+        return false;
+    }
 
-    res = (innerRegionBox == rhs.innerRegionBox);
+    if (!(electric == rhs.electric)) {
+        return false;
+    }
 
-    res = res && (electric == rhs.electric);
-	res = res && (magnetic == rhs.magnetic);
-
-    return res;
+    if (!(magnetic == rhs.magnetic)) {
+        return false;
+    }
+    return true;
 }
 
 double InCellPotentials::getCapacitanceUsingInnerRegion(int i, int j) const
@@ -185,8 +188,8 @@ std::array<std::vector<double>, 2> buildIntegrationPlanesForBox(
     const int GRID_INTEGRATION_SAMPLING_POINTS = 100;
 
     for (int x = 0; x < 2; ++x) {
-        if ((integrationBox.min(x) > innerRegionBox.min(x)) ||
-            (integrationBox.max(x) < innerRegionBox.max(x))) {
+        if ((integrationBox.min[x] > innerRegionBox.min[x]) ||
+            (integrationBox.max[x] < innerRegionBox.max[x])) {
             throw std::runtime_error("Integration box has to be larger than the  inner region.");
         }
     }
@@ -194,10 +197,10 @@ std::array<std::vector<double>, 2> buildIntegrationPlanesForBox(
     std::array<std::set<double>, 2> planes;
     for (int x = 0; x < 2; ++x) {
         std::set<double> controlPoints;
-        controlPoints.insert(integrationBox.min(x));
-        controlPoints.insert(integrationBox.max(x));
-        controlPoints.insert(innerRegionBox.min(x));
-        controlPoints.insert(innerRegionBox.max(x));
+        controlPoints.insert(integrationBox.min[x]);
+        controlPoints.insert(integrationBox.max[x]);
+        controlPoints.insert(innerRegionBox.min[x]);
+        controlPoints.insert(innerRegionBox.max[x]);
 
         // Fills with equispaced points
         for (auto it = std::next(controlPoints.begin()); it != controlPoints.end(); ++it) {
@@ -238,7 +241,11 @@ double getAveragePotential(
                 // If the point is within the inner region, we do not integrate over it.
                 continue;
             }
-            outerV += area * multipolarExpansion(midPoint, potential.ab, potential.expansionCenter);
+            mfem::Vector center(2);
+            std::copy(
+                potential.expansionCenter.begin(), potential.expansionCenter.end(),
+                center.begin());
+            outerV += area * multipolarExpansion(midPoint, potential.ab, center);
         }
     }
 
@@ -274,16 +281,18 @@ nlohmann::json InCellPotentials::toJSON() const
 {
     nlohmann::json res;
     res["innerRegionBox"] = nlohmann::json::object({
-        {"min", toVec(innerRegionBox.min)},
-        {"max", toVec(innerRegionBox.max)}
+        {"min", innerRegionBox.min},
+        {"max", innerRegionBox.max}
     });
 
+    res["electric"] = nlohmann::json::array();
     for (const auto& [matId, fieldReconstruction] : electric) {
-		res["electric"] = nlohmann::json::array();
+		
         res["electric"].push_back(electric.at(matId).toJSON());
 	}
+	
+    res["magnetic"] = nlohmann::json::array();
 	for (const auto& [matId, fieldReconstruction] : magnetic) {
-		res["magnetic"] = nlohmann::json::array();
 		res["magnetic"].push_back(magnetic.at(matId).toJSON());
 	}
 
@@ -295,7 +304,7 @@ nlohmann::json FieldReconstruction::toJSON() const
 	nlohmann::json res;
 
 	res["innerRegionAveragePotential"] = innerRegionAveragePotential;
-	res["expansionCenter"] = toVec(expansionCenter);
+	res["expansionCenter"] = expansionCenter;
 	res["ab"] = nlohmann::json::array();
 	for (const auto& [a, b] : ab) {
 		res["ab"].push_back({ a, b });
