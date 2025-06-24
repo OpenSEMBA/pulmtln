@@ -636,6 +636,56 @@ TEST_F(DriverTest, lansink2024_two_wires_using_multipolar_expansion)
 	EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
 }
 
+
+TEST_F(DriverTest, lansink2024_two_wires_shifted_and_centered)
+{
+	// From:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	const std::string CASE{ "lansink2024" };
+
+	auto inCell{
+		Driver::loadFromFile(
+			casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json"
+		).getInCellPotentials()
+	};
+	
+	Box fdtdCellCentered{ {-0.100, -0.100}, {0.100, 0.100} };
+	
+	{
+		Box fdtdCellShifted{ {-0.110, -0.100}, {0.090, 0.100} };
+		auto computedC_shifted = inCell.getCapacitanceOnBox(0, 0, fdtdCellShifted);
+		auto computedC_centered = inCell.getCapacitanceOnBox(0, 0, fdtdCellCentered);
+		auto err = relError(computedC_shifted, computedC_centered);
+		EXPECT_TRUE(err < 1e-4);
+	}
+	{
+		Box fdtdCellShifted{ {-0.110, -0.100}, {0.090, 0.100} };
+		auto computedC_shifted = inCell.getCapacitanceOnBox(0, 1, fdtdCellShifted);
+		auto computedC_centered = inCell.getCapacitanceOnBox(0, 1, fdtdCellCentered);
+		auto err = relError(computedC_shifted, computedC_centered);
+		EXPECT_TRUE(err < 1e-2);
+	}
+	{
+		Box fdtdCellShifted{ { -0.090, -0.100 }, { 0.110, 0.100 } };
+		auto computedC_shifted = inCell.getCapacitanceOnBox(1, 0, fdtdCellShifted);
+		auto computedC_centered = inCell.getCapacitanceOnBox(1, 0, fdtdCellCentered);
+		auto err = relError(computedC_shifted, computedC_centered);
+		EXPECT_TRUE(err < 1e-2);
+	}
+	{
+		Box fdtdCellShifted{ { -0.090, -0.100 }, { 0.110, 0.100 } };
+		auto computedC_shifted = inCell.getCapacitanceOnBox(1, 1, fdtdCellShifted);
+		auto computedC_centered = inCell.getCapacitanceOnBox(1, 1, fdtdCellCentered);
+		auto err = relError(computedC_shifted, computedC_centered);
+		EXPECT_TRUE(err < 1e-2);
+	}
+}
+
+
 TEST_F(DriverTest, lansink2024_single_wire_in_cell_parameters)
 {
 	// From:
