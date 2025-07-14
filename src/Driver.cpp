@@ -8,46 +8,7 @@ using namespace mfem;
 
 namespace pulmtln {
 
-const std::string INNER_VACUUM_DEFAULT_NAME = "Vacuum_0";
-
-Driver Driver::loadFromFile(const std::string& fn)
-{
-	Parser p{ fn };
-	return Driver{
-		p.readModel(),
-		p.readDriverOptions()
-	};
-}
-
-Driver::Driver(Model&& model, const DriverOptions& opts) :
-	model_{ std::move(model) },
-	opts_{ opts }
-{
-	auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
-	std::vector<int> conductorIds;
-	conductorIds.reserve(conductors.size());
-	for (const auto& [name, attr] : conductors) {
-		conductorIds.push_back(Materials::getMaterialIdFromName(name));
-	}
-	std::sort(conductorIds.begin(), conductorIds.end());
-
-	// Preconditions.
-	if (conductorIds.empty()) {
-		throw std::runtime_error("Model must have at least one conductor.");
-	}
-
-	if (conductorIds.front() != 0) {
-		throw std::runtime_error(
-			"Conductor with id 0 must be present in the model. ");
-	}
-
-	for (int i = 1; i < conductorIds.size(); ++i) {
-		if (conductorIds[i] != conductorIds[i - 1] + 1) {
-			throw std::runtime_error(
-				"Conductor ids must be consecutive.");
-		}
-	}
-}
+const std::string INNER_REGION_DEFAULT_NAME = "Vacuum_0";
 
 AttrToValueMap buildAttrToValueMap(
 	const NameToAttrMap& matToAtt, double value)
@@ -93,6 +54,76 @@ void exportFieldSolutions(
 	}
 }
 
+
+Driver Driver::loadFromFile(const std::string& fn)
+{
+	Parser p{ fn };
+	return Driver{
+		p.readModel(),
+		p.readDriverOptions()
+	};
+}
+
+Driver::Driver(Model&& model, const DriverOptions& opts) :
+	model_{ std::move(model) },
+	opts_{ opts }
+{
+	auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	std::vector<int> conductorIds;
+	conductorIds.reserve(conductors.size());
+	for (const auto& [name, attr] : conductors) {
+		conductorIds.push_back(Materials::getMaterialIdFromName(name));
+	}
+	std::sort(conductorIds.begin(), conductorIds.end());
+
+	// Preconditions.
+	if (conductorIds.empty()) { 
+		throw std::runtime_error("Model must have at least one conductor.");
+	}
+
+	if (conductorIds.front() != 0) {
+		throw std::runtime_error(
+			"Conductor with id 0 must be present in the model. ");
+	}
+
+	for (int i = 1; i < conductorIds.size(); ++i) {
+		if (conductorIds[i] != conductorIds[i - 1] + 1) {
+			throw std::runtime_error(
+				"Conductor ids must be consecutive.");
+		}
+	}
+
+	// Solve for all conductors.
+	electric_ = solveForAllConductors(false);
+	magnetic_ = solveForAllConductors(true);
+}
+
+SolvedProblem Driver::solveForAllConductors(bool ignoreDielectrics)
+{
+	SolvedProblem res;
+	const auto baseParameters{ 
+		buildSolverInputsFromModel(model_, ignoreDielectrics) };
+	res.solver = std::make_unique<ElectrostaticSolver>(
+		*model_.getMesh(), baseParameters, opts_.solverOptions);
+	ElectrostaticSolver& s = *res.solver.get();
+
+	auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	res.solutions.resize(conductors.size());
+	for (const auto& [nameI, bdrAttI] : conductors) {
+		int condI = Materials::getMaterialIdFromName(nameI);
+
+		auto dbcs = baseParameters.dirichletBoundaries;
+		dbcs[bdrAttI] = 1.0;
+		s.setDirichletConditions(dbcs);
+		s.Solve();
+
+		exportFieldSolutions(opts_, s, nameI, ignoreDielectrics);
+		res.solutions[condI] = std::move(s.getSolution());
+	}
+
+	return res;
+}
+
 SolverInputs Driver::buildSolverInputsFromModel(
 	const Model& model,
 	bool ignoreDielectrics)
@@ -117,8 +148,6 @@ SolverInputs Driver::buildSolverInputsFromModel(
 }
 
 DenseMatrix Driver::getCMatrix(
-	const Model& model,
-	const DriverOptions& opts,
 	bool ignoreDielectrics,
 	bool generalized)
 {
@@ -128,8 +157,8 @@ DenseMatrix Driver::getCMatrix(
 	// - Generalized C contains N x N entries.
 
 	// Preconditions. 
-	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
-	const auto openness{ model.determineOpenness() };
+	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	const auto openness{ model_.determineOpenness() };
 	if (conductors.size() == 1 && openness == Model::Openness::closed) {
 		throw std::runtime_error(
 			"The number of conductors must be at least 2 for closed problems.");
@@ -144,45 +173,47 @@ DenseMatrix Driver::getCMatrix(
 	}
 	mfem::DenseMatrix C(CSize);
 
-	const auto baseParameters{ buildSolverInputsFromModel(model, ignoreDielectrics) };
-	Mesh mesh{ *model.getMesh() };
-	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
-	
-	// Solves a electrostatic problem for each conductor besides the
-	int row{ 0 };
+	SolvedProblem* sP;
+	if (ignoreDielectrics) {
+		sP = &magnetic_;
+	}
+	else {
+		sP = &electric_;
+	}
+
 	for (const auto& [nameI, bdrAttI] : conductors) {
 		int condI = Materials::getMaterialIdFromName(nameI);
-		if (condI == model.getGroundConductorId() && !generalized) {
+		if (condI == model_.getGroundConductorId() && !generalized) {
 			continue;
 		}
-		
-		auto dbcs = baseParameters.dirichletBoundaries;
-		dbcs[bdrAttI] = 1.0;
-		s.setDirichletConditions(dbcs);
-		s.Solve();
 
+		sP->solver->setSolution(sP->solutions[condI]);
+		
 		// Fills row
-		int col{ 0 };
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
 			int condJ = Materials::getMaterialIdFromName(nameJ);
-			if (condJ == model.getGroundConductorId() && !generalized) {
+			if (condJ == model_.getGroundConductorId() && !generalized) {
 				continue;
 			}
-			
+
 			// C_ij = Q_j / V_i. V_i is always 1.0
-			double Qj = s.getChargeInBoundary(conductors.at(nameJ));
-			C(row, col) = Qj;
-			col++;
+			double Q = sP->solver->getChargeInBoundary(conductors.at(nameJ));
+			
+			if (generalized) {
+				C(condI, condJ) = Q;
+			}
+			else {
+				C(condI - 1, condJ - 1) = Q;
+			}
 		}
 
-		exportFieldSolutions(opts, s, nameI, ignoreDielectrics);
-		row++;
+		exportFieldSolutions(opts_, *sP->solver, nameI, ignoreDielectrics);
 	}
 
 	return C;
 }
 
-DenseMatrix Driver::getLMatrix(const Model& model, const DriverOptions& opts)
+DenseMatrix Driver::getLMatrix()
 {
 	// PUL inductance matrix as defined in:
 	//   Clayton Paul's book: Analysis of Multiconductor Transmission Lines
@@ -190,35 +221,30 @@ DenseMatrix Driver::getLMatrix(const Model& model, const DriverOptions& opts)
 	// Inductance matrix can be computed from the 
 	// capacitance obtained ignoring dielectrics as
 	//          L = mu0 * eps0 * C^{-1}
-	auto res{ Driver::getCMatrix(model, opts, true) };
+	auto res{ getCMatrix(true) };
 	res.Invert();
 	res *= MU0_NATURAL * EPSILON0_NATURAL;
 	return res;
 }
 
-PULParameters buildPULParametersForModel(const Model& m, const DriverOptions& opts)
+PULParameters Driver::buildPULParametersForModel()
 {
 	PULParameters res;
 
-	res.C = Driver::getCMatrix(m, opts);
+	res.C = getCMatrix();
 	res.C *= EPSILON0_SI;
 
-	res.L = Driver::getLMatrix(m, opts);
+	res.L = getLMatrix();
 	res.L *= MU0_SI;
-
-	if (opts.makeMatricesSymmetric) {
-		res.C.Symmetrize();
-		res.L.Symmetrize();
-	}
 
 	return res;
 }
 
-void Driver::run() const
+void Driver::run()
 {
 	auto openness{ model_.determineOpenness() };
 	if (openness == Model::Openness::closed) {
-		auto pul = buildPULParametersForModel(model_, opts_);
+		auto pul = buildPULParametersForModel();
 		saveToJSONFile(
 			pul.toJSON(), 
 			opts_.exportFolder + "pulmtln.out.json");
@@ -234,12 +260,12 @@ void Driver::run() const
 	}
 }
 
-PULParameters Driver::getPULMTL() const
+PULParameters Driver::getPULMTL()
 {
-	return buildPULParametersForModel(model_, opts_);
+	return buildPULParametersForModel();
 }
 
-PULParametersByDomain Driver::getPULMTLByDomains() const
+PULParametersByDomain Driver::getPULMTLByDomains()
 {
 	PULParametersByDomain res;
 
@@ -247,10 +273,12 @@ PULParametersByDomain Driver::getPULMTLByDomains() const
 
 	for (const auto& [id, domain] : idToDomain) {
 		auto globalMesh{ *model_.getMesh() };
-		res.domainToPUL[id] = buildPULParametersForModel(
+		Driver subDomainDriver{
 			Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
-			opts_);
-		}
+			opts_
+		};
+		res.domainToPUL[id] = subDomainDriver.getPULMTL();
+	}
 
 	res.domainTree = DomainTree{ idToDomain };
 
@@ -258,8 +286,6 @@ PULParametersByDomain Driver::getPULMTLByDomains() const
 }
 
 DenseMatrix Driver::getFloatingPotentialsMatrix(
-	const Model& model,
-	const DriverOptions& opts,
 	const bool ignoreDielectrics)
 {
 	// For an open-problem with N conductors, returns a NxN matrix which has: 
@@ -269,7 +295,7 @@ DenseMatrix Driver::getFloatingPotentialsMatrix(
 	// For closed and semi-open problems with N conductors, returns a N-1 x N-1 matrix and assumes that conductor 0 has 
 	// alway a prescribed potential of zero.
 
-	if (model.getMaterials().buildNameToAttrMapFor<PEC>().size() == 1) {
+	if (model_.getMaterials().buildNameToAttrMapFor<PEC>().size() == 1) {
 		mfem::DenseMatrix res(1,1);
 		res = 1.0;
 		return res;
@@ -277,7 +303,7 @@ DenseMatrix Driver::getFloatingPotentialsMatrix(
 
 	// Determine C matrix.
 	bool useGeneralizedCMatrix;
-	switch (model.determineOpenness()) {
+	switch (model_.determineOpenness()) {
 	case Model::Openness::closed:
 		useGeneralizedCMatrix = false;
 		break;
@@ -288,7 +314,7 @@ DenseMatrix Driver::getFloatingPotentialsMatrix(
 		throw std::runtime_error(
 			"Floating potentials not implemented for this kind of openness.");
 	}
-	mfem::DenseMatrix C{ getCMatrix(model, opts, ignoreDielectrics, useGeneralizedCMatrix) };
+	mfem::DenseMatrix C{ getCMatrix(ignoreDielectrics, useGeneralizedCMatrix) };
 	C.Symmetrize();
 	
 	// Forms system of equations to determine floating potentials. 
@@ -328,12 +354,12 @@ DenseMatrix Driver::getFloatingPotentialsMatrix(
 	return res;
 }
 
-FloatingPotentials Driver::getFloatingPotentials() const
+FloatingPotentials Driver::getFloatingPotentials()
 {
 	FloatingPotentials res;
 
-	res.electric = getFloatingPotentialsMatrix(model_, opts_, false);
-	res.magnetic = getFloatingPotentialsMatrix(model_, opts_, true);
+	res.electric = getFloatingPotentialsMatrix(false);
+	res.magnetic = getFloatingPotentialsMatrix(true);
 
 	return res;
 }
@@ -343,7 +369,7 @@ std::list<std::string> listMaterialsInInnerRegion(
 	bool includeConductors = true)
 {
 	std::list<std::string> res;
-	res.push_back(INNER_VACUUM_DEFAULT_NAME);
+	res.push_back(INNER_REGION_DEFAULT_NAME);
 	for (auto [name, tag] : m.getMaterials().buildNameToAttrMapFor<Dielectric>()) {
 		if (name.find("Vacuum_") != std::string::npos) {
 			continue;
@@ -359,8 +385,7 @@ std::list<std::string> listMaterialsInInnerRegion(
 }
 
 
-double getInnerRegionAveragePotential(
-	const Model& m, 
+double Driver::getInnerRegionAveragePotential(
 	const ElectrostaticSolver& s,
 	bool includeConductors)
 {
@@ -368,13 +393,13 @@ double getInnerRegionAveragePotential(
 	double totalPotential = 0.0;
 	double totalArea = 0.0;
 	
-	auto innerRegionMaterials = listMaterialsInInnerRegion(m, includeConductors);
-	auto materials = m.getMaterials().buildNameToAttrMap();
+	auto innerRegionMaterials = listMaterialsInInnerRegion(model_, includeConductors);
+	auto materials = model_.getMaterials().buildNameToAttrMap();
 	
 	for (const auto& name: innerRegionMaterials ) {
 		auto tag = materials.at(name);
-		double area = m.getAreaOfMaterial(name);
-		if (m.getMaterials().isDomainMaterial(name)) {
+		double area = model_.getAreaOfMaterial(name);
+		if (model_.getMaterials().isDomainMaterial(name)) {
 			totalPotential += s.getAveragePotentialInDomain(tag) * area;
 		} else {
 			totalPotential += s.getAveragePotentialInBoundary(tag) * area;
@@ -385,19 +410,19 @@ double getInnerRegionAveragePotential(
 	return totalPotential / totalArea;
 }
 
-std::map<MaterialId, FieldReconstruction> getFieldParameters(
-	const Model& model,
-	const DriverOptions& opts,
+std::map<MaterialId, FieldReconstruction> Driver::getFieldParameters(
 	bool ignoreDielectrics)
 {
 	std::map<MaterialId, FieldReconstruction> res;
 
-	auto fp = Driver::getFloatingPotentialsMatrix(model, opts, ignoreDielectrics);
-	const auto baseParameters{ Driver::buildSolverInputsFromModel(model, ignoreDielectrics) };
-	Mesh mesh{ *model.getMesh() };
-	ElectrostaticSolver s(mesh, baseParameters, opts.solverOptions);
+	auto fp = getFloatingPotentialsMatrix(ignoreDielectrics);
+	const auto baseParameters{ 
+		Driver::buildSolverInputsFromModel(model_, ignoreDielectrics) 
+	};
+	Mesh mesh{ *model_.getMesh() };
+	ElectrostaticSolver s(mesh, baseParameters, opts_.solverOptions);
 
-	const auto conductors{ model.getMaterials().buildNameToAttrMapFor<PEC>() };
+	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
 	for (const auto& [nameI, bdrAttI] : conductors) {
 		auto condI = Materials::getMaterialIdFromName(nameI);
 
@@ -409,16 +434,16 @@ std::map<MaterialId, FieldReconstruction> getFieldParameters(
 		s.setDirichletConditions(dbcs);
 		s.Solve();
 
-		exportFieldSolutions(opts, s, 
+		exportFieldSolutions(opts_, s, 
 			nameI + "_prescribed_and_others_floating", ignoreDielectrics);
 
 		res[condI].innerRegionAveragePotential = 
-			getInnerRegionAveragePotential(model, s, true);
+			getInnerRegionAveragePotential(s, true);
 		auto centerOfCharge = s.getCenterOfCharge();
 		std::copy(
 			centerOfCharge.begin(), centerOfCharge.end(), 
 			res[condI].expansionCenter.begin());
-		res[condI].ab = s.getMultipolarCoefficients(opts.multipolarExpansionOrder);
+		res[condI].ab = s.getMultipolarCoefficients(opts_.multipolarExpansionOrder);
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
 			auto condJ = Materials::getMaterialIdFromName(nameJ);
 			res[condI].conductorPotentials[condJ] = fp(condI, condJ);
@@ -428,7 +453,7 @@ std::map<MaterialId, FieldReconstruction> getFieldParameters(
 	return res;
 }
 
-InCellPotentials Driver::getInCellPotentials() const
+InCellPotentials Driver::getInCellPotentials()
 {
 	InCellPotentials res;
 
@@ -436,10 +461,10 @@ InCellPotentials Driver::getInCellPotentials() const
 		throw std::runtime_error("In cell parameters can only be computed for open problems.");
 	}
 
-	res.innerRegionBox = model_.getBoundingBoxOfMaterial(INNER_VACUUM_DEFAULT_NAME);
+	res.innerRegionBox = model_.getBoundingBoxOfMaterial(INNER_REGION_DEFAULT_NAME);
 
-	res.electric = getFieldParameters(model_, opts_, false);
-	res.magnetic = getFieldParameters(model_, opts_, true);
+	res.electric = getFieldParameters(false);
+	res.magnetic = getFieldParameters(true);
 
 	return res;
 }

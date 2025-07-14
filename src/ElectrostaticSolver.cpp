@@ -447,6 +447,40 @@ std::unique_ptr<LinearForm> buildH1BoundaryIntegrator(
     return surf_int;
 }
 
+std::unique_ptr<GridFunction> cloneGridFunction(GridFunction* gf)
+{
+    auto res = std::make_unique<GridFunction>(gf->FESpace());
+    for (int i = 0; i < gf->Size(); ++i) {
+        (*res)[i] = (*gf)[i];
+    }
+    return std::move(res);
+}
+
+void copyGridFunctionValues(GridFunction* tgt, const GridFunction* src)
+{
+    assert(tgt->Size() == src->Size());
+    for (int i = 0; i < src->Size(); ++i) {
+        (*tgt)[i] = (*src)[i];
+    }
+}
+
+SolverSolution ElectrostaticSolver::getSolution() const
+{
+    SolverSolution res;
+    res.phi = cloneGridFunction(phi_);
+    res.e = cloneGridFunction(e_);
+    res.d = cloneGridFunction(d_);
+    res.rho = cloneGridFunction(rho_);
+    return res;
+}
+
+void ElectrostaticSolver::setSolution(const SolverSolution& s)
+{
+    copyGridFunctionValues(phi_, s.phi.get());
+    copyGridFunctionValues(e_, s.e.get());
+    copyGridFunctionValues(d_, s.d.get());
+    copyGridFunctionValues(rho_, s.rho.get());
+}
 
 double ElectrostaticSolver::getChargeInBoundary(int bdrAttribute) const
 {

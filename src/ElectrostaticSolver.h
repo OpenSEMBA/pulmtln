@@ -17,6 +17,10 @@ struct SolverInputs {
     AttrToValueMap domainPermittivities;
 };
 
+struct SolverSolution {
+    std::unique_ptr<GridFunction> phi, e, d, rho;
+};
+
 class ElectrostaticSolver {
 public:
     ElectrostaticSolver(
@@ -41,6 +45,9 @@ public:
     Vector getCenterOfCharge() const;
     double getChargeMomentComponent(int order, int component, const Vector& center) const;
     multipolarCoefficients getMultipolarCoefficients(std::size_t order) const;
+
+    SolverSolution getSolution() const;
+    void setSolution(const SolverSolution&);
 
     double getChargeInBoundary(int bdrAttribute) const;
     double getAveragePotentialInDomain(int attr) const;
