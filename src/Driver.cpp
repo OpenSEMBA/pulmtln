@@ -162,7 +162,7 @@ DenseMatrix Driver::getCMatrix(
 	// - Generalized C contains N x N entries.
 
 	// Preconditions. 
-	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	const auto conductors{ model_.getMaterials().buildIdToAttrMapFor<PEC>() };
 	const auto openness{ model_.determineOpenness() };
 	if (conductors.size() == 1 && openness == Model::Openness::closed) {
 		throw std::runtime_error(
@@ -186,8 +186,7 @@ DenseMatrix Driver::getCMatrix(
 		sP = &electric_;
 	}
 
-	for (const auto& [nameI, bdrAttI] : conductors) {
-		int condI = Materials::getMaterialIdFromName(nameI);
+	for (const auto& [condI, bdrAttI] : conductors) {
 		if (condI == model_.getGroundConductorId() && !generalized) {
 			continue;
 		}
@@ -195,14 +194,13 @@ DenseMatrix Driver::getCMatrix(
 		sP->solver->setSolution(sP->solutions[condI]);
 		
 		// Fills row
-		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			int condJ = Materials::getMaterialIdFromName(nameJ);
+		for (const auto& [condJ, bdrAttJ] : conductors) {
 			if (condJ == model_.getGroundConductorId() && !generalized) {
 				continue;
 			}
 
 			// C_ij = Q_j / V_i. V_i is always 1.0
-			double Q = sP->solver->getChargeInBoundary(conductors.at(nameJ));
+			double Q = sP->solver->getChargeInBoundary(conductors.at(condJ));
 			
 			if (generalized) {
 				C(condI, condJ) = Q;
@@ -212,7 +210,8 @@ DenseMatrix Driver::getCMatrix(
 			}
 		}
 
-		exportFieldSolutions(opts_, *sP->solver, nameI, ignoreDielectrics);
+		exportFieldSolutions(opts_, *sP->solver, 
+			model_.getMaterials().get<PEC>(condI).name, ignoreDielectrics);
 	}
 
 	C.Symmetrize();
@@ -431,22 +430,21 @@ std::map<MaterialId, FieldReconstruction> Driver::getFieldParameters(
 
 	ElectrostaticSolver& s = *sP->solver;
 
-	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
-	for (const auto& [nameI, bdrAttI] : conductors) {
-		auto condI = Materials::getMaterialIdFromName(nameI);
+	const auto conductors{ model_.getMaterials().buildIdToAttrMapFor<PEC>() };
+	for (const auto& [condI, bdrAttI] : conductors) {
 		
 		s.getPhi() *= 0.0;
 		s.getE() *= 0.0;
 		s.getD() *= 0.0;
-		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			auto condJ = Materials::getMaterialIdFromName(nameJ);
+		for (const auto& [condJ, bdrAttJ] : conductors) {
 			s.getPhi().Add(fp(condI, condJ), *sP->solutions[condJ].phi);
 			s.getE().Add(fp(condI, condJ), *sP->solutions[condJ].e);
 			s.getD().Add(fp(condI, condJ), *sP->solutions[condJ].d);
 		}
 
 		exportFieldSolutions(opts_, s, 
-			nameI + "_prescribed_and_others_floating", ignoreDielectrics);
+			model_.getMaterials().get<PEC>(condI).name + "_prescribed_and_others_floating", 
+			ignoreDielectrics);
 
 		res[condI].innerRegionAveragePotential = 
 			getInnerRegionAveragePotential(s, true);
@@ -455,8 +453,7 @@ std::map<MaterialId, FieldReconstruction> Driver::getFieldParameters(
 			centerOfCharge.begin(), centerOfCharge.end(), 
 			res[condI].expansionCenter.begin());
 		res[condI].ab = s.getMultipolarCoefficients(opts_.multipolarExpansionOrder);
-		for (const auto& [nameJ, bdrAttJ] : conductors) {
-			auto condJ = Materials::getMaterialIdFromName(nameJ);
+		for (const auto& [condJ, bdrAttJ] : conductors) {
 			res[condI].conductorPotentials[condJ] = fp(condI, condJ);
 		}
 	}
