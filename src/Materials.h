@@ -6,6 +6,7 @@ namespace pulmtln {
 
 using MaterialId = int;
 using Attribute = int;
+using IdToAttrMap = std::map<MaterialId, Attribute>;
 
 struct Material {
 	std::string name;
@@ -51,6 +52,28 @@ struct Materials {
 	}
 
 	template <class T>
+	IdToAttrMap buildIdToAttrMapFor() const
+	{
+		IdToAttrMap res;
+		if constexpr (std::is_same<T, PEC>()) {
+			for (const auto& m : pecs) {
+				res[getMaterialIdFromName(m.name)] = m.attribute;
+			}
+		}
+		if constexpr (std::is_same<T, OpenBoundary>()) {
+			for (const auto& m : openBoundaries) {
+				res[getMaterialIdFromName(m.name)] = m.attribute;
+			}
+		}
+		else if constexpr (std::is_same<T, Dielectric>()) {
+			for (const auto& m : dielectrics) {
+				res[getMaterialIdFromName(m.name)] = m.attribute;
+			}
+		}
+		return res;
+	}
+
+	template <class T>
 	const T& get(const std::string name) const
 	{
 		if constexpr (std::is_same<T, PEC>()) {
@@ -70,6 +93,34 @@ struct Materials {
 		if constexpr (std::is_same<T, Dielectric>()) {
 			for (const auto& m : dielectrics) {
 				if (m.name == name) {
+					return m;
+				}
+			}
+		}
+
+		throw std::runtime_error("Invalid material type");
+	}
+
+	template <class T>
+	const T& get(const MaterialId id) const
+	{
+		if constexpr (std::is_same<T, PEC>()) {
+			for (const auto& m : pecs) {
+				if (getMaterialIdFromName(m.name) == id) {
+					return m;
+				}
+			}
+		}
+		if constexpr (std::is_same<T, OpenBoundary>()) {
+			for (const auto& m : openBoundaries) {
+				if (getMaterialIdFromName(m.name) == id) {
+					return m;
+				}
+			}
+		}
+		if constexpr (std::is_same<T, Dielectric>()) {
+			for (const auto& m : dielectrics) {
+				if (getMaterialIdFromName(m.name) == id) {
 					return m;
 				}
 			}

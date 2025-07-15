@@ -110,18 +110,17 @@ SolvedProblem Driver::solveForAllConductors(bool ignoreDielectrics)
 		*model_.getMesh(), baseParameters, opts_.solverOptions);
 	ElectrostaticSolver& s = *res.solver.get();
 
-	auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
+	auto conductors{ model_.getMaterials().buildIdToAttrMapFor<PEC>() };
 	res.solutions.resize(conductors.size());
-	for (const auto& [nameI, bdrAttI] : conductors) {
-		int condI = Materials::getMaterialIdFromName(nameI);
-
+	for (const auto& [condI, bdrAttI] : conductors) {
 		std::cout << "- Solving conductor #" << condI << "... " << std::flush;
 
 		auto dbcs = baseParameters.dirichletBoundaries;
 		dbcs[bdrAttI] = 1.0;
 		s.setDirichletConditions(dbcs);
 		s.Solve();
-		exportFieldSolutions(opts_, s, nameI, ignoreDielectrics);
+
+		exportFieldSolutions(opts_, s, model_.getMaterials().get<PEC>(condI).name, ignoreDielectrics);
 		res.solutions[condI] = std::move(s.getSolution());
 
 		std::cout << "[OK]" << std::endl;
