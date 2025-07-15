@@ -94,7 +94,10 @@ Driver::Driver(Model&& model, const DriverOptions& opts) :
 	}
 
 	// Solve for all conductors.
+	std::cout << "Solving electrostatic problems:" << std::endl;
 	electric_ = solveForAllConductors(false);
+
+	std::cout << "Solving magnetostatic problems." << std::endl;
 	magnetic_ = solveForAllConductors(true);
 }
 
@@ -112,13 +115,16 @@ SolvedProblem Driver::solveForAllConductors(bool ignoreDielectrics)
 	for (const auto& [nameI, bdrAttI] : conductors) {
 		int condI = Materials::getMaterialIdFromName(nameI);
 
+		std::cout << "- Solving conductor #" << condI << "... " << std::flush;
+
 		auto dbcs = baseParameters.dirichletBoundaries;
 		dbcs[bdrAttI] = 1.0;
 		s.setDirichletConditions(dbcs);
 		s.Solve();
-
 		exportFieldSolutions(opts_, s, nameI, ignoreDielectrics);
 		res.solutions[condI] = std::move(s.getSolution());
+
+		std::cout << "[OK]" << std::endl;
 	}
 
 	return res;
