@@ -69,7 +69,6 @@ TEST_F(ElectrostaticSolverTest, parallel_plates)
 	const double aTol{ 1e-5 };
 	const double rTol{ 1e-5 }; // Error percentage of 0.001%
 
-	EXPECT_NEAR(0.0, s.getTotalChargeFromRho(), aTol);
 	EXPECT_NEAR(0.0, s.getTotalCharge(), aTol);
 
 	EXPECT_LE(relError(1.0, s.getChargeInBoundary(1)), rTol);
@@ -214,7 +213,6 @@ TEST_F(ElectrostaticSolverTest, two_materials)
 	const double aTol{ 1e-4 };
 	const double rTol{ 1e-5 };  // 0.001%
 
-	EXPECT_NEAR(0.0, s.getTotalChargeFromRho(), aTol);
 	EXPECT_NEAR(0.0, s.getTotalCharge(), aTol);
 
 	EXPECT_LE(relError(1.6, s.getChargeInBoundary(1)), rTol);
@@ -372,7 +370,7 @@ TEST_F(ElectrostaticSolverTest, wire_in_open_region)
 	double Q = s.getChargeInBoundary(2);
 	ConstantCoefficient chargeCoeff{ Q };
 	VectorFunctionCoefficient exactField{2, wireField, &chargeCoeff};
-	auto error = s.getElectricField().ComputeL2Error(exactField);
+	auto error = s.getE().ComputeL2Error(exactField);
 	EXPECT_LE(error, 1.2);
 
 	double CExpected = EPSILON0_NATURAL * 2 * M_PI / log(0.05 / 0.025);

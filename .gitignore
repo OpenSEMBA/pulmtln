@@ -3,6 +3,8 @@ out/
 build/
 builds/
 ParaView/
+tmp_cases/
+
 CMakeSettings.json
 
 .vscode/settings.json

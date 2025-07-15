@@ -19,8 +19,6 @@ struct DriverOptions {
 	bool exportParaViewSolution{ true };
 	bool exportVisItSolution{ false };
 	
-	bool makeMatricesSymmetric{ false };
-	
 	std::string exportFolder{ "./" };
 };
 
