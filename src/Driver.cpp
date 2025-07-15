@@ -210,6 +210,8 @@ DenseMatrix Driver::getCMatrix(
 		exportFieldSolutions(opts_, *sP->solver, nameI, ignoreDielectrics);
 	}
 
+	C.Symmetrize();
+
 	return C;
 }
 
@@ -273,10 +275,8 @@ PULParametersByDomain Driver::getPULMTLByDomains()
 
 	for (const auto& [id, domain] : idToDomain) {
 		auto globalMesh{ *model_.getMesh() };
-		Driver subDomainDriver{
-			Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain),
-			opts_
-		};
+		auto domainModel = Domain::buildModelForDomain(globalMesh, model_.getMaterials(), domain);
+		Driver subDomainDriver(std::move(domainModel),opts_);
 		res.domainToPUL[id] = subDomainDriver.getPULMTL();
 	}
 
@@ -315,7 +315,6 @@ DenseMatrix Driver::getFloatingPotentialsMatrix(
 			"Floating potentials not implemented for this kind of openness.");
 	}
 	mfem::DenseMatrix C{ getCMatrix(ignoreDielectrics, useGeneralizedCMatrix) };
-	C.Symmetrize();
 	
 	// Forms system of equations to determine floating potentials. 
 	// Q1 = C11*V1 + C21*V2 + ....
@@ -416,23 +415,30 @@ std::map<MaterialId, FieldReconstruction> Driver::getFieldParameters(
 	std::map<MaterialId, FieldReconstruction> res;
 
 	auto fp = getFloatingPotentialsMatrix(ignoreDielectrics);
-	const auto baseParameters{ 
-		Driver::buildSolverInputsFromModel(model_, ignoreDielectrics) 
-	};
-	Mesh mesh{ *model_.getMesh() };
-	ElectrostaticSolver s(mesh, baseParameters, opts_.solverOptions);
+
+	SolvedProblem* sP;
+	if (ignoreDielectrics) {
+		sP = &magnetic_;
+	}
+	else {
+		sP = &electric_;
+	}
+
+	ElectrostaticSolver& s = *sP->solver;
 
 	const auto conductors{ model_.getMaterials().buildNameToAttrMapFor<PEC>() };
 	for (const auto& [nameI, bdrAttI] : conductors) {
 		auto condI = Materials::getMaterialIdFromName(nameI);
-
-		auto dbcs = baseParameters.dirichletBoundaries;
+		
+		s.getPhi() *= 0.0;
+		s.getE() *= 0.0;
+		s.getD() *= 0.0;
 		for (const auto& [nameJ, bdrAttJ] : conductors) {
 			auto condJ = Materials::getMaterialIdFromName(nameJ);
-			dbcs[bdrAttJ] = fp(condI, condJ);
+			s.getPhi().Add(fp(condI, condJ), *sP->solutions[condJ].phi);
+			s.getE().Add(fp(condI, condJ), *sP->solutions[condJ].e);
+			s.getD().Add(fp(condI, condJ), *sP->solutions[condJ].d);
 		}
-		s.setDirichletConditions(dbcs);
-		s.Solve();
 
 		exportFieldSolutions(opts_, s, 
 			nameI + "_prescribed_and_others_floating", ignoreDielectrics);

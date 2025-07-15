@@ -18,7 +18,7 @@ struct SolverInputs {
 };
 
 struct SolverSolution {
-    std::unique_ptr<GridFunction> phi, e, d, rho;
+    std::unique_ptr<GridFunction> phi, e, d;
 };
 
 class ElectrostaticSolver {
@@ -36,10 +36,15 @@ public:
     void writeParaViewFields(ParaViewDataCollection&) const;
     void writeVisItFields(VisItDataCollection&) const;
 
-    const GridFunction& getPotential() const { return *phi_; }
-    const GridFunction& getElectricField() const { return *e_; }
+    const GridFunction& getPhi() const { return *phi_; }
+    GridFunction& getPhi() { return *phi_; }
 
-    double getTotalChargeFromRho() const;
+    const GridFunction& getE() const { return *e_; }
+    GridFunction& getE() { return *e_; }
+    
+    const GridFunction& getD() const { return *d_; }
+    GridFunction& getD() { return *d_; }
+
     double getTotalCharge() const;
     
     Vector getCenterOfCharge() const;
@@ -55,6 +60,7 @@ public:
     double getTotalEnergy() const;
 
     Mesh* getMesh() { return mesh_; }
+
 
 private:
     SolverOptions opts_;
@@ -77,10 +83,8 @@ private:
     LinearForm* rhod_; // Dual of Volumetric Charge Density Source
 
     DiscreteGradOperator* grad_; // For Computing E from phi
-    DiscreteDivOperator* div_;  // For Computing rho from D
 
     GridFunction* phi_;       // Electric Scalar Potential
-    GridFunction* rho_;       // Volumetric Charge Density (Div(D))
     GridFunction* e_;         // Electric Field
     GridFunction* d_;         // Electric Flux Density (aka Dielectric Flux)
     GridFunction* sigma_src_; // Surface Charge Density Source
