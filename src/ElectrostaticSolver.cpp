@@ -74,7 +74,6 @@ ElectrostaticSolver::ElectrostaticSolver(
     rhod_(NULL),
     grad_(NULL),
     phi_(NULL),
-    rho_(NULL),
     sigma_src_(NULL),
     e_(NULL),
     d_(NULL),
@@ -138,13 +137,11 @@ ElectrostaticSolver::ElectrostaticSolver(
 
     // Discrete derivative operator
     grad_ = new DiscreteGradOperator(H1FESpace_, HCurlFESpace_);
-    div_ = new DiscreteDivOperator(HDivFESpace_, L2FESpace_);
-
+    
     // Build grid functions
     phi_ = new GridFunction(H1FESpace_);
     d_ = new GridFunction(HDivFESpace_);
     e_ = new GridFunction(HCurlFESpace_);
-    rho_ = new GridFunction(L2FESpace_);
     sigma_src_ = new GridFunction(H1FESpace_);
 
     Assemble();
@@ -157,14 +154,12 @@ ElectrostaticSolver::ElectrostaticSolver(
 ElectrostaticSolver::~ElectrostaticSolver()
 {   
     delete phi_;
-    delete rho_;
     delete rhod_;
     delete d_;
     delete e_;
     delete sigma_src_;
     
     delete grad_;
-    delete div_;
 
     delete divEpsGrad_;
     delete hDivMass_;
@@ -197,9 +192,6 @@ void ElectrostaticSolver::Assemble()
 
     grad_->Assemble();
     grad_->Finalize();
-
-    div_->Assemble();
-    div_->Finalize();
 }
 
 void ElectrostaticSolver::applyBoundaryConstantValuesToGridFunction(
@@ -281,10 +273,7 @@ void ElectrostaticSolver::Solve()
         
         hDivMass_->RecoverFEMSolution(D, ed, *d_);
     }
-    
-    // Computes rho.
-    div_->Mult(*d_, *rho_);
-    
+        
 }
 
 void ElectrostaticSolver::setDirichletConditions(const AttrToValueMap& dbcs)
@@ -301,15 +290,6 @@ void ElectrostaticSolver::setNeumannCondition(
     bdr_attr[bdrAttribute - 1] = 1;
     
     sigma_src_->ProjectBdrCoefficient(chargeDensity, bdr_attr);
-}
-
-double ElectrostaticSolver::getTotalChargeFromRho() const
-{
-    LinearForm l2_vol_int{L2FESpace_};
-    ConstantCoefficient oneCoef{1.0};
-    l2_vol_int.AddDomainIntegrator(new DomainLFIntegrator(oneCoef));
-    l2_vol_int.Assemble();
-    return l2_vol_int(*rho_);
 }
 
 double ElectrostaticSolver::getTotalCharge() const
@@ -447,6 +427,38 @@ std::unique_ptr<LinearForm> buildH1BoundaryIntegrator(
     return surf_int;
 }
 
+std::unique_ptr<GridFunction> cloneGridFunction(GridFunction* gf)
+{
+    auto res = std::make_unique<GridFunction>(gf->FESpace());
+    for (int i = 0; i < gf->Size(); ++i) {
+        (*res)[i] = (*gf)[i];
+    }
+    return std::move(res);
+}
+
+void copyGridFunctionValues(GridFunction* tgt, const GridFunction* src)
+{
+    assert(tgt->Size() == src->Size());
+    for (int i = 0; i < src->Size(); ++i) {
+        (*tgt)[i] = (*src)[i];
+    }
+}
+
+SolverSolution ElectrostaticSolver::getSolution() const
+{
+    SolverSolution res;
+    res.phi = cloneGridFunction(phi_);
+    res.e = cloneGridFunction(e_);
+    res.d = cloneGridFunction(d_);
+    return res;
+}
+
+void ElectrostaticSolver::setSolution(const SolverSolution& s)
+{
+    copyGridFunctionValues(phi_, s.phi.get());
+    copyGridFunctionValues(e_, s.e.get());
+    copyGridFunctionValues(d_, s.d.get());
+}
 
 double ElectrostaticSolver::getChargeInBoundary(int bdrAttribute) const
 {
@@ -526,7 +538,6 @@ void ElectrostaticSolver::writeParaViewFields(ParaViewDataCollection& pv) const
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
-    //pv.RegisterField("Rho", rho_);
 
     pv.Save();
 }
@@ -538,7 +549,6 @@ void ElectrostaticSolver::writeVisItFields(
     pv.RegisterField("Phi", phi_);
     pv.RegisterField("D", d_);
     pv.RegisterField("E", e_);
-    pv.RegisterField("Rho", rho_);
 
     pv.Save();
 }
