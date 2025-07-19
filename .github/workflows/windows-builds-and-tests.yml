@@ -1,4 +1,4 @@
-name: "Tests"
+name: "Windows | Build and tests"
 
 permissions:
   actions: write
