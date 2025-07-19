@@ -1,4 +1,4 @@
-name: "Windows | Build and tests"
+name: "Ubuntu | Build and tests"
 
 permissions:
   actions: write
@@ -30,16 +30,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Cancel Previous Runs
-      uses: styfle/cancel-workflow-action@0.11.0
-      with:
-        access_token: ${{ github.token }}
-
     - name: checkout PULMTLN
       uses: actions/checkout@v3
       with:
         path: ${{ env.PULMTLN_TOP_DIR }}
         ssh-key: ${{secrets.PULMTLN_SSH_KEY}}
+        submodules: 'recursive'
 
     - name: getcmake
       uses: lukka/get-cmake@latest
