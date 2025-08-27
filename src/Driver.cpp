@@ -105,6 +105,10 @@ mfem::DenseMatrix Driver::getCFromGeneralizedC(
 	const mfem::DenseMatrix& gC,
 	const Model::Openness& opennness)
 {
+	// Implements (5.21) from,
+	// Clayton Paul. Analysis of multiconductor transmision lines. 2007.
+	
+	
 	mfem::DenseMatrix C(gC.NumRows() - 1, gC.NumCols() - 1);
 
 	if (opennness == Model::Openness::closed) {
