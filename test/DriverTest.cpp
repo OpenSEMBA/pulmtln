@@ -280,6 +280,110 @@ TEST_F(DriverTest, three_wires_ribbon)
 	}
 }
 
+mfem::DenseMatrix getCfromGeneralizedC(const mfem::DenseMatrix& gC)
+{
+	mfem::DenseMatrix C(gC.NumRows() - 1, gC.NumCols() - 1);
+
+	double den = 0.0;
+	for (int i = 0; i < gC.NumRows(); ++i) {
+		for (int j = 0; j < gC.NumCols(); ++j) {
+			den += gC(i, j);
+		}
+	}
+
+	for (int i = 1; i <= C.NumRows(); ++i) {
+		for (int j = 1; j <= C.NumCols(); ++j) {
+			double rowSum = 0.0;
+			for (int k = 0; k < gC.NumCols(); ++k) {
+				rowSum += gC(i, k);
+			}
+			double colSum = 0.0;
+			for (int m = 0; m < gC.NumRows(); ++m) {
+				colSum += gC(m, j);
+			}
+			C(i - 1, j - 1) = gC(i, j) - rowSum * colSum / den;
+		}
+	}
+
+	return C;
+}
+
+TEST_F(DriverTest, getCfromGeneralizedC)
+{
+	// Three wires ribbon open problem. 
+	// Comparison with Clayton Paul's book:  
+	// Analysis of multiconductor transmision lines. 2007.
+	// Sec. 5.2.3, p. 187.
+
+	double gCData[9] = {
+	  26.2148,  -18.0249,  -5.03325,
+	 -18.0249,   37.8189, -18.0249,
+	  -5.03325, -18.0249,  26.2148
+	};
+	mfem::DenseMatrix gC(3, 3);
+	gC.UseExternalData(gCData, 3, 3);
+	gC*= 1e-12;
+
+
+	double CExpectedData[4] = {
+		  37.432, -18.716,
+		 -18.716,  24.982
+	};
+	mfem::DenseMatrix CExpected(2, 2);
+	CExpected.UseExternalData(CExpectedData, 2, 2);
+	CExpected *= 1e-12;
+
+	auto C = getCfromGeneralizedC(gC);
+	
+	const double rTol{ 0.001 };
+	ASSERT_EQ(CExpected.NumRows(), C.NumRows());
+	ASSERT_EQ(CExpected.NumCols(), C.NumCols());
+	for (int i{ 0 }; i < CExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < CExpected.NumCols(); j++) {
+			EXPECT_LE(relError(CExpected(i, j), C(i, j)), rTol) <<
+				"In C(" << i << ", " << j << ")";
+		}
+	}
+}
+
+
+TEST_F(DriverTest, three_wires_ribbon_generalized_capacitance)
+{
+	// Three wires ribbon open problem. 
+	// Comparison with Clayton Paul's book:  
+	// Analysis of multiconductor transmision lines. 2007.
+	// Sec. 5.2.3, p. 187.
+
+	const std::string CASE{ "three_wires_ribbon" };
+	auto fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+
+	auto dr = Driver::loadFromFile(fn);
+
+	double gCExpectedData[9] = {
+	  26.2148,  -18.0249,  -5.03325,
+	 -18.0249,   37.8189, -18.0249,
+	  -5.03325, -18.0249,  26.2148
+	};
+	mfem::DenseMatrix gCExpected(3, 3);
+	gCExpected.UseExternalData(gCExpectedData, 3, 3);
+	gCExpected *= 1e-12;
+
+	auto gC = dr.getCMatrix(false, true);
+	gC *= EPSILON0_SI;
+
+	const double rTol{ 0.008 };
+	ASSERT_EQ(gCExpected.NumRows(), gC.NumRows());
+	ASSERT_EQ(gCExpected.NumCols(), gC.NumCols());
+	for (int i{ 0 }; i < gCExpected.NumRows(); i++) {
+		for (int j{ 0 }; j < gCExpected.NumCols(); j++) {
+			EXPECT_LE(relError(gCExpected(i, j), gC(i, j)), rTol) <<
+				"In gC(" << i << ", " << j << ")";
+		}
+	}
+
+
+}
+
 TEST_F(DriverTest, three_wires_ribbon_floating_potentials)
 {
 	// Three wires ribbon open problem. 
