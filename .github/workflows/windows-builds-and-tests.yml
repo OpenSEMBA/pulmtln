@@ -80,9 +80,6 @@ jobs:
         metis-dir: ${{ env.METIS_TOP_DIR }}
         mfem-dir: ${{ env.MFEM_TOP_DIR }}
  
-    # - name: Setup tmate session
-    #   uses: mxschmitt/action-tmate@v3
-
     - name: Configuring PULMTLN
       env: 
         MFEM_PACKAGE: ${{ github.workspace }}/${{env.MFEM_TOP_DIR}}/build
