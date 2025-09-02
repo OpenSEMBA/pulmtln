@@ -721,6 +721,10 @@ TEST_F(DriverTest, lansink2024_single_wire_multipolar_in_cell_parameters)
 		EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
 	}
 
+	// Check that multipolar expansion for the bare wire produces a 1 V at the boundary.
+	auto a0 = inCell.magnetic.at(0).ab[0].first;
+	auto Va = a0 / (2 * M_PI) * log(1.0 / 1e-3);
+	EXPECT_NEAR(1.0, Va, 1e-3);
 }
 
 TEST_F(DriverTest, getCFromGeneralizedC_two_wires_open)
