@@ -597,7 +597,7 @@ TEST_F(DriverTest, lansink2024_two_wires_using_multipolar_expansion)
 	EXPECT_NEAR(0.0, relError(expectedL11, computedL11), rTol);
 }
 
-TEST_F(DriverTest, lansink2024_two_wires_shifted_and_centered)
+TEST_F(DriverTest, lansink2024_fdtd_cell_shifted_and_centered)
 {
 	// From:
 	// Rotgerink, J.L. et al. (2024, September).

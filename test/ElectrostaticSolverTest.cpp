@@ -791,9 +791,78 @@ TEST_F(ElectrostaticSolverTest, lansink2024_single_wire_L00_with_floating)
 
 	exportSolution(s, getTestCaseName());
 
-	auto expectedL00 = 320e-9; // Table 3 result has a mistake. This is the correct value.
+	// Table 3 result has a mistake. 
+	// This is the correct value obtained through personal communication.
+	auto expectedL00 = 320e-9;
 
 	// 
 	double rTol = 0.04;
 	EXPECT_NEAR(0.0, relError(expectedL00, computedL00), rTol);
+}
+
+TEST_F(ElectrostaticSolverTest, lansink2024_small_one_centered_bem_comparison)
+{
+	// Case from:
+	// Rotgerink, J.L. et al. (2024, September).
+	// Numerical Computation of In - cell Parameters for Multiwire Formalism in FDTD.
+	// In 2024 International Symposium on Electromagnetic Compatibility
+	// EMC Europe(pp. 334 - 339). IEEE.
+
+	// SMALL WIRE IS CENTERED AT ORIGIN.
+	// This test compares multipolar expansion results between Tulip and BEM.
+
+	const std::string CASE{ "lansink2024_small_one_centerd" };
+	const std::string fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
+	auto model{ Parser{fn}.readModel() };
+
+	SolverInputs p;
+	p.dirichletBoundaries = {
+		{
+			{1, 1.0}, // Conductor 0,
+			{2, 0.0}, // Conductor 1,
+		}
+	};
+	p.openBoundaries = { 3 };
+
+	ElectrostaticSolver s{ *model.getMesh(), p };
+	s.Solve();
+	
+
+	int order = 2;
+
+	// Tulip coefficients.
+	multipolarCoefficients ab(order + 1);
+	mfem::Vector origin({ 0.0, 0.0 });
+	for (int n = 0; n < order + 1; n++) {
+		ab[n] = {
+			s.getChargeMomentComponent(n, 0, origin),
+			s.getChargeMomentComponent(n, 1, origin)
+		};
+	}
+
+	// BEM coefficients.
+	multipolarCoefficients abBEM(order + 1);
+	ab[0] = { 1.0, 0.0 };
+	ab[1] = { 0.005, 0.0 };
+	ab[2] = { 8.7819e-5, 0 };
+
+	// Checks.
+	const double aTol = 0.001;
+	for (int n = 0; n < order + 1; n++) {
+		EXPECT_NEAR(ab[n].first,  abBEM[n].first,  aTol);
+		EXPECT_NEAR(ab[n].second, abBEM[n].second, aTol);
+	}
+
+	// For debugging.
+	// Export FEM solution.
+	exportSolution(s, getTestCaseName());
+
+	// Export multipolar expansion projection.
+	auto multipolarSolution = s.getSolution();
+	std::function<double(const Vector&)> f =
+		std::bind(&multipolarExpansion, std::placeholders::_1, ab, origin);
+	FunctionCoefficient fc(f);
+	multipolarSolution.phi->ProjectCoefficient(fc);
+	s.setSolution(multipolarSolution);
+	exportSolution(s, getTestCaseName()+"_from_multipolar_expansion");
 }
