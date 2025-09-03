@@ -811,15 +811,17 @@ TEST_F(ElectrostaticSolverTest, lansink2024_small_one_centered_bem_comparison)
 	// SMALL WIRE IS CENTERED AT ORIGIN.
 	// This test compares multipolar expansion results between Tulip and BEM.
 
-	const std::string CASE{ "lansink2024_small_one_centerd" };
+	const std::string CASE{ "lansink2024_small_one_centered" };
 	const std::string fn{ casesFolder() + CASE + "/" + CASE + ".pulmtln.in.json" };
 	auto model{ Parser{fn}.readModel() };
+
+	auto fp = Driver::loadFromFile(fn).getFloatingPotentials().electric;
 
 	SolverInputs p;
 	p.dirichletBoundaries = {
 		{
-			{1, 1.0}, // Conductor 0,
-			{2, 0.0}, // Conductor 1,
+			{1, fp(0,0)}, // Conductor 0,
+			{2, fp(0,1)}, // Conductor 1,
 		}
 	};
 	p.openBoundaries = { 3 };
@@ -842,15 +844,16 @@ TEST_F(ElectrostaticSolverTest, lansink2024_small_one_centered_bem_comparison)
 
 	// BEM coefficients.
 	multipolarCoefficients abBEM(order + 1);
-	ab[0] = { 1.0, 0.0 };
-	ab[1] = { 0.005, 0.0 };
-	ab[2] = { 8.7819e-5, 0 };
+	abBEM[0] = { 1.0, 0.0 };
+	abBEM[1] = { 0.005, 0.0 };
+	abBEM[2] = { 8.7819e-5, 0 };
 
-	// Checks.
-	const double aTol = 0.001;
+	// Checks normalizing by total charge.
+	const double aTol = 1e-4;
+	auto a0 = ab[0].first;
 	for (int n = 0; n < order + 1; n++) {
-		EXPECT_NEAR(ab[n].first,  abBEM[n].first,  aTol);
-		EXPECT_NEAR(ab[n].second, abBEM[n].second, aTol);
+		EXPECT_NEAR(ab[n].first / a0,  abBEM[n].first,  aTol) << "for n=" << n;
+		EXPECT_NEAR(ab[n].second / a0, abBEM[n].second, aTol) << "for n=" << n;
 	}
 
 	// For debugging.
@@ -864,5 +867,21 @@ TEST_F(ElectrostaticSolverTest, lansink2024_small_one_centered_bem_comparison)
 	FunctionCoefficient fc(f);
 	multipolarSolution.phi->ProjectCoefficient(fc);
 	s.setSolution(multipolarSolution);
-	exportSolution(s, getTestCaseName()+"_from_multipolar_expansion");
+	exportSolution(s, getTestCaseName()+"_from_multipolar_expansion_in_origin");
+
+	// Computes and exports multipolar expansion with center of charge.
+	{
+		ElectrostaticSolver s{ *model.getMesh(), p };
+		s.Solve();
+		auto centerOfCharge = s.getCenterOfCharge();
+		auto mCoeff = s.getMultipolarCoefficients(order);
+		std::function<double(const Vector&)> f =
+			std::bind(&multipolarExpansion, std::placeholders::_1, mCoeff, centerOfCharge);
+		FunctionCoefficient fc(f);
+		auto multipolarSolution = s.getSolution();
+		multipolarSolution.phi->ProjectCoefficient(fc);
+		s.setSolution(multipolarSolution);
+		exportSolution(s, getTestCaseName() + "_from_multipolar_expansion_in_center_of_charge");
+	}
+
 }
